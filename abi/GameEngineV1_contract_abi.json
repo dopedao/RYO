@@ -1,0 +1,184 @@
+[
+    {
+        "inputs": [
+            {
+                "name": "address",
+                "type": "felt"
+            }
+        ],
+        "name": "set_market_maker_address",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "city_id",
+                "type": "felt"
+            },
+            {
+                "name": "suburb_id",
+                "type": "felt"
+            },
+            {
+                "name": "item_id",
+                "type": "felt"
+            },
+            {
+                "name": "item_quantity",
+                "type": "felt"
+            },
+            {
+                "name": "money_quantity",
+                "type": "felt"
+            }
+        ],
+        "name": "admin_set_market_amount",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "user_id",
+                "type": "felt"
+            },
+            {
+                "name": "item_id",
+                "type": "felt"
+            },
+            {
+                "name": "item_quantity",
+                "type": "felt"
+            }
+        ],
+        "name": "admin_set_user_amount",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "user_id",
+                "type": "felt"
+            },
+            {
+                "name": "city_id",
+                "type": "felt"
+            },
+            {
+                "name": "suburb_id",
+                "type": "felt"
+            },
+            {
+                "name": "buy_or_sell",
+                "type": "felt"
+            },
+            {
+                "name": "item_id",
+                "type": "felt"
+            },
+            {
+                "name": "amount_to_give",
+                "type": "felt"
+            }
+        ],
+        "name": "have_turn",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "user_id",
+                "type": "felt"
+            }
+        ],
+        "name": "check_user_state",
+        "outputs": [
+            {
+                "name": "money",
+                "type": "felt"
+            },
+            {
+                "name": "id1",
+                "type": "felt"
+            },
+            {
+                "name": "id2",
+                "type": "felt"
+            },
+            {
+                "name": "id3",
+                "type": "felt"
+            },
+            {
+                "name": "id4",
+                "type": "felt"
+            },
+            {
+                "name": "id5",
+                "type": "felt"
+            },
+            {
+                "name": "id6",
+                "type": "felt"
+            },
+            {
+                "name": "id7",
+                "type": "felt"
+            },
+            {
+                "name": "id8",
+                "type": "felt"
+            },
+            {
+                "name": "id9",
+                "type": "felt"
+            },
+            {
+                "name": "id10",
+                "type": "felt"
+            },
+            {
+                "name": "city",
+                "type": "felt"
+            },
+            {
+                "name": "suburb",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "city",
+                "type": "felt"
+            },
+            {
+                "name": "suburb",
+                "type": "felt"
+            },
+            {
+                "name": "item_id",
+                "type": "felt"
+            }
+        ],
+        "name": "check_market_state",
+        "outputs": [
+            {
+                "name": "item_quantity",
+                "type": "felt"
+            },
+            {
+                "name": "money_quantity",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    }
+]

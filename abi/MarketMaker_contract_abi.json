@@ -1,0 +1,34 @@
+[
+    {
+        "inputs": [
+            {
+                "name": "market_a_pre",
+                "type": "felt"
+            },
+            {
+                "name": "market_b_pre",
+                "type": "felt"
+            },
+            {
+                "name": "user_gives_a",
+                "type": "felt"
+            }
+        ],
+        "name": "trade",
+        "outputs": [
+            {
+                "name": "market_a_post",
+                "type": "felt"
+            },
+            {
+                "name": "market_b_post",
+                "type": "felt"
+            },
+            {
+                "name": "user_gets_b",
+                "type": "felt"
+            }
+        ],
+        "type": "function"
+    }
+]
