@@ -180,16 +180,5 @@
         ],
         "stateMutability": "view",
         "type": "function"
-    },
-    {
-        "inputs": [],
-        "name": "get_pseudorandom",
-        "outputs": [
-            {
-                "name": "num_to_use",
-                "type": "felt"
-            }
-        ],
-        "type": "function"
     }
 ]

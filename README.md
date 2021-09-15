@@ -56,6 +56,9 @@ File name prefixes are paired (e.g., contract, ABI and test all share comon pref
 
 ### Compile
 
+The compiler will check the integrity of the code locally.
+It will also produce an ABI, which is a mapping of the contract functions
+(used to interact with the contract).
 ```
 starknet-compile contracts/GameEngineV1.cairo \
     --output contracts/GameEngineV1_compiled.json \
@@ -86,14 +89,50 @@ starknet deploy --contract MarketMaker_compiled.json \
 Upon deployment, the CLI will return an address, which can be used
 to interact with.
 
+Check deployment status by passing in the transaction ID you receive:
+```
+starknet tx_status --network=alpha --id=143843
+```
+`PENDING` Means that the transaction passed the validation and is waiting to be sent on-chain.
+```
+{
+    "block_id": 15650,
+    "tx_status": "PENDING"
+}
+```
 ### Interact
+
+CLI - Write (initialise markets)
+```
+starknet invoke \
+    --network=alpha \
+    --address 0x035e5e589f4ef5736b27958f1733c9ee64d12ffeb9ce8cc4019d50911e2685de \
+    --abi abi/GameEngineV1_contract_abi.json \
+    --function admin_set_market_amount \
+    --inputs 7 2 3 10 12000
+```
+That will randomize the all markets (with the exception of the one specified).
+
+**Dev note:** The market initialization method worked locally, but exceeded the allowable limit in the sequencing service. May have to try in batches / redesign how initialization works.
+```
+starknet tx_status --network=alpha --id=143902                                                                                                                                                                                          *[engine-loop]
+{
+    "tx_failure_reason": {
+        "code": "INVALID_TRANSACTION",
+        "error_message": "Transaction with ID 143902 of type InvokeFunction is too big for batch. Exception details: No room for transaction due to pedersen_builtin reaching capacity. Value: 390180.0. Limit: 125000.0. Note that this is the first transaction in the batch; meaning, batch will not be closed.",
+        "tx_id": 143902
+    },
+    "tx_status": "REJECTED"
+}
+```
+
 
 CLI - Write
 ```
 starknet invoke \
     --network=alpha \
-    --address 0x02c9163ce5908b12a1d547e736f8ab6f5543f6ef1fd4994c7f1b146087f3279a \
-    --abi GameEngineV1_contract_abi.json \
+    --address 0x035e5e589f4ef5736b27958f1733c9ee64d12ffeb9ce8cc4019d50911e2685de \
+    --abi abi/GameEngineV1_contract_abi.json \
     --function admin_set_user_amount \
     --inputs 733 3 200
 ```
@@ -101,18 +140,18 @@ CLI - Read
 ```
 starknet call \
     --network=alpha \
-    --address 0x02c9163ce5908b12a1d547e736f8ab6f5543f6ef1fd4994c7f1b146087f3279a \
-    --abi GameEngineV1_contract_abi.json \
+    --address 0x035e5e589f4ef5736b27958f1733c9ee64d12ffeb9ce8cc4019d50911e2685de \
+    --abi abi/GameEngineV1_contract_abi.json \
     --function check_user_state \
     --inputs 733
 ```
-Or with the Voyager browser [here](https://voyager.online/contract/0x02c9163ce5908b12a1d547e736f8ab6f5543f6ef1fd4994c7f1b146087f3279a#writeContract).
+Or with the Voyager browser [here](https://voyager.online/contract/0x035e5e589f4ef5736b27958f1733c9ee64d12ffeb9ce8cc4019d50911e2685de#writeContract).
 
 ## Next steps
 
 Building out parts to make a functional `v1`.
 
-- Initialised state
+- Initialised player state
 - Random theft
 - Cost to travel
 - Turn rate limiting

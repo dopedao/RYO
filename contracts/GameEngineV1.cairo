@@ -11,7 +11,7 @@ from starkware.cairo.common.bitwise import bitwise_xor
 
 #### Other Contract Info ####
 # Address of previously deployed MarketMaket.cairo contract.
-#const MARKET_MAKER_ADDRESS = 0x07f9ad51033cd6107ad7d70d01c3b0ba2dda3331163a45b6b7f1a2952dac0880
+const MARKET_MAKER_ADDRESS = 0x07f9ad51033cd6107ad7d70d01c3b0ba2dda3331163a45b6b7f1a2952dac0880
 # Modifiable address pytest deployments.
 @storage_var
 func market_maker_address() -> (address : felt):
@@ -67,13 +67,18 @@ end
 func entropy_seed() -> (value : felt):
 end
 
+# Market initialization flag (0 awaiting, 1 final)
+@storage_var
+func market_initialized() -> (value : felt):
+end
+
 #### Admin Functions for Testing ####
 # Sets the address of the deployed MarketMaker.cairo contract.
 @external
 func set_market_maker_address{storage_ptr : Storage*,
         pedersen_ptr : HashBuiltin*, range_check_ptr}(
         address : felt):
-    # Used for testing. This can be ca constant on deployment.
+    # Used for testing. This can be constant on deployment.
     market_maker_address.write(address)
     return ()
 end
@@ -85,8 +90,18 @@ func admin_set_market_amount{storage_ptr : Storage*,
         pedersen_ptr : HashBuiltin*, range_check_ptr}(city_id : felt,
         suburb_id : felt, item_id : felt, item_quantity : felt,
         money_quantity : felt):
+    let (has_been_set : felt) = market_initialized.read()
+    if has_been_set == 1:
+        # Can only initialize once.
+        return ()
+    end
+    # Generate all market pairs.
+    loop_over_cities(10)
+    market_initialized.write(1)
+
     # Set the quantity for a particular item in a specific market.
     # E.g., item_id 3, a market has 500 units, 3200 money liquidity.
+    # Used for testing.
     market_has_item.write(city_id, suburb_id, item_id, item_quantity)
     market_has_money.write(city_id, suburb_id, item_id, money_quantity)
     return ()
@@ -162,8 +177,8 @@ func have_turn{syscall_ptr : felt*, storage_ptr : Storage*,
     local market_b_pre = market_b_pre_temp
 
     # Uncomment for pytest: Get address of MarketMaker.
-    let (market_maker) = market_maker_address.read()
-    # let market_maker = MARKET_MAKER_ADDRESS
+    #let (market_maker) = market_maker_address.read()
+    let market_maker = MARKET_MAKER_ADDRESS
 
     # Execute trade by calling the market maker contract.
     let (market_a_post, market_b_post,
@@ -255,7 +270,7 @@ end
 
 # Gets hard-to-predict values. Player can draw multiple times.
 # Has not been tested rigorously.
-@external
+# @external # '@external' for testing only.
 func get_pseudorandom{storage_ptr : Storage*,
         pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
         num_to_use : felt):
@@ -270,4 +285,51 @@ func get_pseudorandom{storage_ptr : Storage*,
     # Number has form: 10**9 (xxxxxxxxxx).
     entropy_seed.write(new_seed)
     return (new_seed)
+end
+
+# Recursion to iterate over item_ids. Sets market curve initial values.
+func loop_over_items{storage_ptr : Storage*, pedersen_ptr : HashBuiltin*,
+        range_check_ptr}(city_id : felt, suburb_id : felt, item_id : felt):
+    # Should be called with item=10.
+    if item_id == 0:
+        return ()
+    end
+    loop_over_items(city_id=city_id, suburb_id=suburb_id, item_id = item_id - 1)
+
+    let (pseudorandom) = get_pseudorandom()
+    # $yy,yyy money into the curve. # xxx items into the curve (more money than items).
+    let (money_quant, item_quant) = unsigned_div_rem(pseudorandom, 10000)
+    # Save state.
+    market_has_money.write(city_id=city_id, suburb_id=suburb_id,
+        item_id=item_id, value=money_quant)
+    market_has_item.write(city_id=city_id, suburb_id=suburb_id,
+        item_id=item_id, value=item_quant)
+    return ()
+end
+
+# Recursion to iterate over suburb_ids.
+func loop_over_suburbs{storage_ptr : Storage*, pedersen_ptr : HashBuiltin*,
+        range_check_ptr}(city_id : felt, suburb_id : felt):
+    #Should be called with suburb_id=4.
+    if suburb_id == 0:
+        return ()
+    end
+    loop_over_suburbs(city_id=city_id, suburb_id=suburb_id - 1)
+    # Now at end of suburbs. Start looping over items.
+    loop_over_items(city_id, suburb_id, 10)
+    return ()
+end
+
+# Recursion to iterate over city_ids.
+# '@external` for testing only.
+func loop_over_cities{storage_ptr : Storage*, pedersen_ptr : HashBuiltin*,
+        range_check_ptr}(city_id : felt):
+    # Should be called with city_id=10.
+    if city_id == 0:
+        return ()
+    end
+    loop_over_cities(city_id=city_id - 1)
+    # Now at end of cities. Start looping over suburbs.
+    loop_over_suburbs(city_id, 4)
+    return ()
 end
