@@ -1,0 +1,9 @@
+#!/bin/bash
+set -eu
+
+IMG=ghcr.io/dopedao/ryo:latest
+
+exec docker run -it --rm \
+        -v=`pwd`/..:`pwd`/.. \
+        -w=`pwd` \
+  "$IMG" $@
