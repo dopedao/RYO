@@ -30,7 +30,7 @@ bin/shell starknet --version
 The CLI allows you to deploy to StarkNet and read/write to contracts
 already deployed. The CLI communicates with a server that StarkNet
 runs, which bundles the requests, executes the program (contracts are
-Cairo programs), creates and aggregates validity proofs, then post them
+Cairo programs), creates and aggregates validity proofs, then posts them
 to the Goerli Ethereum testnet. Learn more in the [Cairo language and StarkNet docs](https://www.cairo-lang.org/docs/)
 
 If using VS-code for writing code, install the extension for syntax highlighting:
