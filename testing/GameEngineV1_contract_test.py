@@ -46,25 +46,40 @@ async def test_record_items():
 
     # Set up a scenario. A user who will go to some market and trade
     # in some item in exchange for money.
+    total_locations=40
+    location_id = 34
     user_id = 3
     item_id = 5
-    city_id = 9
-    suburb_id = 4
+
     # User has small amount of money, but lots of the item they are selling.
     user_money_pre = 300
     user_item_pre = 55
-    # Market has lots of money, not a lot of the item it is receiving.
-    # This will use override
-    market_item_pre = 10
-    market_money_pre = 12000
     # Set action (buy=0, sell=1)
     buy_or_sell = 1  # Selling
     # How much is the user giving (either money or item)
     item_quantity = 20  # 20 of the item.
 
+    # E.g., 10 items in location 1, 20 loc 2.
+    sample_item_count_list = [total_locations,
+        10, 20, 30, 40, 50, 60, 70, 80, 90, 100,
+        10, 20, 30, 40, 50, 60, 70, 80, 90, 100,
+        10, 20, 30, 40, 50, 60, 70, 80, 90, 100,
+        10, 20, 30, 42, 50, 60, 70, 80, 90, 100]
+    # E.g., 100 money in curve for item location 1, 200 loc 2.
+    sample_item_money_list = [total_locations,
+        100, 200, 300, 400, 500, 600, 700, 800, 900, 1000,
+        100, 200, 300, 400, 500, 600, 700, 800, 900, 1000,
+        100, 200, 300, 400, 500, 600, 700, 800, 900, 1000,
+        100, 200, 300, 444, 500, 600, 700, 800, 900, 1000]
+    # Market has lots of money, not a lot of the item it is receiving.
+    # This will use override
+    market_item_pre = sample_item_count_list[location_id]  # val=42.
+    market_money_pre = sample_item_money_list[location_id]  # val=444.
+
     # Create the market.
-    await engine_contract.admin_set_market_amount(city_id, suburb_id,
-        item_id, market_item_pre, market_money_pre).invoke()
+    # Populate the item pair of interest across all locations.
+    await engine_contract.admin_set_pairs_for_item(item_id,
+        sample_item_count_list, sample_item_money_list).invoke()
     # Give the user item.
     await engine_contract.admin_set_user_amount(user_id, item_id,
         user_item_pre).invoke()
@@ -75,11 +90,11 @@ async def test_record_items():
         user_id).invoke()
     print('pre_trade_user', pre_trade_user)
     pre_trade_market = await engine_contract.check_market_state(
-        city_id, suburb_id, item_id).invoke()
+        location_id, item_id).invoke()
     print('pre_trade_market', pre_trade_market)
 
     # Execute a game turn.
-    await engine_contract.have_turn(user_id, city_id, suburb_id,
+    await engine_contract.have_turn(user_id, location_id,
         buy_or_sell, item_id, item_quantity).invoke()
 
     # Inspect post-trade state
@@ -87,17 +102,16 @@ async def test_record_items():
         user_id).invoke()
     print('post_trade_user', post_trade_user)
     post_trade_market = await engine_contract.check_market_state(
-        city_id, suburb_id, item_id).invoke()
+        location_id, item_id).invoke()
     print('post_trade_market', post_trade_market)
 
     # Check money made. (Assert user money (index 0) post > money pre)
     assert post_trade_user[0] > user_money_pre
     # Check gave items. (Assert user item quantity (index=item_id) post > money pre)
     assert post_trade_user[item_id] < user_item_pre
-    # Check city is set
-    assert post_trade_user[11] == city_id
-    # Check suburb is set
-    assert post_trade_user[12] == suburb_id
+    # Check location is set
+    assert post_trade_user[11] == location_id
+
 
     # Check that the market gained item
     assert post_trade_market[0] > market_item_pre
@@ -111,8 +125,10 @@ async def test_record_items():
         + post_trade_market[0] + post_trade_market[1]
     assert units_pre == units_post
 
+    # Check that another location has been set.
+    random_location = 7
     (random_item, random_money) = await engine_contract.check_market_state(
-        10, 2, 1).invoke()
+        random_location, item_id).invoke()
     assert random_money != 0
 
 
