@@ -232,8 +232,8 @@ func have_turn{
     local market_b_pre = market_b_pre_temp
 
     # Uncomment for pytest: Get address of MarketMaker.
-    let (market_maker) = market_maker_address.read()
-    #let market_maker = MARKET_MAKER_ADDRESS
+    #let (market_maker) = market_maker_address.read()
+    let market_maker = MARKET_MAKER_ADDRESS
 
     # Execute trade by calling the market maker contract.
     let (market_a_post, market_b_post,

@@ -80,10 +80,10 @@ pytest testing/MarketMaker_contract_test.py
 ### Deploy
 
 ```
-starknet deploy --contract GameEngineV1_compiled.json \
+starknet deploy --contract contracts/GameEngineV1_compiled.json \
     --network=alpha
 
-starknet deploy --contract MarketMaker_compiled.json \
+starknet deploy --contract contracts/MarketMaker_compiled.json \
     --network=alpha
 ```
 Upon deployment, the CLI will return an address, which can be used
@@ -91,71 +91,94 @@ to interact with.
 
 Check deployment status by passing in the transaction ID you receive:
 ```
-starknet tx_status --network=alpha --id=143843
+starknet tx_status --network=alpha --id=151281
 ```
 `PENDING` Means that the transaction passed the validation and is waiting to be sent on-chain.
 ```
 {
-    "block_id": 15650,
-    "tx_status": "PENDING"
+    "block_id": 16065,
+    "tx_status": "ACCEPTED_ONCHAIN"
 }
 ```
 ### Interact
 
-CLI - Write (initialise markets)
+CLI - Write (initialise markets). Set up `item_id=5` across all 40 locations,
+with locations 1, 11, 21, etc. 2, 12, 22 etc. having identical curves. Each pair has 10x more money than item quantity.
 ```
 starknet invoke \
     --network=alpha \
-    --address 0x035e5e589f4ef5736b27958f1733c9ee64d12ffeb9ce8cc4019d50911e2685de \
+    --address 0x0605ecb2519a1953425824356435b04364bebd3513e1c34fcb4c75ded01e6b29 \
     --abi abi/GameEngineV1_contract_abi.json \
-    --function admin_set_market_amount \
-    --inputs 7 2 3 10 12000
+    --function admin_set_pairs_for_item \
+    --inputs 5 \
+        40 \
+        10 20 30 40 50 60 70 80 90 100 \
+        10 20 30 40 50 60 70 80 90 100 \
+        10 20 30 40 50 60 70 80 90 100 \
+        10 20 30 42 50 60 70 80 90 100 \
+        40 \
+        100 200 300 400 500 600 700 800 900 1000 \
+        100 200 300 400 500 600 700 800 900 1000 \
+        100 200 300 400 500 600 700 800 900 1000 \
+        100 200 300 444 500 600 700 800 900 1000
 ```
-That will randomize the all markets (with the exception of the one specified).
+Change `5` to another `item_id` in the range `1-10` to populate other curves.
 
-**Dev note:** The market initialization method worked locally, but exceeded the allowable limit in the sequencing service. May have to try in batches / redesign how initialization works.
 ```
-starknet tx_status --network=alpha --id=143902                                                                                                                                                                                          *[engine-loop]
-{
-    "tx_failure_reason": {
-        "code": "INVALID_TRANSACTION",
-        "error_message": "Transaction with ID 143902 of type InvokeFunction is too big for batch. Exception details: No room for transaction due to pedersen_builtin reaching capacity. Value: 390180.0. Limit: 125000.0. Note that this is the first transaction in the batch; meaning, batch will not be closed.",
-        "tx_id": 143902
-    },
-    "tx_status": "REJECTED"
-}
-```
-
-
-CLI - Write
+CLI - Write (initialize user). Set up `user_id=733` to have `200` of item `5`.
 ```
 starknet invoke \
     --network=alpha \
-    --address 0x035e5e589f4ef5736b27958f1733c9ee64d12ffeb9ce8cc4019d50911e2685de \
+    --address 0x0605ecb2519a1953425824356435b04364bebd3513e1c34fcb4c75ded01e6b29 \
     --abi abi/GameEngineV1_contract_abi.json \
     --function admin_set_user_amount \
-    --inputs 733 3 200
+    --inputs 733 5 200
 ```
-CLI - Read
+CLI - Read (user state)
 ```
 starknet call \
     --network=alpha \
-    --address 0x035e5e589f4ef5736b27958f1733c9ee64d12ffeb9ce8cc4019d50911e2685de \
+    --address 0x0605ecb2519a1953425824356435b04364bebd3513e1c34fcb4c75ded01e6b29 \
     --abi abi/GameEngineV1_contract_abi.json \
     --function check_user_state \
     --inputs 733
 ```
-Or with the Voyager browser [here](https://voyager.online/contract/0x035e5e589f4ef5736b27958f1733c9ee64d12ffeb9ce8cc4019d50911e2685de#writeContract).
+CLI - Write (Have a turn). User `733` goes to location `34` to sell (sell is `1`,
+buy is `0`) item `5`, giving `100` units.
+```
+starknet invoke \
+    --network=alpha \
+    --address 0x0605ecb2519a1953425824356435b04364bebd3513e1c34fcb4c75ded01e6b29 \
+    --abi abi/GameEngineV1_contract_abi.json \
+    --function have_turn \
+    --inputs 733 34 1 5 100
+```
+Calling the `check_user_state()` function again reveals that the `100` units were
+exchanged for `333` money.
+
+Alternatively, see and do all of the above with the Voyager browser [here](https://voyager.online/contract/0x0605ecb2519a1953425824356435b04364bebd3513e1c34fcb4c75ded01e6b29#writeContract).
 
 ## Next steps
 
-Building out parts to make a functional `v1`.
+Building out parts to make a functional `v1`. Some good entry-level options
+for anyone wanting to try out Cairo.
 
-- Initialised player state
-- Random theft
-- Cost to travel
-- Turn rate limiting
-- User authentication
+- Initialised multiple player states.
+- Connect random engine to turn to trigger probabalistic theft.
+- Implement cost to travel for some locations.
+    - Locations will e.g., be 10 cities each with 4 suburbs.
+    - E.g., locations 1-10 are suburb 1. Locations 2, 12, 22, 32 are
+    city 2. So `location_id=27` is city 7, suburb 3. Free to travel to
+    other suburbs in same city (7, 17, 37).
+- Turn rate limiting. Game has global clock that increments every time
+    a turn occurs. User has a lockout of x clock ticks.
+- Game end criterion based on global clock.
+- Create lists of market pair values to initialize the game with. E.g.,
+for all 40 locations x 10 items = 400 money_count-item_count pairs as a separate file.
+- Initialize users with money upon first turn. (e.g., On first turn triggers save
+of starting amount e.g., 10,000, then sets the flag to )
+- Create caps on maximum parameters (40 location_ids, 10k user_ids, 10 item_ids)
+- User authentication. E.g., signature verification.
 
 Welcome:
 
