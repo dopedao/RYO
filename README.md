@@ -124,7 +124,6 @@ starknet invoke \
 ```
 Change `5` to another `item_id` in the range `1-10` to populate other curves.
 
-```
 CLI - Write (initialize user). Set up `user_id=733` to have `200` of item `5`.
 ```
 starknet invoke \
