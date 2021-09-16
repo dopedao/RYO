@@ -1,0 +1,18 @@
+name: test
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    container: ghcr.io/dopedao/ryo:latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: compile
+        run: bin/compile
+      - name: test
+        run: bin/test

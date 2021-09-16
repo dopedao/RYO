@@ -1,4 +1,5 @@
 # RYO
+
 Dope Wars game engine on StarkNet L2 roll-up.
 
 ## What
@@ -18,25 +19,22 @@ Join in and learn about:
 
 ## Setup
 
-Clone this repo, make and activate environment, install the Cairo language, check teh StarkNet CLI.
+Clone this repo and use our docker shell to interact with starknet:
 
 ```
 git clone git@github.com:dopedao/RYO.git
 cd RYO
-python3.7 -m venv ./venv
-source venv/bin/activate
-pip install cairo-lang
-starknet
+bin/shell starknet --version
 ```
-If installed properly, the CLI menu should appear.
 
 The CLI allows you to deploy to StarkNet and read/write to contracts
 already deployed. The CLI communicates with a server that StarkNet
-run, who bundle the request, execute the program (contracts are
-Cairo programs), create and aggregated validity proofs, then post that
-to Goerli Ethereum testnet. Learn more in the [Cairo language and StarkNet docs](https://www.cairo-lang.org/docs/)
+runs, which bundles the requests, executes the program (contracts are
+Cairo programs), creates and aggregates validity proofs, then posts them
+to the Goerli Ethereum testnet. Learn more in the [Cairo language and StarkNet docs](https://www.cairo-lang.org/docs/)
 
 If using VS-code for writing code, install the extension for syntax highlighting:
+
 ```
 curl -LO https://github.com/starkware-libs/cairo-lang/releases/download/v0.4.0/cairo-0.4.0.vsix
 code --install-extension cairo-0.4.0.vsix
@@ -86,6 +84,7 @@ starknet deploy --contract contracts/GameEngineV1_compiled.json \
 starknet deploy --contract contracts/MarketMaker_compiled.json \
     --network=alpha
 ```
+
 Upon deployment, the CLI will return an address, which can be used
 to interact with.
 

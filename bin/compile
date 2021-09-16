@@ -1,0 +1,10 @@
+#!/bin/bash
+set -eu
+
+starknet-compile contracts/GameEngineV1.cairo \
+    --output contracts/GameEngineV1_compiled.json \
+    --abi abi/GameEngineV1_contract_abi.json
+
+starknet-compile contracts/MarketMaker.cairo \
+    --output contracts/MarketMaker_compiled.json \
+    --abi abi/MarketMaker_contract_abi.json

@@ -1,0 +1,8 @@
+#!/bin/bash
+set -eu
+
+starknet deploy --contract GameEngineV1_compiled.json \
+    --network=alpha
+
+starknet deploy --contract MarketMaker_compiled.json \
+    --network=alpha
