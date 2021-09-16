@@ -31,7 +31,9 @@ The CLI allows you to deploy to StarkNet and read/write to contracts
 already deployed. The CLI communicates with a server that StarkNet
 runs, which bundles the requests, executes the program (contracts are
 Cairo programs), creates and aggregates validity proofs, then posts them
-to the Goerli Ethereum testnet. Learn more in the [Cairo language and StarkNet docs](https://www.cairo-lang.org/docs/)
+to the Goerli Ethereum testnet. Learn more in the Cairo language and StarkNet
+docs [here](https://www.cairo-lang.org/docs/), which also has instructions for manual
+installation if you are not using docker.
 
 If using VS-code for writing code, install the extension for syntax highlighting:
 
@@ -58,11 +60,11 @@ The compiler will check the integrity of the code locally.
 It will also produce an ABI, which is a mapping of the contract functions
 (used to interact with the contract).
 ```
-starknet-compile contracts/GameEngineV1.cairo \
+bin/shell starknet-compile contracts/GameEngineV1.cairo \
     --output contracts/GameEngineV1_compiled.json \
     --abi abi/GameEngineV1_contract_abi.json
 
-starknet-compile contracts/MarketMaker.cairo \
+bin/shell starknet-compile contracts/MarketMaker.cairo \
     --output contracts/MarketMaker_compiled.json \
     --abi abi/MarketMaker_contract_abi.json
 ```
@@ -70,18 +72,18 @@ starknet-compile contracts/MarketMaker.cairo \
 ### Test
 
 ```
-pytest testing/GameEngineV1_contract_test.py
+bin/shell pytest testing/GameEngineV1_contract_test.py
 
-pytest testing/MarketMaker_contract_test.py
+bin/shell pytest testing/MarketMaker_contract_test.py
 ```
 
 ### Deploy
 
 ```
-starknet deploy --contract contracts/GameEngineV1_compiled.json \
+bin/shell starknet deploy --contract contracts/GameEngineV1_compiled.json \
     --network=alpha
 
-starknet deploy --contract contracts/MarketMaker_compiled.json \
+bin/shell starknet deploy --contract contracts/MarketMaker_compiled.json \
     --network=alpha
 ```
 
@@ -90,7 +92,7 @@ to interact with.
 
 Check deployment status by passing in the transaction ID you receive:
 ```
-starknet tx_status --network=alpha --id=151281
+bin/shell starknet tx_status --network=alpha --id=151281
 ```
 `PENDING` Means that the transaction passed the validation and is waiting to be sent on-chain.
 ```
@@ -104,7 +106,7 @@ starknet tx_status --network=alpha --id=151281
 CLI - Write (initialise markets). Set up `item_id=5` across all 40 locations,
 with locations 1, 11, 21, etc. 2, 12, 22 etc. having identical curves. Each pair has 10x more money than item quantity.
 ```
-starknet invoke \
+bin/shell starknet invoke \
     --network=alpha \
     --address 0x0605ecb2519a1953425824356435b04364bebd3513e1c34fcb4c75ded01e6b29 \
     --abi abi/GameEngineV1_contract_abi.json \
@@ -125,7 +127,7 @@ Change `5` to another `item_id` in the range `1-10` to populate other curves.
 
 CLI - Write (initialize user). Set up `user_id=733` to have `200` of item `5`.
 ```
-starknet invoke \
+bin/shell starknet invoke \
     --network=alpha \
     --address 0x0605ecb2519a1953425824356435b04364bebd3513e1c34fcb4c75ded01e6b29 \
     --abi abi/GameEngineV1_contract_abi.json \
@@ -134,7 +136,7 @@ starknet invoke \
 ```
 CLI - Read (user state)
 ```
-starknet call \
+bin/shell starknet call \
     --network=alpha \
     --address 0x0605ecb2519a1953425824356435b04364bebd3513e1c34fcb4c75ded01e6b29 \
     --abi abi/GameEngineV1_contract_abi.json \
@@ -144,7 +146,7 @@ starknet call \
 CLI - Write (Have a turn). User `733` goes to location `34` to sell (sell is `1`,
 buy is `0`) item `5`, giving `100` units.
 ```
-starknet invoke \
+bin/shell starknet invoke \
     --network=alpha \
     --address 0x0605ecb2519a1953425824356435b04364bebd3513e1c34fcb4c75ded01e6b29 \
     --abi abi/GameEngineV1_contract_abi.json \
