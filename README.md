@@ -158,6 +158,37 @@ exchanged for `333` money.
 
 Alternatively, see and do all of the above with the Voyager browser [here](https://voyager.online/contract/0x0605ecb2519a1953425824356435b04364bebd3513e1c34fcb4c75ded01e6b29#writeContract).
 
+## Game flow
+
+```
+admin ->
+        initialise state variables
+        lock admin power
+user_1 ->
+        have_turn(got_to_loc, trade_x_for_y)
+            check if game finished.
+            check user authentification.
+            check if user allowed using game clock.
+            add to random seed.
+            user location update.
+                decrease money count if new city.
+            check for dealer dash (x %).
+                check for chase dealer (x %).
+            trade with market curve for location.
+            check for any of:
+                mugging (x %).
+                    check for run (x %).
+                gang bust (x %).
+                    check for fight (x %).
+                cop raid (x %).
+                    check for bribe (x %).
+                find item (x %).
+                local shipment (x %).
+                    update items count in suburb curve.
+            save next allowed turn as game_clock + n.
+user2 -> (same as user_1)
+```
+
 ## Next steps
 
 Building out parts to make a functional `v1`. Some good entry-level options
@@ -165,20 +196,32 @@ for anyone wanting to try out Cairo.
 
 - Initialised multiple player states.
 - Connect random engine to turn to trigger probabalistic theft.
-- Implement cost to travel for some locations.
+- Turn rate limiting. Game has global clock that increments every time
+    a turn occurs. User has a lockout of x clock ticks.
+- Game end criterion based on global clock.
+- Finish `mappings/locations.json`. Name places and implement different cost to travel for
+some locations.
     - Locations will e.g., be 10 cities each with 4 suburbs.
     - E.g., locations 1-10 are suburb 1. Locations 2, 12, 22, 32 are
     city 2. So `location_id=27` is city 7, suburb 3. Free to travel to
     other suburbs in same city (7, 17, 37).
-- Turn rate limiting. Game has global clock that increments every time
-    a turn occurs. User has a lockout of x clock ticks.
-- Game end criterion based on global clock.
-- Create lists of market pair values to initialize the game with. E.g.,
-for all 40 locations x 10 items = 400 money_count-item_count pairs as a separate file.
+    - Need to create a file with nice city/subrub names for these in
+- Finish `mappings/items.json`. Populate and tweak the item names and item unit price.
+E.g., cocaine price per unit different from weed price per unit.
+- Finish `mappings/initial_markets.csv`. Create lists of market pair values to initialize the
+game with. E.g., for all 40 locations x 10 items = 400 money_count-item_count pairs as a
+separate file. A mapping of 600 units with 6000 money initialises
+a dealer in that location with 60 of the item at (6000/60) 100 money per item. This mapping should
+be in the ballpark of the value in `items.json`. The fact that values deviate, creates trade
+opportunities at the start of the game. (e.g., a location might have large quantity at lower price).
+- Finish `mappings/probabilities.json`. How likely is it that a player will trigger an event?
+This is a chance out of 1000, with `1` corresponding to 0.1% chance (avoid decimals in Cairo).
 - Initialize users with money upon first turn. (e.g., On first turn triggers save
 of starting amount e.g., 10,000, then sets the flag to )
 - Create caps on maximum parameters (40 location_ids, 10k user_ids, 10 item_ids)
 - User authentication. E.g., signature verification.
+- Add health clock. E.g., some events lower health
+
 
 Welcome:
 
