@@ -3,10 +3,11 @@
     "wrangle_dealer": "",
     "mugging": "",
     "run_from_mugging": "",
-    "gang_bust": "",
+    "gang_war": "",
     "fight_gang": "",
     "cop_raid": "",
     "bribe_cops": "",
     "find_item": "",
-    "local_shipment": ""
+    "local_shipment": "",
+    "warehouse_seizure": ""
 }

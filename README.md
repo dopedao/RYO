@@ -174,17 +174,25 @@ user_1 ->
                 decrease money count if new city.
             check for dealer dash (x %).
                 check for chase dealer (x %).
+                    item lost, no money gained.
             trade with market curve for location.
+                decrease money/item, increase the other.
             check for any of:
                 mugging (x %).
                     check for run (x %).
-                gang bust (x %).
+                        lose a percentage of money.
+                gang war (x %).
                     check for fight (x %).
+                        lose a percentage of money.
                 cop raid (x %).
                     check for bribe (x %).
+                        lose percentage of items held.
                 find item (x %).
+                    increase item balance.
                 local shipment (x %).
-                    update items count in suburb curve.
+                    increase item counts in suburb curves.
+                warehouse seizure (x %).
+                    decrease item counts in suburb curves.
             save next allowed turn as game_clock + n.
 user2 -> (same as user_1)
 ```
