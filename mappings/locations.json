@@ -38,7 +38,7 @@
         "city" : "Medellin",
         "suburb" : "Bello",
         "travel_cost" : "2.2"
-    }
+    },
     "9": {
         "city" : "New York",
         "suburb" : "L.E.S",
@@ -58,5 +58,25 @@
         "city" : "New York",
         "suburb" : "Midtown",
         "travel_cost" : "1.0"
+    },
+    "13": {
+        "city" : "Los Angeles",
+        "suburb" : "Venice Beach",
+        "travel_cost" : "1.5"
+    },
+    "14": {
+        "city" : "Los Angeles",
+        "suburb" : "Downtown",
+        "travel_cost" : "1.5"
+    },
+    "15": {
+        "city" : "Los Angeles",
+        "suburb" : "South Central",
+        "travel_cost" : "1.5"
+    },
+    "16": {
+        "city" : "Los Angeles",
+        "suburb" : "Hollywood",
+        "travel_cost" : "1.5"
     }
 }
