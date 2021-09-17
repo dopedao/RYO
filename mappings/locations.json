@@ -39,4 +39,24 @@
         "suburb" : "Bello",
         "travel_cost" : "2.2"
     }
+    "9": {
+        "city" : "New York",
+        "suburb" : "L.E.S",
+        "travel_cost" : "1.0"
+    },
+    "10": {
+        "city" : "New York",
+        "suburb" : "Harlem",
+        "travel_cost" : "1.0"
+    },
+    "11": {
+        "city" : "New York",
+        "suburb" : "Brooklyn",
+        "travel_cost" : "1.0"
+    },
+    "12": {
+        "city" : "New York",
+        "suburb" : "Midtown",
+        "travel_cost" : "1.0"
+    }
 }
