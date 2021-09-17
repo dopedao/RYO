@@ -1,21 +1,22 @@
 {
     "1": {
         "city" : "miami",
-        "suburb" : "downtown",
+        "suburb" : "Downtown",
         "travel_cost" : "1.3"
     },
     "2": {
-        "city" : "TODO",
-        "suburb" : "TODO"
-    },
-    "11": {
         "city" : "miami",
-        "suburb" : "west",
+        "suburb" : "Brickell",
         "travel_cost" : "1.3"
     },
-    "21": {
+    "3": {
         "city" : "miami",
-        "suburb" : "north",
+        "suburb" : "Miami Beach",
+        "travel_cost" : "1.3"
+    },
+    "4": {
+        "city" : "Miami",
+        "suburb" : "Wynwood",
         "travel_cost" : "1.3"
     }
 }
