@@ -15,7 +15,8 @@ from starkware.cairo.common.alloc import alloc
 # Default basis point probabilities applied per turn. 10000=100%.
 # Impact factor scales value. post = (pre * F)// 10). 3 = 30% increase.
 # Impact factor is either added or subtracted from 10.
-const DEALER_DASH_BP = 1000  # 10% chance dealer runs.
+# Probabilities are currently just set to 50%.
+const DEALER_DASH_BP = 1000  # E.g., 10% chance dealer runs.
 const WRANGLE_DASHED_DEALER_BP = 5000  # 30% you catch them.
 const MUGGING_BP = 5000  # 15% chance of mugging.
 const MUGGING_IMPACT = 3  # Impact is 30% money loss = (10-3)/10.
@@ -239,11 +240,6 @@ func have_turn{
         local_shipment_bool : felt,
         warehouse_seizure_bool : felt
     ):
-
-    ##############
-    assert location_id = 34
-    #####TESTING######
-
 
     # E.g., Sell 300 units of item. amount_to_give = 300.
     # E.g., Buy using 120 units of money. amount_to_give = 120.

@@ -267,4 +267,4 @@ async def test_record_items():
         regional_item_reduction_factor // 10
 
     # Make false assertion to trigger printing of variables to console.
-    assert 1==0
+    # assert 1==0
