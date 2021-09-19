@@ -9,9 +9,17 @@ const BALANCE_UPPER_BOUND = 2 ** 64
 # Accepts an AMM state and an order, instantiates AMM, swaps, returns balances.
 # The market gains item `a` loses item `b`, the user loses item `a` gains item `b`.
 @external
-func trade{range_check_ptr}(
-    market_a_pre : felt, market_b_pre : felt, user_gives_a : felt) -> (
-    market_a_post : felt, market_b_post : felt, user_gets_b : felt):
+func trade{
+        range_check_ptr
+    }(
+        market_a_pre : felt,
+        market_b_pre : felt,
+        user_gives_a : felt
+    ) -> (
+        market_a_post : felt,
+        market_b_post : felt,
+        user_gets_b : felt
+    ):
     # Prevent values exceeding max.
     assert_nn_le(market_a_pre, BALANCE_UPPER_BOUND - 1)
     assert_nn_le(market_b_pre, BALANCE_UPPER_BOUND - 1)
