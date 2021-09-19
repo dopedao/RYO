@@ -38,7 +38,12 @@
         "type": "function"
     },
     {
-        "inputs": [],
+        "inputs": [
+            {
+                "name": "toggle",
+                "type": "felt"
+            }
+        ],
         "name": "toggle_admin",
         "outputs": [],
         "type": "function"
@@ -86,7 +91,116 @@
             }
         ],
         "name": "have_turn",
-        "outputs": [],
+        "outputs": [
+            {
+                "name": "trade_occurs_bool",
+                "type": "felt"
+            },
+            {
+                "name": "user_pre_trade_item",
+                "type": "felt"
+            },
+            {
+                "name": "user_post_trade_pre_event_item",
+                "type": "felt"
+            },
+            {
+                "name": "user_post_trade_post_event_item",
+                "type": "felt"
+            },
+            {
+                "name": "user_pre_trade_money",
+                "type": "felt"
+            },
+            {
+                "name": "user_post_trade_pre_event_money",
+                "type": "felt"
+            },
+            {
+                "name": "user_post_trade_post_event_money",
+                "type": "felt"
+            },
+            {
+                "name": "market_pre_trade_item",
+                "type": "felt"
+            },
+            {
+                "name": "market_post_trade_pre_event_item",
+                "type": "felt"
+            },
+            {
+                "name": "market_post_trade_post_event_item",
+                "type": "felt"
+            },
+            {
+                "name": "market_pre_trade_money",
+                "type": "felt"
+            },
+            {
+                "name": "market_post_trade_pre_event_money",
+                "type": "felt"
+            },
+            {
+                "name": "market_post_trade_post_event_money",
+                "type": "felt"
+            },
+            {
+                "name": "money_reduction_factor",
+                "type": "felt"
+            },
+            {
+                "name": "item_reduction_factor",
+                "type": "felt"
+            },
+            {
+                "name": "regional_item_reduction_factor",
+                "type": "felt"
+            },
+            {
+                "name": "dealer_dash_bool",
+                "type": "felt"
+            },
+            {
+                "name": "wrangle_dashed_dealer_bool",
+                "type": "felt"
+            },
+            {
+                "name": "mugging_bool",
+                "type": "felt"
+            },
+            {
+                "name": "run_from_mugging_bool",
+                "type": "felt"
+            },
+            {
+                "name": "gang_war_bool",
+                "type": "felt"
+            },
+            {
+                "name": "defend_gang_war_bool",
+                "type": "felt"
+            },
+            {
+                "name": "cop_raid_bool",
+                "type": "felt"
+            },
+            {
+                "name": "bribe_cops_bool",
+                "type": "felt"
+            },
+            {
+                "name": "find_item_bool",
+                "type": "felt"
+            },
+            {
+                "name": "local_shipment_bool",
+                "type": "felt"
+            },
+            {
+                "name": "warehouse_seizure_bool",
+                "type": "felt"
+            }
+        ],
         "type": "function"
     },
     {

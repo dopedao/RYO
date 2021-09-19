@@ -92,53 +92,54 @@ to interact with.
 
 Check deployment status by passing in the transaction ID you receive:
 ```
-bin/shell starknet tx_status --network=alpha --id=151281
+bin/shell starknet tx_status --network=alpha --id=176230
 ```
 `PENDING` Means that the transaction passed the validation and is waiting to be sent on-chain.
 ```
 {
-    "block_id": 16065,
-    "tx_status": "ACCEPTED_ONCHAIN"
+    "block_id": 18880,
+    "tx_status": "PENDING"
 }
 ```
 ### Interact
 
-CLI - Write (initialise markets). Set up `item_id=5` across all 40 locations,
-with locations 1, 11, 21, etc. 2, 12, 22 etc. having identical curves. Each pair has 10x more money than item quantity.
+CLI - Write (initialise markets). Set up `item_id=5` across all 40 locations.
+Each pair has 10x more money than item quantity. All items have the same curve
+
 ```
 bin/shell starknet invoke \
     --network=alpha \
-    --address 0x0605ecb2519a1953425824356435b04364bebd3513e1c34fcb4c75ded01e6b29 \
+    --address 0x01c721e3452005ddc95f10bf8dc86c98c32a224085c258024931ddbaa8a44557 \
     --abi abi/GameEngineV1_contract_abi.json \
     --function admin_set_pairs_for_item \
     --inputs 5 \
         40 \
-        10 20 30 40 50 60 70 80 90 100 \
-        10 20 30 40 50 60 70 80 90 100 \
-        10 20 30 40 50 60 70 80 90 100 \
-        10 20 30 42 50 60 70 80 90 100 \
+        20 40 60 80 100 120 140 160 180 200 \
+        220 240 260 280 300 320 340 360 380 400 \
+        420 440 460 480 500 520 540 560 580 600 \
+        620 640 660 680 700 720 740 760 780 800 \
         40 \
-        100 200 300 400 500 600 700 800 900 1000 \
-        100 200 300 400 500 600 700 800 900 1000 \
-        100 200 300 400 500 600 700 800 900 1000 \
-        100 200 300 444 500 600 700 800 900 1000
+        200 400 600 800 1000 1200 1400 1600 1800 2000 \
+        2200 2400 2600 2800 3000 3200 3400 3600 3800 4000 \
+        4200 4400 4600 4800 5000 5200 5400 5600 5800 6000 \
+        6200 6400 6600 6800 7000 7200 7400 7600 7800 8000
 ```
 Change `5` to another `item_id` in the range `1-10` to populate other curves.
 
-CLI - Write (initialize user). Set up `user_id=733` to have `200` of item `5`.
+CLI - Write (initialize user). Set up `user_id=733` to have `2000` of item `5`.
 ```
 bin/shell starknet invoke \
     --network=alpha \
-    --address 0x0605ecb2519a1953425824356435b04364bebd3513e1c34fcb4c75ded01e6b29 \
+    --address 0x01c721e3452005ddc95f10bf8dc86c98c32a224085c258024931ddbaa8a44557 \
     --abi abi/GameEngineV1_contract_abi.json \
     --function admin_set_user_amount \
-    --inputs 733 5 200
+    --inputs 733 5 2000
 ```
 CLI - Read (user state)
 ```
 bin/shell starknet call \
     --network=alpha \
-    --address 0x0605ecb2519a1953425824356435b04364bebd3513e1c34fcb4c75ded01e6b29 \
+    --address 0x01c721e3452005ddc95f10bf8dc86c98c32a224085c258024931ddbaa8a44557 \
     --abi abi/GameEngineV1_contract_abi.json \
     --function check_user_state \
     --inputs 733
@@ -148,15 +149,15 @@ buy is `0`) item `5`, giving `100` units.
 ```
 bin/shell starknet invoke \
     --network=alpha \
-    --address 0x0605ecb2519a1953425824356435b04364bebd3513e1c34fcb4c75ded01e6b29 \
+    --address 0x01c721e3452005ddc95f10bf8dc86c98c32a224085c258024931ddbaa8a44557 \
     --abi abi/GameEngineV1_contract_abi.json \
     --function have_turn \
     --inputs 733 34 1 5 100
 ```
 Calling the `check_user_state()` function again reveals that the `100` units were
-exchanged for `333` money.
+exchanged for some quantity of money.
 
-Alternatively, see and do all of the above with the Voyager browser [here](https://voyager.online/contract/0x0605ecb2519a1953425824356435b04364bebd3513e1c34fcb4c75ded01e6b29#writeContract).
+Alternatively, see and do all of the above with the Voyager browser [here](https://voyager.online/contract/0x01c721e3452005ddc95f10bf8dc86c98c32a224085c258024931ddbaa8a44557#writeContract).
 
 ## Game flow
 
@@ -186,7 +187,7 @@ user_1 ->
                         lose a percentage of money.
                 cop raid (x %).
                     check for bribe (x %).
-                        lose percentage of items held.
+                        lose percentage of money & items held.
                 find item (x %).
                     increase item balance.
                 local shipment (x %).
@@ -203,15 +204,14 @@ Building out parts to make a functional `v1`. Some good entry-level options
 for anyone wanting to try out Cairo.
 
 - Initialised multiple player states.
-- Connect random engine to turn to trigger probabalistic theft.
 - Turn rate limiting. Game has global clock that increments every time
     a turn occurs. User has a lockout of x clock ticks.
 - Game end criterion based on global clock.
 - Finish `mappings/locations.json`. Name places and implement different cost to travel for
 some locations.
-    - Locations will e.g., be 10 cities each with 4 suburbs.
-    - E.g., locations 1-10 are suburb 1. Locations 2, 12, 22, 32 are
-    city 2. So `location_id=27` is city 7, suburb 3. Free to travel to
+    - Locations will e.g., be 10 cities [0, 9] each with 4 suburbs [0, 4].
+    - E.g., locations 0, 11, 21, 31 are city 1. Locations 2, 12, 22, 32 are
+    city 2. So `location_id=27` is city 7, suburb 2. Free to travel to
     other suburbs in same city (7, 17, 37).
     - Need to create a file with nice city/subrub names for these in
 - Finish `mappings/items.json`. Populate and tweak the item names and item unit price.
@@ -222,8 +222,8 @@ separate file. A mapping of 600 units with 6000 money initialises
 a dealer in that location with 60 of the item at (6000/60) 100 money per item. This mapping should
 be in the ballpark of the value in `items.json`. The fact that values deviate, creates trade
 opportunities at the start of the game. (e.g., a location might have large quantity at lower price).
-- Finish `mappings/probabilities.json`. How likely is it that a player will trigger an event?
-This is a chance out of 1000, with `1` corresponding to 0.1% chance (avoid decimals in Cairo).
+- Refine both the likelihood (basis points per user turn) and impact (percentage
+change) that events have and treak the constanst at the top of `contracts/GameEngineV1.cairo`. E.g., how often should you get mugged, how much money would you lose.
 - Initialize users with money upon first turn. (e.g., On first turn triggers save
 of starting amount e.g., 10,000, then sets the flag to )
 - Create caps on maximum parameters (40 location_ids, 10k user_ids, 10 item_ids)
