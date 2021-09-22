@@ -75,6 +75,8 @@ bin/shell starknet-compile contracts/MarketMaker.cairo \
 bin/shell pytest testing/GameEngineV1_contract_test.py
 
 bin/shell pytest testing/MarketMaker_contract_test.py
+
+bin/shell pytest testing/UserRegistry_contract_test.py
 ```
 
 ### Deploy
@@ -213,7 +215,7 @@ some locations.
     - E.g., locations 0, 11, 21, 31 are city 1. Locations 2, 12, 22, 32 are
     city 2. So `location_id=27` is city 7, suburb 2. Free to travel to
     other suburbs in same city (7, 17, 37).
-    - Need to create a file with nice city/subrub names for these in
+    - Need to create a file with nice city/suburb names for these in
 - Finish `mappings/items.json`. Populate and tweak the item names and item unit price.
 E.g., cocaine price per unit different from weed price per unit.
 - Finish `mappings/initial_markets.csv`. Create lists of market pair values to initialize the
@@ -223,7 +225,8 @@ a dealer in that location with 60 of the item at (6000/60) 100 money per item. T
 be in the ballpark of the value in `items.json`. The fact that values deviate, creates trade
 opportunities at the start of the game. (e.g., a location might have large quantity at lower price).
 - Refine both the likelihood (basis points per user turn) and impact (percentage
-change) that events have and treak the constanst at the top of `contracts/GameEngineV1.cairo`. E.g., how often should you get mugged, how much money would you lose.
+change) that events have and treak the constanst at the top of `contracts/GameEngineV1.cairo`.
+E.g., how often should you get mugged, how much money would you lose.
 - Initialize users with money upon first turn. (e.g., On first turn triggers save
 of starting amount e.g., 10,000, then sets the flag to )
 - Create caps on maximum parameters (40 location_ids, 10k user_ids, 10 item_ids)

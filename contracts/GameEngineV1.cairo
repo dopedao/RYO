@@ -37,6 +37,7 @@ const WAREHOUSE_SEIZURE_IMPACT = 2  # Regional impact 20% item loss.
 ############ Other Contract Info ############
 # Address of previously deployed MarketMaket.cairo contract.
 const MARKET_MAKER_ADDRESS = 0x07f9ad51033cd6107ad7d70d01c3b0ba2dda3331163a45b6b7f1a2952dac0880
+const USER_REGISTRY_ADDRESS = 0x1233455
 # Modifiable address pytest deployments.
 @storage_var
 func market_maker_address(
@@ -45,7 +46,15 @@ func market_maker_address(
     ):
 end
 
-# Declare the interface with which to call the Market Maker contract.
+# Modifiable address pytest deployments.
+@storage_var
+func user_registry_address(
+    ) -> (
+        address : felt
+    ):
+end
+
+# Declare the interface with which to call the MarketMaker contract.
 @contract_interface
 namespace IMarketMaker:
     func trade(
@@ -60,6 +69,17 @@ namespace IMarketMaker:
     end
 end
 
+# Declare the interface with which to call the UserRegistry contract.
+@contract_interface
+namespace IUserRegistry:
+    func get_user_info(
+        user_id : felt,
+        starknet_pubkey : felt
+    ) -> (
+        user_data : felt
+    ):
+    end
+end
 ############ Game key ############
 # Location and market are equivalent terms (one market per location)
 # 40 location_ids [0-39].
@@ -135,6 +155,20 @@ func set_market_maker_address{
     ):
     # Used for testing. This can be constant on deployment.
     market_maker_address.write(address)
+    return ()
+end
+
+# Sets the address of the deployed UserRegistry.cairo contract.
+@external
+func set_user_registry_address{
+        storage_ptr : Storage*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        address : felt
+    ):
+    # Used for testing. This can be constant on deployment.
+    user_registry_address.write(address)
     return ()
 end
 
@@ -239,10 +273,13 @@ func have_turn{
         local_shipment_bool : felt,
         warehouse_seizure_bool : felt
     ):
+    alloc_locals
+    # Uncomment for pytest: Get address of UserRegistry.
+    check_user(user_id)
+    # let user_registry = USER_REGISTRY_ADDRESS
 
     # E.g., Sell 300 units of item. amount_to_give = 300.
     # E.g., Buy using 120 units of money. amount_to_give = 120.
-    alloc_locals
     # Record initial state for UI and QA.
     let (local user_pre_trade_item) = user_has_item.read(user_id,
         item_id)
@@ -756,4 +793,28 @@ func loop_users{
     # Num users 1 on first entry. User index is num_users-1.
     user_has_item.write(user_id=num_users-1, item_id=0, value=amount)
     return ()
+end
+
+# Checks the user has the correct credentials and returns game data.
+func check_user{
+        syscall_ptr : felt*,
+        storage_ptr : Storage*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr: BitwiseBuiltin*
+    }(
+        user_id : felt
+    ) -> (
+        user_data : felt
+    ):
+    # Calls UserRegistry and retrieves information stored there.
+    # let (user_registry) = user_registry_address.read()
+    # let(pub_key, player_data) = IUserRegistry.get_user_info()
+
+    # Assert message sender pubkey used here matches the one retrieved.
+    # assert pub_key = msg.sender
+
+    # Return the registry-based characteristics of the player.
+    let user_data = 0
+    return (user_data)
 end

@@ -1,0 +1,43 @@
+[
+    {
+        "inputs": [
+            {
+                "name": "user_id",
+                "type": "felt"
+            },
+            {
+                "name": "starknet_pubkey",
+                "type": "felt"
+            }
+        ],
+        "name": "get_user_info",
+        "outputs": [
+            {
+                "name": "user_data",
+                "type": "felt"
+            }
+        ],
+        "stateMutability": "view",
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "starknet_pubkey",
+                "type": "felt"
+            },
+            {
+                "name": "user_data",
+                "type": "felt"
+            }
+        ],
+        "name": "register_user",
+        "outputs": [
+            {
+                "name": "user_id",
+                "type": "felt"
+            }
+        ],
+        "type": "function"
+    }
+]

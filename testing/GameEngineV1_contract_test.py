@@ -11,6 +11,8 @@ ENGINE_CONTRACT_FILE = os.path.join(
     os.path.dirname(__file__), "../contracts/GameEngineV1.cairo")
 MARKET_CONTRACT_FILE = os.path.join(
     os.path.dirname(__file__), "../contracts/MarketMaker.cairo")
+REGISTRY_CONTRACT_FILE = os.path.join(
+    os.path.dirname(__file__), "../contracts/UserRegistry.cairo")
 
 # The testing library uses python's asyncio. So the following
 # decorator and the ``async`` keyword are needed.
@@ -21,12 +23,16 @@ async def test_record_items():
         [ENGINE_CONTRACT_FILE], debug_info=True)
     market_contract_definition = compile_starknet_files(
         [MARKET_CONTRACT_FILE], debug_info=True)
+    registry_contract_definition = compile_starknet_files(
+        [REGISTRY_CONTRACT_FILE], debug_info=True)
 
     # Create a new Starknet class that simulates the StarkNet
     # system.
     starknet = await Starknet.empty()
 
     # Deploy the contracts.
+    registry_contract_address = await starknet.deploy(
+        contract_definition=market_contract_definition)
     market_contract_address = await starknet.deploy(
         contract_definition=market_contract_definition)
     engine_contract_address = await starknet.deploy(
@@ -39,10 +45,29 @@ async def test_record_items():
         contract_address=engine_contract_address,
     )
 
+    # Create contract Objects to interact with.
+    registry_contract = StarknetContract(
+        starknet=starknet,
+        abi=registry_contract_definition.abi,
+        contract_address=registry_contract_address,
+    )
+
     # Save the market address in the engine contract so it can call
     # the market maker contract.
     await engine_contract.set_market_maker_address(
         address=market_contract_address).invoke()
+    await engine_contract.set_user_registry_address(
+        address=registry_contract_address).invoke()
+
+    # Populate the registry with some data.
+    pubkey = 4567
+    token_data = 1010101
+    (test_id) = await registry_contract.register_user(
+        pubkey, token_data).invoke()
+    assert test_id == 1
+    (player_data) = await registry_contract.get_user_info(
+        test_id, pubkey).invoke()
+
 
     # Set up a scenario. A user who will go to some market and trade
     # in some item in exchange for money.
