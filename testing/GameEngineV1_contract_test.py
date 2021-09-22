@@ -46,6 +46,7 @@ async def test_record_items():
 
     # Set up a scenario. A user who will go to some market and trade
     # in some item in exchange for money.
+    number_of_users=1000
     total_locations=40
     location_id = 34
     user_id = 3
@@ -54,13 +55,13 @@ async def test_record_items():
     random_location = 24
 
     # User has small amount of money, but lots of the item they are selling.
-    user_money_pre = 300
-    user_item_pre = 55
+    user_money_pre = 10000
+    user_item_pre = 0
     # Set action (buy=0, sell=1)
     buy_or_sell = 0
     # How much is the user giving (either money or item)
     # If selling, it is "give x item". If buying, it is "give x money".
-    give_quantity = 22
+    give_quantity = 2000
 
     # E.g., 10 items in location 1, 20 loc 2.
     sample_item_count_list = [total_locations,
@@ -80,11 +81,8 @@ async def test_record_items():
     # Populate the item pair of interest across all locations.
     await engine_contract.admin_set_pairs_for_item(item_id,
         sample_item_count_list, sample_item_money_list).invoke()
-    # Give the user item.
-    await engine_contract.admin_set_user_amount(user_id, item_id,
-        user_item_pre).invoke()
     # Give the user money (id=0).
-    await engine_contract.admin_set_user_amount(user_id, 0,
+    await engine_contract.admin_set_user_amount(number_of_users,
         user_money_pre).invoke()
     pre_trade_user = await engine_contract.check_user_state(
         user_id).invoke()
@@ -266,5 +264,10 @@ async def test_record_items():
     assert random_market_item == random_market_pre_turn_item * \
         regional_item_reduction_factor // 10
 
+    random_initialized_user = await engine_contract.check_user_state(
+        9).invoke()
+    print('rand user', random_initialized_user)
+
+
     # Make false assertion to trigger printing of variables to console.
-    # assert 1==0
+    assert 1==0

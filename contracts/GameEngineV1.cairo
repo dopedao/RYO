@@ -71,7 +71,8 @@ end
 # Specify user, item, return quantity.
 @storage_var
 func user_has_item(
-        user_id : felt, item_id
+        user_id : felt,
+        item_id : felt
     ) -> (
         count : felt
     ):
@@ -178,20 +179,18 @@ func toggle_admin{
     return ()
 end
 
-# Creates an item-money market pair with specific liquidity.
+# Gives all users an amount of money.
 @external
 func admin_set_user_amount{
         storage_ptr : Storage*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        user_id : felt,
-        item_id : felt,
-        item_quantity : felt
+        num_users : felt,
+        money_quantity : felt
     ):
-    # Set the quantity for a particular item for a given user.
-    # E.g., item_id 3, a user has market has 500 units. (id 0 is money).
-    user_has_item.write(user_id, item_id, item_quantity)
+    # Set the quantity of money for all users.
+    loop_users(num_users, money_quantity)
     return ()
 end
 
@@ -738,5 +737,23 @@ func update_regional_items{
     let (val_3) = location_has_item.read(rem + 30, item_id)
     let (val_3_new, _) = unsigned_div_rem(val_3 * factor, 10)
     location_has_item.write(rem + 30, item_id, val_3_new)
+    return ()
+end
+
+# Loops over all users and initializes a balance.
+func loop_users{
+        storage_ptr : Storage*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        num_users : felt,
+        amount : felt
+    ):
+    if num_users == 0:
+        return ()
+    end
+    loop_users(num_users=num_users-1, amount=amount)
+    # Num users 1 on first entry. User index is num_users-1.
+    user_has_item.write(user_id=num_users-1, item_id=0, value=amount)
     return ()
 end
