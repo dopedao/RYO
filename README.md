@@ -67,6 +67,10 @@ bin/shell starknet-compile contracts/GameEngineV1.cairo \
 bin/shell starknet-compile contracts/MarketMaker.cairo \
     --output contracts/MarketMaker_compiled.json \
     --abi abi/MarketMaker_contract_abi.json
+
+bin/shell starknet-compile contracts/UserRegistry.cairo \
+    --output contracts/UserRegistry_compiled.json \
+    --abi abi/UserRegistry_contract_abi.json
 ```
 
 ### Test
