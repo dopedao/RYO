@@ -209,37 +209,46 @@ user2 -> (same as user_1)
 Building out parts to make a functional `v1`. Some good entry-level options
 for anyone wanting to try out Cairo.
 
-Non-technical tasks:
+Non-coding tasks:
 
 - Finish `mappings/thingxyz_score.csv`. Give all the wearables scores to use in the game.
 E.g., is a `Baseball Bat` or a handgun more powerful, or what is more costly per 'unit'
 `Krokodil` or `Oxycontin`. Might also be interesting to look at documenting/using the
 rarity of each of these items to help inform the score.
+- Build out the locations list.
+    - Build upon the work started in `mappings/location_travel.csv`. Name places and implement
+    different cost to travel for some locations. Use the the 10-4 game architecture outlined
+    below, but can increase the number 10 to include more locations.
+    - Consider mixture of fake and real locations.
+    - Cost is relative (can be scaled depending on how much money people have in the game).
+    Cost is a rough number - may reflect a combination of distance and other factors.
+    - Currently the game architecture has 40 locations
+        - 40 Locations with be 10 cities/regions [0, 9] each with 4 suburbs/districts [0, 4].
+        - Doesn't need to be a strict definition of 'city' or 'suburb'.
+        - E.g., locations 0, 11, 21, 31 are city 1. Locations 2, 12, 22, 32 are
+        city 2. So `location_id=27` is city 7, suburb 2. Free to travel to
+        other suburbs in same city (7, 17, 37).
+    - Think about locations and their relationship to the locations on the NFT. What is
+their commonality/distribution.
+    - Is the game location list the same as this list, or a superset?
+- Once the locations are done, fill out `mappings/initial_markets_cost_rel_100.csv` with how
+much items should start of costing in a certain area, where 100 is 'average' and 120 is 20% above
+average.
+- Once the locations are done, fill out `mappings/initial_markets_quantity_rel_100.csv` with how
+many items should start of in a certain area, where 100 is 'average' and 120 is 20% above
+average. Areas can have different profiles, with different combinations of quantity and price
+at the start of the game to create a different vibe/market dynamic. Will be good to just get
+some rought numbers down and try it out.
 
-Quick tasks:
+Quick-coding tasks:
 
 - Initialised multiple player states.
 - Turn rate limiting. Game has global clock that increments every time
     a turn occurs. User has a lockout of x clock ticks.
 - Game end criterion based on global clock.
-- Think about locations and their relationship to the locations on the NFT. What is
-their commonality/distribution. Is the game location list the same as this list, or a superset?
-    - Build upon the work started in `mappings/locations.json`. Name places and implement
-    different cost to travel for some locations.
-    - Currently the game architecture has 40 locations
-        - 40 Locations with be 10 cities [0, 9] each with 4 suburbs [0, 4].
-        - E.g., locations 0, 11, 21, 31 are city 1. Locations 2, 12, 22, 32 are
-        city 2. So `location_id=27` is city 7, suburb 2. Free to travel to
-        other suburbs in same city (7, 17, 37).
-    - Work out the simplest way to integrate the locations in the NFT, with those created in `mappings/locations.json`, with the 10-4 game architecture. E.g, maybe just bump the
-    game city count from 10 whatever number we have, and then every location has a
-    `North, East, South & West`.
-- (Requires locations to be done, see above). Finish `mappings/initial_markets.csv`. Create lists of market pair values to initialize the
-game with. E.g., for all 40 locations x 10 items = 400 money_count-item_count pairs as a
-separate file. A mapping of 600 units with 6000 money initialises
-a dealer in that location with 60 of the item at (6000/60) 100 money per item. This mapping should
-be in the ballpark of the value in `items.json`. The fact that values deviate, creates trade
-opportunities at the start of the game. (e.g., a location might have large quantity at lower price).
+
+Coding tasks:
+
 - Refine both the likelihood (basis points per user turn) and impact (percentage
 change) that events have and treak the constant at the top of `contracts/GameEngineV1.cairo`.
 E.g., how often should you get mugged, how much money would you lose.
@@ -247,6 +256,9 @@ E.g., how often should you get mugged, how much money would you lose.
 of starting amount e.g., 10,000, then sets the flag to )
 - Create caps on maximum parameters (40 location_ids, 10k user_ids, 10 item_ids)
 - User authentication. E.g., signature verification.
+
+Maybe tasks:
+
 - Add health clock. E.g., some events lower health
 
 

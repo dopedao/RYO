@@ -1,5 +1,7 @@
-location_id, item_id, unit_quantity, money_quantity
-1,1,300,3000
-1,2,750,6000
-...
-40,10,30,450
+Location,Weed,Cocaine,Ludes,Acid,Speed,Heroin,Oxycontin,Zoloft,Fentanyl,Krokodil,Coke,Crack,PCP,LSD,Shrooms,Soma,Xanax,Molly,Adderall
+"Miami",80,,,,,,,,,,,,,,,,,,,
+"Medellin",100,,,,,,,,,,,,,,,,,,,
+"New York",100,120,,,,,,,,,,,,,,,,,,
+"Los Angeles",100,,,,,,,,,,,,,,,,,,,
+
+# The cost is relative to 100, so 120 means the drug starts off 20% more expensive than average there.
