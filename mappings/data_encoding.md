@@ -1,6 +1,6 @@
 ## Data use outilne
 
-Storae on L2 is more expensive than computation, so this an outline of a
+Storage on L2 is more expensive than computation, so this an outline of a
 storage efficient mechanism to pack-unpack the data for each unique player in the
 game so that NFTs confer different game experiences.
 
@@ -30,12 +30,12 @@ The score should incorporate:
 - The nature of the item
 - The rarity of the item
 
-In a way that maximises enjoyment, rather than being strictly logical (a Rolls Royce, or
-electric scooter, may not be super fast, but may have a high speed score for allure or
-rarity or some other reason).
+The score should does not have to be strictly logical. For example, a Rolls Royce or
+electric scooter may not be super fast, but may have a high speed score for allure or
+rarity or some other reason.
 
 It may be useful to have the distribution of each of the items to better inform this.
-But it is better to just get rought numbers down and then improve laterif need.
+But it is better to just get rough numbers down and then improve laterif need.
 
 ### Encoding
 
