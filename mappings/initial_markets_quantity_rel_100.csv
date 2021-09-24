@@ -1,0 +1,8 @@
+Location,Weed,Cocaine,Ludes,Acid,Speed,Heroin,Oxycontin,Zoloft,Fentanyl,Krokodil,Coke,Crack,PCP,LSD,Shrooms,Soma,Xanax,Molly,Adderall
+"Miami",100,,,,,,,,,,,,,,,,,,,
+"Medellin",100,,,,,,,,,,,,,,,,,,,
+"New York",70,,,,,,,,,,,,,,,,,,,
+"Los Angeles",110,,,,,,,,,,,,,,,,,,,
+
+
+# The quantity is relative to 100, so 120 means there is 20% more drug there than average.

@@ -1,4 +1,4 @@
-item_name,item_id,fair_money_per_unit
+item_name,item_id,cost_per_unit_out_of_1000
 "Weed",0,
 "Cocaine",1,
 "Ludes",2,

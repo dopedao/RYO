@@ -209,27 +209,39 @@ user2 -> (same as user_1)
 Building out parts to make a functional `v1`. Some good entry-level options
 for anyone wanting to try out Cairo.
 
+Non-technical tasks:
+
+- Finish `mappings/thingxyz_score.csv`. Give all the wearables scores to use in the game.
+E.g., is a `Baseball Bat` or a handgun more powerful, or what is more costly per 'unit'
+`Krokodil` or `Oxycontin`. Might also be interesting to look at documenting/using the
+rarity of each of these items to help inform the score.
+
+Quick tasks:
+
 - Initialised multiple player states.
 - Turn rate limiting. Game has global clock that increments every time
     a turn occurs. User has a lockout of x clock ticks.
 - Game end criterion based on global clock.
-- Finish `mappings/locations.json`. Name places and implement different cost to travel for
-some locations.
-    - Locations will e.g., be 10 cities [0, 9] each with 4 suburbs [0, 4].
-    - E.g., locations 0, 11, 21, 31 are city 1. Locations 2, 12, 22, 32 are
-    city 2. So `location_id=27` is city 7, suburb 2. Free to travel to
-    other suburbs in same city (7, 17, 37).
-    - Need to create a file with nice city/suburb names for these in
-- Finish `mappings/items.json`. Populate and tweak the item names and item unit price.
-E.g., cocaine price per unit different from weed price per unit.
-- Finish `mappings/initial_markets.csv`. Create lists of market pair values to initialize the
+- Think about locations and their relationship to the locations on the NFT. What is
+their commonality/distribution. Is the game location list the same as this list, or a superset?
+    - Build upon the work started in `mappings/locations.json`. Name places and implement
+    different cost to travel for some locations.
+    - Currently the game architecture has 40 locations
+        - 40 Locations with be 10 cities [0, 9] each with 4 suburbs [0, 4].
+        - E.g., locations 0, 11, 21, 31 are city 1. Locations 2, 12, 22, 32 are
+        city 2. So `location_id=27` is city 7, suburb 2. Free to travel to
+        other suburbs in same city (7, 17, 37).
+    - Work out the simplest way to integrate the locations in the NFT, with those created in `mappings/locations.json`, with the 10-4 game architecture. E.g, maybe just bump the
+    game city count from 10 whatever number we have, and then every location has a
+    `North, East, South & West`.
+- (Requires locations to be done, see above). Finish `mappings/initial_markets.csv`. Create lists of market pair values to initialize the
 game with. E.g., for all 40 locations x 10 items = 400 money_count-item_count pairs as a
 separate file. A mapping of 600 units with 6000 money initialises
 a dealer in that location with 60 of the item at (6000/60) 100 money per item. This mapping should
 be in the ballpark of the value in `items.json`. The fact that values deviate, creates trade
 opportunities at the start of the game. (e.g., a location might have large quantity at lower price).
 - Refine both the likelihood (basis points per user turn) and impact (percentage
-change) that events have and treak the constanst at the top of `contracts/GameEngineV1.cairo`.
+change) that events have and treak the constant at the top of `contracts/GameEngineV1.cairo`.
 E.g., how often should you get mugged, how much money would you lose.
 - Initialize users with money upon first turn. (e.g., On first turn triggers save
 of starting amount e.g., 10,000, then sets the flag to )
