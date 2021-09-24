@@ -3,5 +3,3 @@ Location,Weed,Cocaine,Ludes,Acid,Speed,Heroin,Oxycontin,Zoloft,Fentanyl,Krokodil
 "Medellin",100,,,,,,,,,,,,,,,,,,,
 "New York",100,120,,,,,,,,,,,,,,,,,,
 "Los Angeles",100,,,,,,,,,,,,,,,,,,,
-
-# The cost is relative to 100, so 120 means the drug starts off 20% more expensive than average there.
