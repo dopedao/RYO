@@ -31,10 +31,32 @@ async def test_record_items():
         abi=contract_definition.abi,
         contract_address=contract_address,
     )
-    # TODO
-    '''
-    user_id, starknet_pubkey = 1, 4567
-    (data) = await contract.get_user_info(user_id, starknet_pubkey).invoke()
-    '''
+    user_count = 500
+    sample_data = 84622096520155505419920978765481155
+    # Repeating sample data
+    # Indices from 0, 20, 40, 60, 80..., have values 3.
+    # Indices from 10, 30, 50, 70, 90..., have values 1.
+    # [00010000010011000011] * 6 == [1133] * 6
+    weapon_strength_index = 6
+    ring_bribe_index = 76
+    pubkey_prefix = 1000000
+    # Populate the registry with homogeneous users (same data each).
+    await contract.admin_fill_registry(user_count, sample_data).invoke()
+
+
+    user_a_id = 271
+    user_a_pubkey = user_a_id + pubkey_prefix
+    # Check that the data is stored correctly for a random user.
+    (data, ) = await contract.get_user_info(
+        user_a_id, user_a_pubkey).invoke()
+    assert data == sample_data
+
+    # Check that the data decoding function works.
+    (weapon_score, ) = await contract.unpack_score(
+        user_a_id, weapon_strength_index).invoke()
+    (ring_score, ) = await contract.unpack_score(
+        user_a_id, ring_bribe_index).invoke()
+    assert weapon_score == 3
+    assert ring_score == 1
 
 

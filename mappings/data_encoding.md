@@ -44,42 +44,50 @@ But it is better to just get rough numbers down and then improve laterif need.
     - The largest field has 64 (2**6 bits) options (namePrefixes). The specific
     item will be stored, but may not be used in `v1` directly.
     - Each field will also have a 1-10 score (2**4 bits) that the
-    game will be reading.
+    game can read.
     - Each item is therefore `6 + 4 = 10 bits`.
     - Total storage is `12 * 10 = 120 bits`.
     - This is well within the available 250-bits for a single value.
 - The items will be packed from leas significant bit (LSB) to most
 significant bit (MSB), in the order they appear in the contract,
 with item and score beside each other.
-    - `A` is the index of the weapon (0b100 = 4 = Handgun).
-    - `B` is the strength of the weapon (0b101 = 5 = 5/10 strength).
+    - `A` is the index of the weapon (`0b000100` = 4 = Handgun).
+    - `B` is the strength of the weapon (`0b0101` = 5 = 5/10 strength).
     - `C` is the clothes index, `D` is clothes score. E.g., may not
     be used in `v1`, but stored in case.
-    - `^120` is the final field, nameSuffixes, again, may not be used
+    - `^110th` is the final field, nameSuffixes, again, may not be used
     and could be set to zero to start with.
 
 ```
 E.g., user 354 has data field in UserRegistry:
 MSB                                                              LSB
 000...000101....1101010110000011011000000101001101011111010101000100
-      ^120                            F   E     D   C     B   A
+      ^110th                          F   E     D   C     B   A
 ```
 
 The scores that are most useful for `v1` are marked below:
 
-- 0 `v1` Weapons with strength score.
-- 1 Clothes.
-- 2 `v1` Vehicle with speed score.
-- 3 waistArmor.
-- 4 `v1` footArmor with speed score.
-- 5 handArmor.
-- 6 `v1` necklaces with bribe score.
-- 7 `v1` rings with bribe score.
-- 8 suffixes.
-- 9 `v1` drugs used to give player some advantage with this item.
-- 10 namePrefixes.
-- 11 nameSuffixes.
-
+```
+# Zero-based bit index for data locations.
+# 0 weapon id.
+# 6 weapon strength score (v1).
+# 10 clothes.
+# 20 vehicle id.
+# 26 vehicle speed score (v1).
+# 30 waistArmor id.
+# 40 footArmor id.
+# 46 footArmor speed score (v1).
+# 50 handArmor id.
+# 60 necklace id.
+# 66 necklace bribe score (v1).
+# 70 ring id.
+# 76 ring bribe score (v1).
+# 80 suffix id.
+# 90 drug id (v1).
+# 100 namePrefixes.
+# 110 nameSuffixes.
+# 120-249 (vacant).
+```
 To decode the element score, the game engine knows to look
 at a certain index in the data (e.g., weapon strength is at the 6th
 bit index).
