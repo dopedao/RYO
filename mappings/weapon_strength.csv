@@ -1,19 +1,19 @@
 weapon,strength_out_of_ten,(optional stats: appearance count out of 8000)
-"Pocket Knife",,408
-"Chain",,
-"Knife",,
-"Crowbar",,
-"Handgun",,
+"Pocket Knife",3,408
+"Chain",3,
+"Knife",4,
+"Crowbar",5,
+"Handgun",6,
 "AK47",10,481
-"Shovel",,
-"Baseball Bat",,
-"Tire Iron",,
-"Police Baton",,
+"Shovel",2,
+"Baseball Bat",3,
+"Tire Iron",3,
+"Police Baton",3,
 "Pepper Spray",1,411
-"Razor Blade",,
-"Chain",,
-"Taser",,
-"Brass Knuckles",,
-"Shotgun",,443
-"Glock",,
-"Uzi",,449
+"Razor Blade",2,
+"Chain",3,
+"Taser",4,
+"Brass Knuckles",1,
+"Shotgun",8,443
+"Glock",7,
+"Uzi",9,449
