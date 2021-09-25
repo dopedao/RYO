@@ -1,8 +1,8 @@
 name,bribe_out_of_ten,(optional stats: appearance count out of 8000)
-"Gold Ring",,
-"Silver Ring",,
-"Diamond Ring",,1131
-"Platinum Ring",,
-"Titanium Ring",,
-"Pinky Ring",,1158
-"Thumb Ring",,
+"Gold Ring",8,
+"Silver Ring",7,
+"Diamond Ring",10,1131
+"Platinum Ring",9,
+"Titanium Ring",5,
+"Pinky Ring",2,1158
+"Thumb Ring",3,
