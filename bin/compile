@@ -8,3 +8,7 @@ starknet-compile contracts/GameEngineV1.cairo \
 starknet-compile contracts/MarketMaker.cairo \
     --output contracts/MarketMaker_compiled.json \
     --abi abi/MarketMaker_contract_abi.json
+
+starknet-compile contracts/UserRegistry.cairo \
+    --output contracts/UserRegistry_compiled.json \
+    --abi abi/UserRegistry_contract_abi.json
