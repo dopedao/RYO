@@ -1,18 +1,18 @@
 vehicle,speed_out_of_ten,(optional stats: appearance count out of 8000)
-"Dodge",,
-"Porsche",,
-"Tricycle",,
-"Scooter",,
-"ATV",,485
-"Push Bike",,
-"Electric Scooter",,447
+"Dodge",7,
+"Porsche",10,
+"Tricycle",1,
+"Scooter",2,
+"ATV",5,485
+"Push Bike",1,
+"Electric Scooter",3,447
 "Golf Cart",,463
-"Chopper",,
-"Rollerblades",,
-"Lowrider",,
-"Camper",,
-"Rolls Royce",,
-"BMW M3",,
-"Bike",,
-"C63 AMG",,
-"G Wagon",,
+"Chopper",6,
+"Rollerblades",2,
+"Lowrider",6,
+"Camper",5,
+"Rolls Royce",8,
+"BMW M3",9,
+"Bike",3,
+"C63 AMG",9,
+"G Wagon",8,
