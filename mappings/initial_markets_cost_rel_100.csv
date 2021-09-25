@@ -1,5 +1,6 @@
 Location,Weed,Cocaine,Ludes,Acid,Speed,Heroin,Oxycontin,Zoloft,Fentanyl,Krokodil,Coke,Crack,PCP,LSD,Shrooms,Soma,Xanax,Molly,Adderall
-"Miami",80,,,,,,,,,,,,,,,,,,,
-"Medellin",100,,,,,,,,,,,,,,,,,,,
-"New York",100,120,,,,,,,,,,,,,,,,,,
-"Los Angeles",100,,,,,,,,,,,,,,,,,,,
+"Miami",80,,,,,,,,,,,,,,,,,,
+"Medellin",100,,,,,,,,,,,,,,,,,,
+"New York",100,120,,,,,,,,,,,,,,,,,
+"Los Angeles",100,,,,,,,,,,,,,,,,,,
+"TBD - see location_travel.csv",,,,,,,,,,,,,,,,,,,
