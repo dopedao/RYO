@@ -211,30 +211,33 @@ for anyone wanting to try out Cairo.
 
 Non-coding tasks:
 
-- Finish `mappings/thingxyz_score.csv`. Give all the wearables scores to use in the game.
+- Assign scores to all the DOPE wearables/itmes in `mappings/thingxyz_score.csv`.
 E.g., is a `Baseball Bat` or a handgun more powerful, or what is more costly per 'unit'
 `Krokodil` or `Oxycontin`. Might also be interesting to look at documenting/using the
 rarity of each of these items to help inform the score.
-- Build out the locations list.
-    - Build upon the work started in `mappings/location_travel.csv`. Name places and implement
-    different cost to travel for some locations. Use the the 10-4 game architecture outlined
-    below, but can increase the number 10 to include more locations.
-    - Consider mixture of fake and real locations.
+- Create names for all the districts in `mappings/location_travel.csv`. Four districts per region.
+The first four regions are new, the remaining are pulled from the fields in the DOPE contract.
+The names can be creative rather than strictly factual. Check for clashes/overlap in the first
+four vs the remaining and tweak the first if need be.
+- Assign a cost-to-travel for regions in `mappings/location_travel.csv`. Traveling to different
+districts within a region is free.
     - Cost is relative (can be scaled depending on how much money people have in the game).
     Cost is a rough number - may reflect a combination of distance and other factors.
-    - Currently the game architecture has 40 locations
-        - 40 Locations with be 10 cities/regions [0, 9] each with 4 suburbs/districts [0, 4].
-        - Doesn't need to be a strict definition of 'city' or 'suburb'.
+    - Code note: Locations are implemented as follows:
+        - Currently the game architecture has 40 Locations with be 10 cities/regions [0, 9]
+        each with 4 suburbs/districts [0, 4].
         - E.g., locations 0, 11, 21, 31 are city 1. Locations 2, 12, 22, 32 are
         city 2. So `location_id=27` is city 7, suburb 2. Free to travel to
         other suburbs in same city (7, 17, 37).
-    - Think about locations and their relationship to the locations on the NFT. What is
-their commonality/distribution.
-    - Is the game location list the same as this list, or a superset?
-- Once the locations are done, fill out `mappings/initial_markets_cost_rel_100.csv` with how
+        - The city number will be adusted to match the final row count in
+        `mappings/location_travel.csv`.
+    - It may be interesting to look at statistics on distribution of the locations amongst
+    DOPE NFTs. How often do all the locations appear? Does it make sense for the game to use
+    this as a player trait (e.g., player from x has some benefit in location x).
+- Fill out `mappings/initial_markets_cost_rel_100.csv` with how
 much items should start of costing in a certain area, where 100 is 'average' and 120 is 20% above
 average.
-- Once the locations are done, fill out `mappings/initial_markets_quantity_rel_100.csv` with how
+- Fill out `mappings/initial_markets_quantity_rel_100.csv` with how
 many items should start of in a certain area, where 100 is 'average' and 120 is 20% above
 average. Areas can have different profiles, with different combinations of quantity and price
 at the start of the game to create a different vibe/market dynamic. Will be good to just get
