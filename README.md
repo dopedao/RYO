@@ -219,14 +219,25 @@ for anyone wanting to try out Cairo.
 
 Non-coding tasks:
 
+- Use [this google sheet](https://docs.google.com/spreadsheets/d/1-qIYqnk0MJ6y9x7LcxW-OezpXjPwy7GFL3VbZdQnlmc/edit#gid=0) to CTRL-F the counts for the items in
+`mappings/thingxyz_score.csv` (final column in each document) to help inform score creation.
+Could also script it, but probably takes just as long.
+    - The counts are 'total in sheet', and
+are a rough guide, so don't worry about a single DOPE having 2x "murdertown" items - just count
+it as 2 for simplicity.
+    - Need to account for name clashes during searching:
+        - Drug 'soma', place 'SOMA'.
+        - Shoe 'Air Jordan 1 Chicagos', place 'Chicago'.
 - Assign scores to all the DOPE wearables/itmes in `mappings/thingxyz_score.csv`.
 E.g., is a `Baseball Bat` or a handgun more powerful, or what is more costly per 'unit'
 `Krokodil` or `Oxycontin`. Might also be interesting to look at documenting/using the
 rarity of each of these items to help inform the score.
-- Create names for all the districts in `mappings/location_travel.csv`. Four districts per region.
-The first four regions are new, the remaining are pulled from the fields in the DOPE contract.
-The names can be creative rather than strictly factual. Check for clashes/overlap in the first
-four vs the remaining and tweak the first if need be.
+- Create names for all the districts in `mappings/location_travel.csv`.
+The names can be creative rather than strictly factual. Four districts per region.
+    - We started to make new regions (Miami, Medellin, New York & Los Angeles),
+    but no DOPE NFTs directly link to these. Need to decide if we want to stick to
+    the NFT fields or keep these (+/- add more). Leaning toward sticking to NFT.
+    If keeping them, need to check for clashes/overlap in the first four vs the remaining and tweak the first if need be.
 - Assign a cost-to-travel for regions in `mappings/location_travel.csv`. Traveling to different
 districts within a region is free.
     - Cost is relative (can be scaled depending on how much money people have in the game).

@@ -1,7 +1,7 @@
 item_name,item_id,cost_per_unit_out_of_1000,(optional stats: appearance count out of 8000)
-"Weed",0,,
-"Cocaine",1,,
-"Ludes",2,,
+"Weed",0,,447
+"Cocaine",1,,393
+"Ludes",2,,444
 "Acid",3,,
 "Speed",4,,
 "Heroin",5,,
