@@ -58,5 +58,6 @@ async def test_record_items():
         user_a_id, ring_bribe_index).invoke()
     assert weapon_score == 3
     assert ring_score == 1
+    print(f'Initialised {user_count} users and called for user {user_a_id}.')
 
 

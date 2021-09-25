@@ -76,11 +76,11 @@ bin/shell starknet-compile contracts/UserRegistry.cairo \
 ### Test
 
 ```
-bin/shell pytest testing/GameEngineV1_contract_test.py
+bin/shell pytest -s testing/GameEngineV1_contract_test.py
 
-bin/shell pytest testing/MarketMaker_contract_test.py
+bin/shell pytest -s testing/MarketMaker_contract_test.py
 
-bin/shell pytest testing/UserRegistry_contract_test.py
+bin/shell pytest -s testing/UserRegistry_contract_test.py
 ```
 
 ### Deploy
@@ -228,6 +228,8 @@ it as 2 for simplicity.
     - Need to account for name clashes during searching:
         - Drug 'soma', place 'SOMA'.
         - Shoe 'Air Jordan 1 Chicagos', place 'Chicago'.
+    - This may really be unecessary if items are distributed evenly and have the same ballpark
+    counts. TBC.
 - Assign scores to all the DOPE wearables/itmes in `mappings/thingxyz_score.csv`.
 E.g., is a `Baseball Bat` or a handgun more powerful, or what is more costly per 'unit'
 `Krokodil` or `Oxycontin`. Might also be interesting to look at documenting/using the
@@ -268,6 +270,7 @@ Quick-coding tasks:
 - Turn rate limiting. Game has global clock that increments every time
     a turn occurs. User has a lockout of x clock ticks.
 - Game end criterion based on global clock.
+- Update the `item_id`s in `GameEngineV1` to be in range 1-19 to reflect `mappings/drugs_value.csv`.
 
 Coding tasks:
 
@@ -278,6 +281,11 @@ E.g., how often should you get mugged, how much money would you lose.
 of starting amount e.g., 10,000, then sets the flag to )
 - Create caps on maximum parameters (40 location_ids, 10k user_ids, 10 item_ids)
 - User authentication. E.g., signature verification.
+- Apply modifiers to the events based on the held-items scores (`mappings/thingxyz_score.csv`).
+    - Run: Shoes and vehicle scores.
+    - Fight: Weapon score.
+    - Bribe: Necklace and Ring score.
+- More testing of held-item binary encoding implementation in `UserRegistry`
 
 Maybe tasks:
 

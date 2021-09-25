@@ -60,21 +60,28 @@ async def test_record_items():
         address=registry_contract_address).invoke()
 
     # Populate the registry with some data.
-    pubkey = 4567
-    token_data = 1010101
-    (test_id) = await registry_contract.register_user(
-        pubkey, token_data).invoke()
-    assert test_id == 1
-    (player_data) = await registry_contract.get_user_info(
-        test_id, pubkey).invoke()
+    user_count = 500
+    sample_data = 84622096520155505419920978765481155
 
+    # Repeating sample data
+    # Indices from 0, 20, 40, 60, 80..., have values 3.
+    # Indices from 10, 30, 50, 70, 90..., have values 1.
+    # [00010000010011000011] * 6 == [1133] * 6
+    # Populate the registry with homogeneous users (same data each).
+    await registry_contract.admin_fill_registry(user_count, sample_data).invoke()
 
     # Set up a scenario. A user who will go to some market and trade
     # in some item in exchange for money.
+    user_id = 3
+    # At the moment, the pubkey is declared as follows. Later it
+    # will be found from msg.sender equivalent.
+    pubkey_prefix = 1000000
+    user_pubkey = user_id + pubkey_prefix
+
     number_of_users=1000
     total_locations=40
     location_id = 34
-    user_id = 3
+
     item_id = 7
     # Pick a different location in the same suburb (4, 14, 24, 34)
     random_location = 24
@@ -292,7 +299,3 @@ async def test_record_items():
     random_initialized_user = await engine_contract.check_user_state(
         9).invoke()
     print('rand user', random_initialized_user)
-
-
-    # Make false assertion to trigger printing of variables to console.
-    assert 1==0
