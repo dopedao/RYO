@@ -6,7 +6,7 @@ vehicle,speed_out_of_ten,(optional stats: appearance count out of 8000)
 "ATV",5,485
 "Push Bike",1,
 "Electric Scooter",3,447
-"Golf Cart",,463
+"Golf Cart",4,463
 "Chopper",6,
 "Rollerblades",2,
 "Lowrider",6,
