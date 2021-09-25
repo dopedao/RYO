@@ -32,7 +32,7 @@ async def test_record_items():
 
     # Deploy the contracts.
     registry_contract_address = await starknet.deploy(
-        contract_definition=market_contract_definition)
+        contract_definition=registry_contract_definition)
     market_contract_address = await starknet.deploy(
         contract_definition=market_contract_definition)
     engine_contract_address = await starknet.deploy(

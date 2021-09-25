@@ -1,4 +1,4 @@
-item_name,item_id,cost_per_unit_out_of_1000
+item_name,item_id,cost_per_unit_out_of_1000,(optional stats: appearance count out of 8000)
 "Weed",0,
 "Cocaine",1,
 "Ludes",2,

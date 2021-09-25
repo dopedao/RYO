@@ -307,7 +307,7 @@ func have_turn{
 
     # Get unique user data.
     let (local user_data : UserData*) = fetch_user_data(user_id)
-
+    local syscall_ptr : felt* = syscall_ptr
     # E.g., Sell 300 units of item. amount_to_give = 300.
     # E.g., Buy using 120 units of money. amount_to_give = 120.
     # Record initial state for UI and QA.
@@ -322,7 +322,7 @@ func have_turn{
     # Affect pesudorandomn seed at start of turn.
     let (psuedorandom : felt) = add_to_seed(item_id, amount_to_give)
     # Get all events for this turn.
-    # For UI pass through values temporarily (in lieu of 'events').
+    # For UI, pass through values temporarily (in lieu of 'events').
     let (
         local trade_occurs_bool : felt,
         local money_reduction_factor : felt,

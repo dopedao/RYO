@@ -163,14 +163,22 @@ bin/shell starknet invoke \
 Calling the `check_user_state()` function again reveals that the `100` units were
 exchanged for some quantity of money.
 
-Alternatively, see and do all of the above with the Voyager browser [here](https://voyager.online/contract/0x01c721e3452005ddc95f10bf8dc86c98c32a224085c258024931ddbaa8a44557#writeContract).
+Alternatively, see and do all of the above with the Voyager browser
+[here](https://voyager.online/contract/0x01c721e3452005ddc95f10bf8dc86c98c32a224085c258024931ddbaa8a44557#writeContract).
 
 ## Game flow
 
 ```
 admin ->
-        initialise state variables
-        lock admin power
+        create L1 snapshot, build Merkle tree, save to L2.
+        initialise L2 state variables.
+        lock admin power.
+
+Once-off registrarion:
+user_1 ->
+        register_for_game(my_L1_address, my_chosen_DOPE_ID)
+
+Routine play:
 user_1 ->
         have_turn(got_to_loc, trade_x_for_y)
             check if game finished.
@@ -236,10 +244,10 @@ districts within a region is free.
     this as a player trait (e.g., player from x has some benefit in location x).
 - Fill out `mappings/initial_markets_cost_rel_100.csv` with how
 much items should start of costing in a certain area, where 100 is 'average' and 120 is 20% above
-average.
+average, 80 is 20% below average.
 - Fill out `mappings/initial_markets_quantity_rel_100.csv` with how
 many items should start of in a certain area, where 100 is 'average' and 120 is 20% above
-average. Areas can have different profiles, with different combinations of quantity and price
+average, 80 is 20% below average. Areas can have different profiles, with different combinations of quantity and price
 at the start of the game to create a different vibe/market dynamic. Will be good to just get
 some rought numbers down and try it out.
 
