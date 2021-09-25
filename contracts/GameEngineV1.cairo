@@ -306,7 +306,15 @@ func have_turn{
 
 
     # Get unique user data.
-    let (local user_data : UserData*) = fetch_user_data(user_id)
+    let (local user_data : UserData) = fetch_user_data(user_id)
+    # TODO - Use unique user data to modify events:
+    # E.g., use user_data.foot_speed to change change run_from_mugging
+
+    ## TEST ONLY ##
+    assert user_data.weapon_strength = 3
+    assert user_data.ring_bribe = 1
+    ## ######### ##
+
     local syscall_ptr : felt* = syscall_ptr
     # E.g., Sell 300 units of item. amount_to_give = 300.
     # E.g., Buy using 120 units of money. amount_to_give = 120.
@@ -860,13 +868,13 @@ func fetch_user_data{
     }(
         user_id : felt
     ) -> (
-        user_stats : UserData*
+        user_stats : UserData
     ):
     alloc_locals
-    let (local registry) = market_maker_address.read()
+    let (local registry) = user_registry_address.read()
     # Indicies are defined in the UserRegistry contract.
     # Call the UserRegsitry contract to get scores for given user.
-    let (weapon) = IUserRegistry.unpack_score(registry, user_id, 6)
+    let (local weapon) = IUserRegistry.unpack_score(registry, user_id, 6)
     let (local vehicle) = IUserRegistry.unpack_score(registry, user_id, 26)
     let (local foot) = IUserRegistry.unpack_score(registry, user_id, 46)
     let (local necklace) = IUserRegistry.unpack_score(registry, user_id, 66)
@@ -874,13 +882,16 @@ func fetch_user_data{
     let (local drug) = IUserRegistry.unpack_score(registry, user_id, 90)
 
     # Populate struct.
-    local user_stats : UserData*
-    assert user_stats.weapon_strength = weapon
-    assert user_stats.vehicle_speed = vehicle
-    assert user_stats.foot_speed = foot
-    assert user_stats.necklace_bribe = necklace
-    assert user_stats.ring_bribe = ring
-    assert user_stats.special_drug = drug
+    let user_stats = UserData(
+        weapon_strength=weapon,
+        vehicle_speed=vehicle,
+        foot_speed=foot,
+        necklace_bribe=necklace,
+        ring_bribe=ring,
+        special_drug=drug
+    )
+
+
 
     return (user_stats=user_stats)
 end
