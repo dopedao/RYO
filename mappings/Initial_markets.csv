@@ -1,5 +1,0 @@
-location_id, item_id, unit_quantity, money_quantity
-1,1,300,3000
-1,2,750,6000
-...
-40,10,30,450

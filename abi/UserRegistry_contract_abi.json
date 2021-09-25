@@ -1,0 +1,57 @@
+[
+    {
+        "inputs": [
+            {
+                "name": "user_id",
+                "type": "felt"
+            },
+            {
+                "name": "starknet_pubkey",
+                "type": "felt"
+            }
+        ],
+        "name": "get_user_info",
+        "outputs": [
+            {
+                "name": "user_data",
+                "type": "felt"
+            }
+        ],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "starknet_pubkey",
+                "type": "felt"
+            },
+            {
+                "name": "data",
+                "type": "felt"
+            }
+        ],
+        "name": "register_user",
+        "outputs": [
+            {
+                "name": "user_id",
+                "type": "felt"
+            }
+        ],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "n_users",
+                "type": "felt"
+            },
+            {
+                "name": "data",
+                "type": "felt"
+            }
+        ],
+        "name": "admin_fill_registry",
+        "outputs": [],
+        "type": "function"
+    }
+]

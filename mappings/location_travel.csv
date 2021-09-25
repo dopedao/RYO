@@ -1,0 +1,25 @@
+region,district_1,district_2,district_3,district_4,travel_cost_out_of_1000,(optional stats: region appearance count out of 8000)
+"Miami (TBC)","Downtown","Bricknell","Miami Beach","Wynwood",130,
+"Medellin (TBC)","Poblado","El Centro","Envigado","Bello",220,
+"New York (TBC)","L.E.S","Harlem","Brooklyn","Midtown",100,
+"Los Angeles (TBC)","Venice Beach","DownTown","SouthCentral","Hollywood",150,
+"The Bayou",,,,,,
+"Atlanta",,,,,,
+"Compton",,,,,,
+"Oakland",,,,,,
+"SOMA",,,,,,
+"Hong Kong",,,,,,
+"London",,,,,,
+"Chicago",,,,,,
+"Brooklyn",,,,,,
+"Detroit",,,,,,
+"Mob Town",,,,,,
+"Murdertown",,,,,,1109
+"Sin City",,,,,,
+"Big Smoke",,,,,,
+"The Backwoods",,,,,,
+"The Big Easy",,,,,,1016
+"Queens",,,,,,
+"BedStuy",,,,,,1029
+"Buffalo",,,,,,
+

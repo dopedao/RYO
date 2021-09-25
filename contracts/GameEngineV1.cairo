@@ -34,9 +34,20 @@ const LOCAL_SHIPMENT_IMPACT = 2  # Regional impact is 20% item gain.
 const WAREHOUSE_SEIZURE_BP = 5000
 const WAREHOUSE_SEIZURE_IMPACT = 2  # Regional impact 20% item loss.
 
+# A struct that holds the unpacked DOPE NFT data for the user.
+struct UserData:
+    member weapon_strength : felt  # low to high, [0, 10]. 0=None.
+    member vehicle_speed : felt  # low to high, [0, 10]. 0=None.
+    member foot_speed : felt  # low to high, [0, 10]. 0=None.
+    member necklace_bribe : felt  # low to high, [0, 10]. 0=None.
+    member ring_bribe : felt  # low to high, [0, 10]. 0=None.
+    member special_drug : felt  # NFT drug item [0, 10]. 0=None.
+end
+
 ############ Other Contract Info ############
 # Address of previously deployed MarketMaket.cairo contract.
 const MARKET_MAKER_ADDRESS = 0x07f9ad51033cd6107ad7d70d01c3b0ba2dda3331163a45b6b7f1a2952dac0880
+const USER_REGISTRY_ADDRESS = 0x1233455
 # Modifiable address pytest deployments.
 @storage_var
 func market_maker_address(
@@ -45,7 +56,15 @@ func market_maker_address(
     ):
 end
 
-# Declare the interface with which to call the Market Maker contract.
+# Modifiable address pytest deployments.
+@storage_var
+func user_registry_address(
+    ) -> (
+        address : felt
+    ):
+end
+
+# Declare the interface with which to call the MarketMaker contract.
 @contract_interface
 namespace IMarketMaker:
     func trade(
@@ -60,6 +79,24 @@ namespace IMarketMaker:
     end
 end
 
+# Declare the interface with which to call the UserRegistry contract.
+@contract_interface
+namespace IUserRegistry:
+    func get_user_info(
+        user_id : felt,
+        starknet_pubkey : felt
+    ) -> (
+        user_data : felt
+    ):
+    end
+    func unpack_score(
+        user_id : felt,
+        index : felt
+    ) -> (
+        score : felt
+    ):
+    end
+end
 ############ Game key ############
 # Location and market are equivalent terms (one market per location)
 # 40 location_ids [0-39].
@@ -135,6 +172,20 @@ func set_market_maker_address{
     ):
     # Used for testing. This can be constant on deployment.
     market_maker_address.write(address)
+    return ()
+end
+
+# Sets the address of the deployed UserRegistry.cairo contract.
+@external
+func set_user_registry_address{
+        storage_ptr : Storage*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        address : felt
+    ):
+    # Used for testing. This can be constant on deployment.
+    user_registry_address.write(address)
     return ()
 end
 
@@ -239,10 +290,34 @@ func have_turn{
         local_shipment_bool : felt,
         warehouse_seizure_bool : felt
     ):
+    alloc_locals
+    # Uncomment for pytest: Get address of UserRegistry.
+    # let user_registry = USER_REGISTRY_ADDRESS
 
+    # Check if user has registered to play.
+    check_user(user_id)
+
+    # TODO check if these can be removed.
+    #local syscall_ptr : felt* = syscall_ptr
+    #local storage_ptr : Storage* = storage_ptr
+    #local pedersen_ptr : HashBuiltin* = pedersen_ptr
+    #local range_check_ptr = range_check_ptr
+    #local bitwise_ptr : BitwiseBuiltin* = bitwise_ptr
+
+
+    # Get unique user data.
+    let (local user_data : UserData) = fetch_user_data(user_id)
+    # TODO - Use unique user data to modify events:
+    # E.g., use user_data.foot_speed to change change run_from_mugging
+
+    ## TEST ONLY ##
+    assert user_data.weapon_strength = 3
+    assert user_data.ring_bribe = 1
+    ## ######### ##
+
+    local syscall_ptr : felt* = syscall_ptr
     # E.g., Sell 300 units of item. amount_to_give = 300.
     # E.g., Buy using 120 units of money. amount_to_give = 120.
-    alloc_locals
     # Record initial state for UI and QA.
     let (local user_pre_trade_item) = user_has_item.read(user_id,
         item_id)
@@ -255,7 +330,7 @@ func have_turn{
     # Affect pesudorandomn seed at start of turn.
     let (psuedorandom : felt) = add_to_seed(item_id, amount_to_give)
     # Get all events for this turn.
-    # For UI pass through values temporarily (in lieu of 'events').
+    # For UI, pass through values temporarily (in lieu of 'events').
     let (
         local trade_occurs_bool : felt,
         local money_reduction_factor : felt,
@@ -343,6 +418,7 @@ end
 # A read-only function to inspect user state.
 @view
 func check_user_state{
+        syscall_ptr : felt*,
         storage_ptr : Storage*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
@@ -756,4 +832,66 @@ func loop_users{
     # Num users 1 on first entry. User index is num_users-1.
     user_has_item.write(user_id=num_users-1, item_id=0, value=amount)
     return ()
+end
+
+# Checks the user has the correct credentials and returns game data.
+func check_user{
+        syscall_ptr : felt*,
+        storage_ptr : Storage*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr: BitwiseBuiltin*
+    }(
+        user_id : felt
+    ) -> (
+        user_data : felt
+    ):
+    # Calls UserRegistry and retrieves information stored there.
+    # let (user_registry) = user_registry_address.read()
+    # let(pub_key, player_data) = IUserRegistry.get_user_info()
+
+    # Assert message sender pubkey used here matches the one retrieved.
+    # assert pub_key = msg.sender
+
+    # Return the registry-based characteristics of the player.
+    let user_data = 0
+    return (user_data)
+end
+
+# Returns a struct of decoded user data from binary-encoded registry.
+func fetch_user_data{
+        syscall_ptr : felt*,
+        storage_ptr : Storage*,
+        pedersen_ptr : HashBuiltin*,
+        bitwise_ptr: BitwiseBuiltin*,
+        range_check_ptr
+    }(
+        user_id : felt
+    ) -> (
+        user_stats : UserData
+    ):
+    alloc_locals
+    let (local registry) = user_registry_address.read()
+    # Indicies are defined in the UserRegistry contract.
+    # Call the UserRegsitry contract to get scores for given user.
+    let (local weapon) = IUserRegistry.unpack_score(registry, user_id, 6)
+    let (local vehicle) = IUserRegistry.unpack_score(registry, user_id, 26)
+    let (local foot) = IUserRegistry.unpack_score(registry, user_id, 46)
+    let (local necklace) = IUserRegistry.unpack_score(registry, user_id, 66)
+    let (local ring) = IUserRegistry.unpack_score(registry, user_id, 76)
+    let (local drug) = IUserRegistry.unpack_score(registry, user_id, 90)
+
+    # Populate struct.
+    let user_stats = UserData(
+        weapon_strength=weapon,
+        vehicle_speed=vehicle,
+        foot_speed=foot,
+        necklace_bribe=necklace,
+        ring_bribe=ring,
+        special_drug=drug
+    )
+
+
+
+    return (user_stats=user_stats)
 end

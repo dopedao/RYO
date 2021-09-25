@@ -11,6 +11,8 @@ ENGINE_CONTRACT_FILE = os.path.join(
     os.path.dirname(__file__), "../contracts/GameEngineV1.cairo")
 MARKET_CONTRACT_FILE = os.path.join(
     os.path.dirname(__file__), "../contracts/MarketMaker.cairo")
+REGISTRY_CONTRACT_FILE = os.path.join(
+    os.path.dirname(__file__), "../contracts/UserRegistry.cairo")
 
 # The testing library uses python's asyncio. So the following
 # decorator and the ``async`` keyword are needed.
@@ -21,12 +23,16 @@ async def test_record_items():
         [ENGINE_CONTRACT_FILE], debug_info=True)
     market_contract_definition = compile_starknet_files(
         [MARKET_CONTRACT_FILE], debug_info=True)
+    registry_contract_definition = compile_starknet_files(
+        [REGISTRY_CONTRACT_FILE], debug_info=True)
 
     # Create a new Starknet class that simulates the StarkNet
     # system.
     starknet = await Starknet.empty()
 
     # Deploy the contracts.
+    registry_contract_address = await starknet.deploy(
+        contract_definition=registry_contract_definition)
     market_contract_address = await starknet.deploy(
         contract_definition=market_contract_definition)
     engine_contract_address = await starknet.deploy(
@@ -39,17 +45,43 @@ async def test_record_items():
         contract_address=engine_contract_address,
     )
 
+    # Create contract Objects to interact with.
+    registry_contract = StarknetContract(
+        starknet=starknet,
+        abi=registry_contract_definition.abi,
+        contract_address=registry_contract_address,
+    )
+
     # Save the market address in the engine contract so it can call
     # the market maker contract.
     await engine_contract.set_market_maker_address(
         address=market_contract_address).invoke()
+    await engine_contract.set_user_registry_address(
+        address=registry_contract_address).invoke()
+
+    # Populate the registry with some data.
+    user_count = 500
+    sample_data = 84622096520155505419920978765481155
+
+    # Repeating sample data
+    # Indices from 0, 20, 40, 60, 80..., have values 3.
+    # Indices from 10, 30, 50, 70, 90..., have values 1.
+    # [00010000010011000011] * 6 == [1133] * 6
+    # Populate the registry with homogeneous users (same data each).
+    await registry_contract.admin_fill_registry(user_count, sample_data).invoke()
 
     # Set up a scenario. A user who will go to some market and trade
     # in some item in exchange for money.
+    user_id = 3
+    # At the moment, the pubkey is declared as follows. Later it
+    # will be found from msg.sender equivalent.
+    pubkey_prefix = 1000000
+    user_pubkey = user_id + pubkey_prefix
+
     number_of_users=1000
     total_locations=40
     location_id = 34
-    user_id = 3
+
     item_id = 7
     # Pick a different location in the same suburb (4, 14, 24, 34)
     random_location = 24
@@ -267,7 +299,3 @@ async def test_record_items():
     random_initialized_user = await engine_contract.check_user_state(
         9).invoke()
     print('rand user', random_initialized_user)
-
-
-    # Make false assertion to trigger printing of variables to console.
-    assert 1==0
