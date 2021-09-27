@@ -243,31 +243,31 @@ async def test_record_items():
 
     # Check event factor logic.
     if (gang_hit == 1 or cop_hit == 1) and find_item_bool == 0:
-        assert item_reduction_factor < 10
+        assert item_reduction_factor < 100
     if gang_hit == 0 and cop_hit == 0 and find_item_bool == 1:
-        assert item_reduction_factor > 10
+        assert item_reduction_factor > 100
     if mug_hit == 1 or cop_hit == 1:
-        assert money_reduction_factor < 10
+        assert money_reduction_factor < 100
     if local_shipment_bool == 1 and warehouse_seizure_bool == 0:
-        assert regional_item_reduction_factor > 10
+        assert regional_item_reduction_factor > 100
     if local_shipment_bool == 0 and warehouse_seizure_bool == 1:
-        assert regional_item_reduction_factor < 10
+        assert regional_item_reduction_factor < 100
 
     # Check event factors appliied.
     # Check regional event item effect.
     assert market_post_trade_post_event_item == \
         regional_item_reduction_factor * \
-        market_post_trade_pre_event_item // 10
+        market_post_trade_pre_event_item // 100
     # Check regional market money unaffected by events.
     assert market_post_trade_pre_event_money == (
         market_post_trade_post_event_money)
     # Check user money event effect.
     assert user_post_trade_post_event_money == \
         money_reduction_factor * \
-        user_post_trade_pre_event_money // 10
+        user_post_trade_pre_event_money // 100
     # Check user item event effect.
     assert user_post_trade_post_event_item == \
-        item_reduction_factor * user_post_trade_pre_event_item // 10
+        item_reduction_factor * user_post_trade_pre_event_item // 100
 
 
     # Make a separate conract call to assert persistence of state.
@@ -294,7 +294,7 @@ async def test_record_items():
     assert random_market_item != 0 and random_market_money != 0
     # Check that if there was a regional event, it was applied.
     assert random_market_item == random_market_pre_turn_item * \
-        regional_item_reduction_factor // 10
+        regional_item_reduction_factor // 100
 
     random_initialized_user = await engine_contract.check_user_state(
         9).invoke()

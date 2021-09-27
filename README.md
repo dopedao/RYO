@@ -183,8 +183,10 @@ user_1 ->
         have_turn(got_to_loc, trade_x_for_y)
             check if game finished.
             check user authentification.
+            get wearables from registry.
             check if user allowed using game clock.
             add to random seed.
+            modify event probabilites based on wearables.
             user location update.
                 decrease money count if new city.
             check for dealer dash (x %).
@@ -281,11 +283,8 @@ E.g., how often should you get mugged, how much money would you lose.
 of starting amount e.g., 10,000, then sets the flag to )
 - Create caps on maximum parameters (40 location_ids, 10k user_ids, 10 item_ids)
 - User authentication. E.g., signature verification.
-- Apply modifiers to the events based on the held-items scores (`mappings/thingxyz_score.csv`).
-    - Run: Shoes and vehicle scores.
-    - Fight: Weapon score.
-    - Bribe: Necklace and Ring score.
 - More testing of held-item binary encoding implementation in `UserRegistry`
+- More testing of effect of wearables on event occurences.
 
 Maybe tasks:
 

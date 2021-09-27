@@ -13,26 +13,33 @@ from starkware.cairo.common.alloc import alloc
 
 ############ Game constants ############
 # Default basis point probabilities applied per turn. 10000=100%.
-# Impact factor scales value. post = (pre * F)// 10). 3 = 30% increase.
-# Impact factor is either added or subtracted from 10.
-# Probabilities are currently just set to 50%.
+# Impact factor scales value. post = (pre * F)// 100). 30 = 30% increase.
+# Impact factor is either added or subtracted from 100.
+# Probabilities are not currently optimised (e.g. all set to 50%).
+
 const DEALER_DASH_BP = 1000  # E.g., 10% chance dealer runs.
-const WRANGLE_DASHED_DEALER_BP = 5000  # 30% you catch them.
-const MUGGING_BP = 5000  # 15% chance of mugging.
-const MUGGING_IMPACT = 3  # Impact is 30% money loss = (10-3)/10.
+const WRANGLE_DASHED_DEALER_BP = 5000  # E.g., 30% you catch them.
+const MUGGING_BP = 5000  # E.g., 15% chance of mugging.
+const MUGGING_IMPACT = 30  # Impact is 30% money loss = (100-30)/100.
 const RUN_FROM_MUGGING_BP = 5000
 const GANG_WAR_BP = 5000
-const GANG_WAR_IMPACT = 3  # Impact is 30% money loss = (10-3)/10.
+const GANG_WAR_IMPACT = 30  # Impact is 30% money loss = (100-30)/100.
 const DEFEND_GANG_WAR_BP = 5000
 const COP_RAID_BP = 5000
-const COP_RAID_IMPACT = 2  # Impact is 20% item & 20% money loss.
+const COP_RAID_IMPACT = 20  # Impact is 20% item & 20% money loss.
 const BRIBE_COPS_BP = 5000
 const FIND_ITEM_BP = 5000
-const FIND_ITEM_IMPACT = 5  # Impact is 50% item gain = (10+5)/10.
+const FIND_ITEM_IMPACT = 50  # Impact is 50% item gain = (100+50)/100.
 const LOCAL_SHIPMENT_BP = 5000
-const LOCAL_SHIPMENT_IMPACT = 2  # Regional impact is 20% item gain.
+const LOCAL_SHIPMENT_IMPACT = 20  # Regional impact is 20% item gain.
 const WAREHOUSE_SEIZURE_BP = 5000
-const WAREHOUSE_SEIZURE_IMPACT = 2  # Regional impact 20% item loss.
+const WAREHOUSE_SEIZURE_IMPACT = 20  # Regional impact 20% item loss.
+
+# Probabilities are for minimum-stat wearable (score=1).
+# For a max-stat wearable (score=10), the probability is scaled down.
+# E.g., an event_BP of 3000 (30% chance) and an event fraction of
+# 20 will become (30*20/100) = 6% chance for that event for that player.
+const MIN_EVENT_FRACTION = 20  # 20% the stated XYZ_BP probability.
 
 # A struct that holds the unpacked DOPE NFT data for the user.
 struct UserData:
@@ -347,7 +354,7 @@ func have_turn{
         local find_item_bool : felt,
         local local_shipment_bool : felt,
         local warehouse_seizure_bool : felt
-    ) = get_events()
+    ) = get_events(user_data)
 
     # Apply trade and save results for market QA checks.
     execute_trade(user_id, location_id, buy_or_sell, item_id,
@@ -359,20 +366,20 @@ func have_turn{
     let (local market_post_trade_pre_event_money) = location_has_money.read(
         location_id, item_id)
 
-    # Apply post-trade factors that arose from events.
+    # Apply post-trade money using factors that arose from events.
     let (local user_post_trade_pre_event_money) = user_has_item.read(
         user_id, 0)
     let (local user_post_trade_post_event_money, _) = unsigned_div_rem(
-        user_post_trade_pre_event_money * money_reduction_factor, 10)
+        user_post_trade_pre_event_money * money_reduction_factor, 100)
     user_has_item.write(user_id, 0, user_post_trade_post_event_money)
-
+    # Apply post-trade item using factors that arose from events.
     let (local user_post_trade_pre_event_item) = user_has_item.read(
         user_id, item_id)
     let (local user_post_trade_post_event_item, _) = unsigned_div_rem(
-        user_post_trade_pre_event_item * item_reduction_factor, 10)
+        user_post_trade_pre_event_item * item_reduction_factor, 100)
     user_has_item.write(user_id, item_id, user_post_trade_post_event_item)
 
-    # Change the supply in regional markets.
+    # Change the supply in regional markets due to event occurences.
     update_regional_items(location_id, item_id,
         regional_item_reduction_factor)
 
@@ -647,7 +654,9 @@ func get_events{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*
-    }() -> (
+    }(
+        user_data : UserData
+    ) -> (
         trade_occurs_bool : felt,
         money_reduction_factor : felt,
         item_reduction_factor : felt,
@@ -668,26 +677,58 @@ func get_events{
     # same variable, with both having a summation effect where two
     # 30% reduction effects (10 - 3 - 3) * 10)//10 = 60% reduction.
     alloc_locals
+
+    # User-specific wearables alter the probability of each event.
+    # Ability out of 100. Range [10, 100].
+    local power_ability = user_data.weapon_strength * 10
+    let run_ability = user_data.vehicle_speed * 10 + user_data.foot_speed * 10
+    let (local run_ability, _) = unsigned_div_rem(run_ability, 2)
+    let bribe_ability = user_data.necklace_bribe * 10 + user_data.ring_bribe * 10
+    let (local bribe_ability, _) = unsigned_div_rem(bribe_ability, 2)
+
+    # Run ability increases WRANGLE_DASHED_DEALER_BP (increases=1).
+    let (local wrangle_bp) = scale_ability(run_ability,
+        WRANGLE_DASHED_DEALER_BP, 1)
+    # Power ability decreases MUGGING_BP (increases=0).
+    let (local mugging_bp) = scale_ability(power_ability,
+        MUGGING_BP, 0)
+    # Run ability increases RUN_FROM_MUGGING_BP (increases=1).
+    let (local run_bp) = scale_ability(run_ability,
+        RUN_FROM_MUGGING_BP, 1)
+    # Power ability decreases GANG_WAR_BP (increases=0).
+    let (local war_bp) = scale_ability(power_ability, GANG_WAR_BP, 0)
+    # Power ability increases DEFEND_GANG_WAR_BP (increases=1).
+    let (local defend_war_bp) = scale_ability(power_ability,
+        DEFEND_GANG_WAR_BP, 1)
+    # Power ability increases COP_RAID_BP (increases=1).
+    # That is, power increases chance of cop raids.
+    let (local cop_raid_bp) = scale_ability(power_ability,
+        COP_RAID_BP, 1)
+    # Bribe ability decreases BRIBE_COPS_BP (increases=0).
+    let (local bribe_bp) = scale_ability(bribe_ability,
+        BRIBE_COPS_BP, 0)
+
     # Retrieve events
     let (local dealer_dash_bool) = event_occured(DEALER_DASH_BP)
-    let (local wrangle_dashed_dealer_bool) = event_occured(WRANGLE_DASHED_DEALER_BP)
-    let (local mugging_bool) = event_occured(MUGGING_BP)
-    let (local run_from_mugging_bool) = event_occured(RUN_FROM_MUGGING_BP)
-    let (local gang_war_bool) = event_occured(GANG_WAR_BP)
-    let (local defend_gang_war_bool) = event_occured(DEFEND_GANG_WAR_BP)
-    let (local cop_raid_bool) = event_occured(COP_RAID_BP)
-    let (local bribe_cops_bool) = event_occured(BRIBE_COPS_BP)
+    let (local wrangle_dashed_dealer_bool) = event_occured(wrangle_bp)
+    let (local mugging_bool) = event_occured(mugging_bp)
+    let (local run_from_mugging_bool) = event_occured(run_bp)
+    let (local gang_war_bool) = event_occured(war_bp)
+    let (local defend_gang_war_bool) = event_occured(war_bp)
+    let (local cop_raid_bool) = event_occured(cop_raid_bp)
+    let (local bribe_cops_bool) = event_occured(bribe_bp)
     let (local find_item_bool) = event_occured(FIND_ITEM_BP)
     let (local local_shipment_bool) = event_occured(LOCAL_SHIPMENT_BP)
     let (local warehouse_seizure_bool) = event_occured(WAREHOUSE_SEIZURE_BP)
 
     # Apply events
     let trade_occurs_bool = 1
-    # post = pre x factor / 10. (10 = no change. 8 = 20% reduction).
-    let money_reduction_factor = 10
-    let item_reduction_factor = 10
-    let regional_item_reduction_factor = 10
-    assert_nn_le(GANG_WAR_IMPACT + COP_RAID_IMPACT, 9)
+    # post = pre x factor / 100. (100 = no change. 88 = 20% reduction).
+    let money_reduction_factor = 100
+    let item_reduction_factor = 100
+    let regional_item_reduction_factor = 100
+    # The combined effect of both gang+cop cannot be 100 (whole balance).
+    assert_nn_le(GANG_WAR_IMPACT + COP_RAID_IMPACT, 99)
 
     # E.g., Trade = 0 if dealer dashes and gets away.
     # trade does not occur = 1 - 1 * (1 - 0) = 0.
@@ -755,6 +796,64 @@ func get_events{
     )
 end
 
+
+# Generic mapping from one range to another.
+func scale{
+        storage_ptr : Storage*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr: BitwiseBuiltin*
+    } (
+        val_in : felt,
+        in_low : felt,
+        in_high : felt,
+        out_low : felt,
+        out_high : felt
+    ) -> (
+        val_out : felt
+    ):
+    # val_out = ((val_in - in_low) / (in_high - in_low))
+    #           * (out_high - out_low) + out_low
+    let a = (val_in - in_low) * (out_high - out_low)
+    let b = in_high - in_low
+    let (c, _) = unsigned_div_rem(a, b)
+    let val_out = c + out_low
+    return (val_out)
+end
+
+# Returns an effective probability based on an ability.
+func scale_ability{
+        storage_ptr : Storage*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        bitwise_ptr: BitwiseBuiltin*
+    } (
+        ability : felt,
+        event_max_bp : felt,
+        increases : felt
+    ) -> (
+        effective_bp : felt
+    ):
+    # Ability range (derived from item scores 1-10, then scaled).
+    let min_ab = 10
+    let max_ab = 100
+    # Determine the minimum possible BP: EVENT_BP * MEF/100
+    let (min_bp, _) = unsigned_div_rem(
+        event_max_bp * MIN_EVENT_FRACTION, 100)
+
+    # Get effective probability, based on how the ability (increases=1)
+    # changes the event. E.g., event has 50% chance, low ability=30.
+    # ability = 1 * 30 (unlikely). If increases=0, ability = 80 (likely).
+    let ability = increases * (ability) + (1 - increases) *
+        (max_ab + min_ab - ability)
+
+    # Map the ability to BPs: [10, 100] -> [min_bp, EVENT_BP]
+    let (effective_bp) = scale(ability, min_ab, max_ab, min_bp,
+        event_max_bp)
+    return (effective_bp)
+end
+
+
 # Determines if an event occurs, given a probabilitiy (basis points).
 func event_occured{
         storage_ptr : Storage*,
@@ -797,21 +896,22 @@ func update_regional_items{
     # ids = location_id mod 10 + [0, 10, 20, 30].
     # new = old * factor.
     let (_ , rem) = unsigned_div_rem(location_id, 10)
+
     # Get current count, apply factor, save.
     let (val_0) = location_has_item.read(rem, item_id)
-    let (val_0_new, _) = unsigned_div_rem(val_0 * factor, 10)
+    let (val_0_new, _) = unsigned_div_rem(val_0 * factor, 100)
     location_has_item.write(rem, item_id, val_0_new)
 
     let (val_1) = location_has_item.read(rem + 10, item_id)
-    let (val_1_new, _) = unsigned_div_rem(val_1 * factor, 10)
+    let (val_1_new, _) = unsigned_div_rem(val_1 * factor, 100)
     location_has_item.write(rem + 10, item_id, val_1_new)
 
     let (val_2) = location_has_item.read(rem + 20, item_id)
-    let (val_2_new, _) = unsigned_div_rem(val_2 * factor, 10)
+    let (val_2_new, _) = unsigned_div_rem(val_2 * factor, 100)
     location_has_item.write(rem + 20, item_id, val_2_new)
 
     let (val_3) = location_has_item.read(rem + 30, item_id)
-    let (val_3_new, _) = unsigned_div_rem(val_3 * factor, 10)
+    let (val_3_new, _) = unsigned_div_rem(val_3 * factor, 100)
     location_has_item.write(rem + 30, item_id, val_3_new)
     return ()
 end
