@@ -2,7 +2,6 @@ import pytest
 import asyncio
 from starkware.starknet.testing.starknet import Starknet
 from utils.Signer import Signer
-from math import randint
 
 signer = Signer(123456789987654321)
 L1_ADDRESS = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984
@@ -91,7 +90,7 @@ async def test_single_turn_logic(populated_game, populated_registry):
 
     user_id = 3
     location_id = 34
-    item_id = randint(1, 19)
+    item_id = 13
     # Pick a different location in the same suburb (4, 14, 24, 34)
     random_location = 24
     random_market_pre_turn_item = sample_item_count_list[random_location]
