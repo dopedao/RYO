@@ -411,6 +411,8 @@ func have_turn{
     let (local market_post_trade_post_event_money) = location_has_money.read(
         location_id, item_id)
 
+    # TODO: do we 1/ read game clock 2/ update this user's clock_at_previous_turn here?
+
     return (
         trade_occurs_bool,
         user_pre_trade_item,
