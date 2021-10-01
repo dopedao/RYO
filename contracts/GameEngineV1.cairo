@@ -170,11 +170,22 @@ func is_admin_locked(
     ):
 end
 
-# Game clock
-# TODO
+# Game clock for measuring total turns that have passed
+@storage_var
+func game_clock(
+   ) -> (
+       value : felt
+   ):
+end
 
 # Returns the game clock recorded during the previous turn of a user.
-# TODO
+@storage_var
+func clock_at_previous_turn(
+       user_id : felt,
+   ) -> (
+       value : felt
+   ):
+end
 
 ############ Admin Functions for Testing ############
 # Sets the address of the deployed MarketMaker.cairo contract.
