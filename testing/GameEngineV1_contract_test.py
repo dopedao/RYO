@@ -1,63 +1,49 @@
-import os
 import pytest
-
-from starkware.starknet.compiler.compile import (
-    compile_starknet_files)
+import asyncio
 from starkware.starknet.testing.starknet import Starknet
-from starkware.starknet.testing.contract import StarknetContract
+from utils.Signer import Signer
 
-# The path to the contract source code.
-ENGINE_CONTRACT_FILE = os.path.join(
-    os.path.dirname(__file__), "../contracts/GameEngineV1.cairo")
-MARKET_CONTRACT_FILE = os.path.join(
-    os.path.dirname(__file__), "../contracts/MarketMaker.cairo")
-REGISTRY_CONTRACT_FILE = os.path.join(
-    os.path.dirname(__file__), "../contracts/UserRegistry.cairo")
+signer = Signer(123456789987654321)
+L1_ADDRESS = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984
 
-# The testing library uses python's asyncio. So the following
-# decorator and the ``async`` keyword are needed.
-@pytest.mark.asyncio
-async def test_record_items():
-    # Compile the contracts.
-    engine_contract_definition = compile_starknet_files(
-        [ENGINE_CONTRACT_FILE], debug_info=True)
-    market_contract_definition = compile_starknet_files(
-        [MARKET_CONTRACT_FILE], debug_info=True)
-    registry_contract_definition = compile_starknet_files(
-        [REGISTRY_CONTRACT_FILE], debug_info=True)
+@pytest.fixture(scope='module')
+def event_loop():
+    return asyncio.new_event_loop()
 
-    # Create a new Starknet class that simulates the StarkNet
-    # system.
+@pytest.fixture(scope='module')
+async def game_factory():
     starknet = await Starknet.empty()
+    account = await starknet.deploy("contracts/Account.cairo")
+    engine = await starknet.deploy("contracts/GameEngineV1.cairo")
+    market = await starknet.deploy("contracts/MarketMaker.cairo")
+    registry = await starknet.deploy("contracts/UserRegistry.cairo")
+    await account.initialize(signer.public_key, L1_ADDRESS).invoke()
+    return starknet, account, engine, market, registry
 
-    # Deploy the contracts.
-    registry_contract_address = await starknet.deploy(
-        contract_definition=registry_contract_definition)
-    market_contract_address = await starknet.deploy(
-        contract_definition=market_contract_definition)
-    engine_contract_address = await starknet.deploy(
-        contract_definition=engine_contract_definition)
 
-    # Create contract Objects to interact with.
-    engine_contract = StarknetContract(
-        starknet=starknet,
-        abi=engine_contract_definition.abi,
-        contract_address=engine_contract_address,
-    )
+@pytest.mark.asyncio
+async def test_market(game_factory):
+    _, _, _, market, _, = game_factory
+    market_a_pre = 300
+    market_b_pre = 500
+    user_a_pre = 40  # User gives 40.
+    res = await market.trade(market_a_pre, market_b_pre, user_a_pre).invoke()
+    (market_a_post, market_b_post, user_b_post, ) = res
 
-    # Create contract Objects to interact with.
-    registry_contract = StarknetContract(
-        starknet=starknet,
-        abi=registry_contract_definition.abi,
-        contract_address=registry_contract_address,
-    )
+    assert market_a_post == market_a_pre + user_a_pre
+    assert market_b_post == market_b_pre - user_b_post
+
+
+@pytest.mark.asyncio
+async def test_record_items(game_factory):
+    _, _, engine, market, registry = game_factory
 
     # Save the market address in the engine contract so it can call
     # the market maker contract.
-    await engine_contract.set_market_maker_address(
-        address=market_contract_address).invoke()
-    await engine_contract.set_user_registry_address(
-        address=registry_contract_address).invoke()
+    await engine.set_market_maker_address(
+        address=market.contract_address).invoke()
+    await engine.set_user_registry_address(
+        address=registry.contract_address).invoke()
 
     # Populate the registry with some data.
     user_count = 500
@@ -68,7 +54,7 @@ async def test_record_items():
     # Indices from 10, 30, 50, 70, 90..., have values 1.
     # [00010000010011000011] * 6 == [1133] * 6
     # Populate the registry with homogeneous users (same data each).
-    await registry_contract.admin_fill_registry(user_count, sample_data).invoke()
+    await registry.admin_fill_registry(user_count, sample_data).invoke()
 
     # Set up a scenario. A user who will go to some market and trade
     # in some item in exchange for money.
@@ -111,21 +97,21 @@ async def test_record_items():
 
     # Create the market.
     # Populate the item pair of interest across all locations.
-    await engine_contract.admin_set_pairs_for_item(item_id,
+    await engine.admin_set_pairs_for_item(item_id,
         sample_item_count_list, sample_item_money_list).invoke()
     # Give the user money (id=0).
-    await engine_contract.admin_set_user_amount(number_of_users,
+    await engine.admin_set_user_amount(number_of_users,
         user_money_pre).invoke()
-    pre_trade_user = await engine_contract.check_user_state(
+    pre_trade_user = await engine.check_user_state(
         user_id).invoke()
     print('pre_trade_user', pre_trade_user)
-    pre_trade_market = await engine_contract.check_market_state(
+    pre_trade_market = await engine.check_market_state(
         location_id, item_id).invoke()
     print('pre_trade_market', pre_trade_market)
     random_market_pre_turn_item = sample_item_count_list[random_location]
 
     # Execute a game turn.
-    turn = await engine_contract.have_turn(user_id, location_id,
+    turn = await engine.have_turn(user_id, location_id,
         buy_or_sell, item_id, give_quantity).invoke()
 
 
@@ -272,13 +258,13 @@ async def test_record_items():
 
     # Make a separate conract call to assert persistence of state.
     # Inspect post-trade state
-    post_trade_user = await engine_contract.check_user_state(
+    post_trade_user = await engine.check_user_state(
         user_id).invoke()
     assert post_trade_user[0] == user_post_trade_post_event_money
     assert post_trade_user[item_id] == user_post_trade_post_event_item
     print('post_trade_user', post_trade_user)
 
-    post_trade_market = await engine_contract.check_market_state(
+    post_trade_market = await engine.check_market_state(
         location_id, item_id).invoke()
     assert post_trade_market[0] == market_post_trade_post_event_item
     assert post_trade_market[1] == market_post_trade_post_event_money
@@ -289,13 +275,13 @@ async def test_record_items():
 
     # Check that another location has been set.
     (random_market_item, random_market_money) = \
-        await engine_contract.check_market_state(
+        await engine.check_market_state(
         random_location, item_id).invoke()
     assert random_market_item != 0 and random_market_money != 0
     # Check that if there was a regional event, it was applied.
     assert random_market_item == random_market_pre_turn_item * \
         regional_item_reduction_factor // 100
 
-    random_initialized_user = await engine_contract.check_user_state(
+    random_initialized_user = await engine.check_user_state(
         9).invoke()
     print('rand user', random_initialized_user)

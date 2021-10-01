@@ -53,5 +53,25 @@
         "name": "admin_fill_registry",
         "outputs": [],
         "type": "function"
+    },
+    {
+        "inputs": [
+            {
+                "name": "user_id",
+                "type": "felt"
+            },
+            {
+                "name": "index",
+                "type": "felt"
+            }
+        ],
+        "name": "unpack_score",
+        "outputs": [
+            {
+                "name": "score",
+                "type": "felt"
+            }
+        ],
+        "type": "function"
     }
 ]
