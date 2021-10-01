@@ -41,6 +41,9 @@ const WAREHOUSE_SEIZURE_IMPACT = 20  # Regional impact 20% item loss.
 # 20 will become (30*20/100) = 6% chance for that event for that player.
 const MIN_EVENT_FRACTION = 20  # 20% the stated XYZ_BP probability.
 
+# Number of turns by other players that must occur before next turn.
+# TODO.
+
 # A struct that holds the unpacked DOPE NFT data for the user.
 struct UserData:
     member weapon_strength : felt  # low to high, [0, 10]. 0=None.
@@ -166,6 +169,12 @@ func is_admin_locked(
         value : felt
     ):
 end
+
+# Game clock
+# TODO
+
+# Returns the game clock recorded during the previous turn of a user.
+# TODO
 
 ############ Admin Functions for Testing ############
 # Sets the address of the deployed MarketMaker.cairo contract.
@@ -335,6 +344,8 @@ func have_turn{
         location_id, item_id)
 
     # Affect pesudorandomn seed at start of turn.
+    # User can grind a favourable number by incrementing lots of 10.
+    let(low_precision_quant, _) = unsigned_div_rem(amount_to_give, 10)
     let (psuedorandom : felt) = add_to_seed(item_id, amount_to_give)
     # Get all events for this turn.
     # For UI, pass through values temporarily (in lieu of 'events').
@@ -435,7 +446,9 @@ func check_user_state{
         money : felt,
         id1 : felt, id2 : felt, id3 : felt, id4 : felt, id5 : felt,
         id6 : felt, id7 : felt, id8 : felt, id9 : felt, id10 : felt,
-        location : felt):
+        id11 : felt, id12 : felt, id13 : felt, id14 : felt,
+        id15 : felt, id16 : felt, id17 : felt, id18 : felt,
+        id19 : felt, location : felt):
     alloc_locals
     # Get the quantity held for each item.
     let (local money) = user_has_item.read(user_id, 0)
@@ -449,9 +462,19 @@ func check_user_state{
     let (local id8) = user_has_item.read(user_id, 8)
     let (local id9) = user_has_item.read(user_id, 9)
     let (local id10) = user_has_item.read(user_id, 10)
+    let (local id11) = user_has_item.read(user_id, 11)
+    let (local id12) = user_has_item.read(user_id, 12)
+    let (local id13) = user_has_item.read(user_id, 13)
+    let (local id14) = user_has_item.read(user_id, 14)
+    let (local id15) = user_has_item.read(user_id, 15)
+    let (local id16) = user_has_item.read(user_id, 16)
+    let (local id17) = user_has_item.read(user_id, 17)
+    let (local id18) = user_has_item.read(user_id, 18)
+    let (local id19) = user_has_item.read(user_id, 19)
     # Get location
     let (local location) = user_in_location.read(user_id)
     return (money, id1, id2, id3, id4, id5, id6, id7, id8, id9, id10,
+        id11, id12, id13, id14, id15, id16, id17, id18, id19,
         location)
 end
 
