@@ -6,6 +6,9 @@ from utils.Signer import Signer
 signer = Signer(123456789987654321)
 L1_ADDRESS = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984
 
+# E.g., >1000.
+USER_COUNT = 10
+
 @pytest.fixture(scope='module')
 def event_loop():
     return asyncio.new_event_loop()
@@ -18,8 +21,13 @@ async def game_factory():
     market = await starknet.deploy("contracts/MarketMaker.cairo")
     registry = await starknet.deploy("contracts/UserRegistry.cairo")
     await account.initialize(signer.public_key, L1_ADDRESS).invoke()
-    return starknet, account, engine, market, registry
 
+    # Save the other contract address in the game contract.
+    await engine.set_market_maker_address(
+        address=market.contract_address).invoke()
+    await engine.set_user_registry_address(
+        address=registry.contract_address).invoke()
+    return starknet, account, engine, market, registry
 
 @pytest.mark.asyncio
 async def test_market(game_factory):
@@ -34,19 +42,10 @@ async def test_market(game_factory):
     assert market_b_post == market_b_pre - user_b_post
 
 
-@pytest.mark.asyncio
-async def test_record_items(game_factory):
-    _, _, engine, market, registry = game_factory
-
-    # Save the market address in the engine contract so it can call
-    # the market maker contract.
-    await engine.set_market_maker_address(
-        address=market.contract_address).invoke()
-    await engine.set_user_registry_address(
-        address=registry.contract_address).invoke()
-
+@pytest.fixture(scope='module')
+async def populated_registry(game_factory):
+    _, _, _, _, registry = game_factory
     # Populate the registry with some data.
-    user_count = 500
     sample_data = 84622096520155505419920978765481155
 
     # Repeating sample data
@@ -54,33 +53,16 @@ async def test_record_items(game_factory):
     # Indices from 10, 30, 50, 70, 90..., have values 1.
     # [00010000010011000011] * 6 == [1133] * 6
     # Populate the registry with homogeneous users (same data each).
-    await registry.admin_fill_registry(user_count, sample_data).invoke()
+    await registry.admin_fill_registry(USER_COUNT, sample_data).invoke()
+    return registry
 
-    # Set up a scenario. A user who will go to some market and trade
-    # in some item in exchange for money.
-    user_id = 3
-    # At the moment, the pubkey is declared as follows. Later it
-    # will be found from msg.sender equivalent.
-    pubkey_prefix = 1000000
-    user_pubkey = user_id + pubkey_prefix
 
-    number_of_users=1000
-    total_locations=40
-    location_id = 34
-
-    item_id = 7
-    # Pick a different location in the same suburb (4, 14, 24, 34)
-    random_location = 24
-
-    # User has small amount of money, but lots of the item they are selling.
+@pytest.fixture(scope='module')
+async def populated_game(game_factory):
+    _, _, engine, _, _ = game_factory
+    # Populate the item pair of interest across all locations.
+    total_locations= 40
     user_money_pre = 10000
-    user_item_pre = 0
-    # Set action (buy=0, sell=1)
-    buy_or_sell = 0
-    # How much is the user giving (either money or item)
-    # If selling, it is "give x item". If buying, it is "give x money".
-    give_quantity = 2000
-
     # E.g., 10 items in location 1, 20 loc 2.
     sample_item_count_list = [total_locations,
         20, 40, 60, 80, 100, 120, 140, 160, 180, 200,
@@ -93,27 +75,42 @@ async def test_record_items(game_factory):
         2200, 2400, 2600, 2800, 3000, 3200, 3400, 3600, 3800, 4000,
         4200, 4400, 4600, 4800, 5000, 5200, 5400, 5600, 5800, 6000,
         6200, 6400, 6600, 6800, 7000, 7200, 7400, 7600, 7800, 8000]
-    # Market has lots of money, not a lot of the item it is receiving.
+    for item_id in range(1, 20):
+        await engine.admin_set_pairs_for_item(item_id,
+            sample_item_count_list, sample_item_money_list).invoke()
+        # Give the users money (id=0).
+        await engine.admin_set_user_amount(USER_COUNT,
+            user_money_pre).invoke()
 
-    # Create the market.
-    # Populate the item pair of interest across all locations.
-    await engine.admin_set_pairs_for_item(item_id,
-        sample_item_count_list, sample_item_money_list).invoke()
-    # Give the user money (id=0).
-    await engine.admin_set_user_amount(number_of_users,
-        user_money_pre).invoke()
-    pre_trade_user = await engine.check_user_state(
-        user_id).invoke()
-    print('pre_trade_user', pre_trade_user)
+    return engine, sample_item_count_list, sample_item_money_list
+
+
+@pytest.mark.asyncio
+async def test_single_turn_logic(populated_game, populated_registry):
+    engine, sample_item_count_list, sample_item_money_list = populated_game
+
+    user_id = 3
+    location_id = 34
+    item_id = 13
+    # Pick a different location in the same suburb (4, 14, 24, 34)
+    random_location = 24
+    random_market_pre_turn_item = sample_item_count_list[random_location]
+    # Set action (buy=0, sell=1)
+    buy_or_sell = 0
+    # How much is the user giving (either money or item)
+    # If selling, it is "give x item". If buying, it is "give x money".
+    give_quantity = 2000
+
+    pre_trade_user = await engine.check_user_state(user_id).invoke()
+
     pre_trade_market = await engine.check_market_state(
         location_id, item_id).invoke()
-    print('pre_trade_market', pre_trade_market)
-    random_market_pre_turn_item = sample_item_count_list[random_location]
 
+    print('pre_trade_market', pre_trade_market)
+    print('pre_trade_user', pre_trade_user)
     # Execute a game turn.
     turn = await engine.have_turn(user_id, location_id,
         buy_or_sell, item_id, give_quantity).invoke()
-
 
     event_name = [
         "trade_occurs_bool",
@@ -256,7 +253,7 @@ async def test_record_items(game_factory):
         item_reduction_factor * user_post_trade_pre_event_item // 100
 
 
-    # Make a separate conract call to assert persistence of state.
+    # Make a separate contract call to assert persistence of state.
     # Inspect post-trade state
     post_trade_user = await engine.check_user_state(
         user_id).invoke()
@@ -271,7 +268,7 @@ async def test_record_items(game_factory):
     print('post_trade_market', post_trade_market)
 
     # Check location is set
-    assert post_trade_user[11] == location_id
+    assert post_trade_user[20] == location_id
 
     # Check that another location has been set.
     (random_market_item, random_market_money) = \
