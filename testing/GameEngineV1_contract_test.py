@@ -6,6 +6,9 @@ from utils.Signer import Signer
 signer = Signer(123456789987654321)
 L1_ADDRESS = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984
 
+# E.g., >1000.
+USER_COUNT = 10
+
 @pytest.fixture(scope='module')
 def event_loop():
     return asyncio.new_event_loop()
@@ -43,7 +46,6 @@ async def test_market(game_factory):
 async def populated_registry(game_factory):
     _, _, _, _, registry = game_factory
     # Populate the registry with some data.
-    user_count = 500
     sample_data = 84622096520155505419920978765481155
 
     # Repeating sample data
@@ -51,7 +53,7 @@ async def populated_registry(game_factory):
     # Indices from 10, 30, 50, 70, 90..., have values 1.
     # [00010000010011000011] * 6 == [1133] * 6
     # Populate the registry with homogeneous users (same data each).
-    await registry.admin_fill_registry(user_count, sample_data).invoke()
+    await registry.admin_fill_registry(USER_COUNT, sample_data).invoke()
     return registry
 
 
@@ -59,8 +61,7 @@ async def populated_registry(game_factory):
 async def populated_game(game_factory):
     _, _, engine, _, _ = game_factory
     # Populate the item pair of interest across all locations.
-    number_of_users=1000
-    total_locations=40
+    total_locations= 40
     user_money_pre = 10000
     # E.g., 10 items in location 1, 20 loc 2.
     sample_item_count_list = [total_locations,
@@ -78,7 +79,7 @@ async def populated_game(game_factory):
         await engine.admin_set_pairs_for_item(item_id,
             sample_item_count_list, sample_item_money_list).invoke()
         # Give the users money (id=0).
-        await engine.admin_set_user_amount(number_of_users,
+        await engine.admin_set_user_amount(USER_COUNT,
             user_money_pre).invoke()
 
     return engine, sample_item_count_list, sample_item_money_list
