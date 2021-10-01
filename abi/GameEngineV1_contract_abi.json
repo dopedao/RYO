@@ -13,6 +13,17 @@
     {
         "inputs": [
             {
+                "name": "address",
+                "type": "felt"
+            }
+        ],
+        "name": "set_user_registry_address",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
                 "name": "item_id",
                 "type": "felt"
             },
@@ -51,15 +62,11 @@
     {
         "inputs": [
             {
-                "name": "user_id",
+                "name": "num_users",
                 "type": "felt"
             },
             {
-                "name": "item_id",
-                "type": "felt"
-            },
-            {
-                "name": "item_quantity",
+                "name": "money_quantity",
                 "type": "felt"
             }
         ],

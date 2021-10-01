@@ -12,3 +12,7 @@ starknet-compile contracts/MarketMaker.cairo \
 starknet-compile contracts/UserRegistry.cairo \
     --output contracts/UserRegistry_compiled.json \
     --abi abi/UserRegistry_contract_abi.json
+
+starknet-compile contracts/Account.cairo \
+    --output contracts/Account_compiled.json \
+    --abi abi/Account_contract_abi.json

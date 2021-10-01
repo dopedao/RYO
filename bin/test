@@ -3,6 +3,6 @@ set -eu
 
 pytest testing/GameEngineV1_contract_test.py
 
-pytest testing/MarketMaker_contract_test.py
+pytest testing/Account_contract_test.py
 
 pytest testing/UserRegistry_contract_test.py
