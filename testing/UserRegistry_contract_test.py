@@ -1,36 +1,29 @@
-import os
 import pytest
-
-from starkware.starknet.compiler.compile import (
-    compile_starknet_files)
+import asyncio
 from starkware.starknet.testing.starknet import Starknet
-from starkware.starknet.testing.contract import StarknetContract
+from utils.Signer import Signer
 
-# The path to the contract source code.
-CONTRACT_FILE = os.path.join(
-    os.path.dirname(__file__), "../contracts/UserRegistry.cairo")
+signer = Signer(123456789987654321)
+L1_ADDRESS = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984
 
 
-# The testing library uses python's asyncio. So the following
-# decorator and the ``async`` keyword are needed.
-@pytest.mark.asyncio
-async def test_record_items():
-    # Compile the contract.
-    contract_definition = compile_starknet_files(
-        [CONTRACT_FILE], debug_info=True)
+@pytest.fixture(scope='module')
+def event_loop():
+    return asyncio.new_event_loop()
 
-    # Create a new Starknet class that simulates the StarkNet
-    # system.
+@pytest.fixture(scope='module')
+async def registry_factory():
     starknet = await Starknet.empty()
+    account = await starknet.deploy("contracts/Account.cairo")
+    registry = await starknet.deploy("contracts/UserRegistry.cairo")
+    await account.initialize(signer.public_key, L1_ADDRESS).invoke()
+    return starknet, account, registry
 
-    # Deploy the contract.
-    contract_address = await starknet.deploy(
-        contract_definition=contract_definition)
-    contract = StarknetContract(
-        starknet=starknet,
-        abi=contract_definition.abi,
-        contract_address=contract_address,
-    )
+
+@pytest.mark.asyncio
+async def test_initializer(registry_factory):
+    _, account, registry = registry_factory
+
     user_count = 500
     sample_data = 84622096520155505419920978765481155
     # Repeating sample data
@@ -41,20 +34,20 @@ async def test_record_items():
     ring_bribe_index = 76
     pubkey_prefix = 1000000
     # Populate the registry with homogeneous users (same data each).
-    await contract.admin_fill_registry(user_count, sample_data).invoke()
+    await registry.admin_fill_registry(user_count, sample_data).invoke()
 
 
     user_a_id = 271
     user_a_pubkey = user_a_id + pubkey_prefix
     # Check that the data is stored correctly for a random user.
-    (data, ) = await contract.get_user_info(
+    (data, ) = await registry.get_user_info(
         user_a_id, user_a_pubkey).invoke()
     assert data == sample_data
 
     # Check that the data decoding function works.
-    (weapon_score, ) = await contract.unpack_score(
+    (weapon_score, ) = await registry.unpack_score(
         user_a_id, weapon_strength_index).invoke()
-    (ring_score, ) = await contract.unpack_score(
+    (ring_score, ) = await registry.unpack_score(
         user_a_id, ring_bribe_index).invoke()
     assert weapon_score == 3
     assert ring_score == 1
