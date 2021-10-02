@@ -170,11 +170,22 @@ func is_admin_locked(
     ):
 end
 
-# Game clock
-# TODO
+# Game clock for measuring total turns that have passed
+@storage_var
+func game_clock(
+   ) -> (
+       value : felt
+   ):
+end
 
 # Returns the game clock recorded during the previous turn of a user.
-# TODO
+@storage_var
+func clock_at_previous_turn(
+       user_id : felt,
+   ) -> (
+       value : felt
+   ):
+end
 
 ############ Admin Functions for Testing ############
 # Sets the address of the deployed MarketMaker.cairo contract.
@@ -343,10 +354,10 @@ func have_turn{
     let (local market_pre_trade_money) = location_has_money.read(
         location_id, item_id)
 
-    # Affect pesudorandomn seed at start of turn.
+    # Affect pseudorandom seed at start of turn.
     # User can grind a favourable number by incrementing lots of 10.
     let(low_precision_quant, _) = unsigned_div_rem(amount_to_give, 10)
-    let (psuedorandom : felt) = add_to_seed(item_id, amount_to_give)
+    let (pseudorandom : felt) = add_to_seed(item_id, amount_to_give)
     # Get all events for this turn.
     # For UI, pass through values temporarily (in lieu of 'events').
     let (
@@ -399,6 +410,11 @@ func have_turn{
         location_id, item_id)
     let (local market_post_trade_post_event_money) = location_has_money.read(
         location_id, item_id)
+
+    # TODO: read game_clock, => write game_clock+1 to both game_clock and this user's clock_at_previous_turn
+    let (current_clock) = game_clock.read()
+    game_clock.write(current_clock + 1)
+    clock_at_previous_turn.write(user_id, current_clock + 1)
 
     return (
         trade_occurs_bool,
