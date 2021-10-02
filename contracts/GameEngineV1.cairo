@@ -42,7 +42,7 @@ const WAREHOUSE_SEIZURE_IMPACT = 20  # Regional impact 20% item loss.
 const MIN_EVENT_FRACTION = 20  # 20% the stated XYZ_BP probability.
 
 # Number of turns by other players that must occur before next turn.
-# TODO.
+const MIN_TURN_LOCKOUT = 3
 
 # A struct that holds the unpacked DOPE NFT data for the user.
 struct UserData:
@@ -239,6 +239,8 @@ func admin_set_pairs_for_item{
 
     # Pass both lists and item number to iterate and save.
     loop_over_locations(item_list_len - 1, item_list, money_list, item_id)
+    # Start the game clock where everyone can play.
+    game_clock.write(MIN_TURN_LOCKOUT)
     return ()
 end
 
@@ -324,14 +326,6 @@ func have_turn{
     # Check if user has registered to play.
     check_user(user_id)
 
-    # TODO check if these can be removed.
-    #local syscall_ptr : felt* = syscall_ptr
-    #local storage_ptr : Storage* = storage_ptr
-    #local pedersen_ptr : HashBuiltin* = pedersen_ptr
-    #local range_check_ptr = range_check_ptr
-    #local bitwise_ptr : BitwiseBuiltin* = bitwise_ptr
-
-
     # Get unique user data.
     let (local user_data : UserData) = fetch_user_data(user_id)
     # TODO - Use unique user data to modify events:
@@ -411,8 +405,10 @@ func have_turn{
     let (local market_post_trade_post_event_money) = location_has_money.read(
         location_id, item_id)
 
-    # TODO: read game_clock, => write game_clock+1 to both game_clock and this user's clock_at_previous_turn
+    # Check that turn for this player is sufficiently spaced.
     let (current_clock) = game_clock.read()
+    let (last_turn) = clock_at_previous_turn.read(user_id)
+    assert_nn_le(MIN_TURN_LOCKOUT + last_turn, current_clock)
     game_clock.write(current_clock + 1)
     clock_at_previous_turn.write(user_id, current_clock + 1)
 
