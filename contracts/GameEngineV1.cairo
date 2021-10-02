@@ -412,12 +412,12 @@ func have_turn{
     let (local market_post_trade_post_event_money) = location_has_money.read(
         location_id, item_id)
 
-    # Read game_clock and user's clock_at_previous_turn; assert lockup is over; update clock values
+    # Read game_clock and user's clock_at_previous_turn and assert lockup is over
     let (current_clock) = game_clock.read()
     let (user_clock_at_previous_turn) = clock_at_previous_turn.read(user_id)
-    # TODO: figure out GTE operation in "assert current_clock GTE user_clock_at_previous_turn + GAME_CLOCK_LOCKUP_PERIOD"
-    #       - for a>=b+x, we could use recursive multiplication to check (a-b-1) * (a-b-2) * ... * (a-b-(x-1)) != 0
-
+    assert_nn_le(user_clock_at_previous_turn + GAME_CLOCK_LOCKUP_PERIOD, current_clock) # assert_nn_le(x,y) checks 0<=x<=y    
+    
+    # Update global & per-user clock values
     game_clock.write(current_clock + 1)
     clock_at_previous_turn.write(user_id, current_clock + 1)
 
