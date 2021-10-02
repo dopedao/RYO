@@ -34,6 +34,7 @@ const LOCAL_SHIPMENT_BP = 5000
 const LOCAL_SHIPMENT_IMPACT = 20  # Regional impact is 20% item gain.
 const WAREHOUSE_SEIZURE_BP = 5000
 const WAREHOUSE_SEIZURE_IMPACT = 20  # Regional impact 20% item loss.
+const GAME_CLOCK_LOCKUP_PERIOD = 10  # game_clock >= user's clock_at_previous_turn + GAME_CLOCK_LOCKUP_PERIOD for user to make the next turn
 
 # Probabilities are for minimum-stat wearable (score=1).
 # For a max-stat wearable (score=10), the probability is scaled down.
@@ -411,8 +412,12 @@ func have_turn{
     let (local market_post_trade_post_event_money) = location_has_money.read(
         location_id, item_id)
 
-    # TODO: read game_clock, => write game_clock+1 to both game_clock and this user's clock_at_previous_turn
+    # Read game_clock and user's clock_at_previous_turn; assert lockup is over; update clock values
     let (current_clock) = game_clock.read()
+    let (user_clock_at_previous_turn) = clock_at_previous_turn.read(user_id)
+    # TODO: figure out GTE operation in "assert current_clock GTE user_clock_at_previous_turn + GAME_CLOCK_LOCKUP_PERIOD"
+    #       - for a>=b+x, we could use recursive multiplication to check (a-b-1) * (a-b-2) * ... * (a-b-(x-1)) != 0
+
     game_clock.write(current_clock + 1)
     clock_at_previous_turn.write(user_id, current_clock + 1)
 
