@@ -354,10 +354,10 @@ func have_turn{
     let (local market_pre_trade_money) = location_has_money.read(
         location_id, item_id)
 
-    # Affect pesudorandomn seed at start of turn.
+    # Affect pseudorandom seed at start of turn.
     # User can grind a favourable number by incrementing lots of 10.
     let(low_precision_quant, _) = unsigned_div_rem(amount_to_give, 10)
-    let (psuedorandom : felt) = add_to_seed(item_id, amount_to_give)
+    let (pseudorandom : felt) = add_to_seed(item_id, amount_to_give)
     # Get all events for this turn.
     # For UI, pass through values temporarily (in lieu of 'events').
     let (
@@ -411,7 +411,10 @@ func have_turn{
     let (local market_post_trade_post_event_money) = location_has_money.read(
         location_id, item_id)
 
-    # TODO: do we 1/ read game clock 2/ update this user's clock_at_previous_turn here?
+    # TODO: read game_clock, => write game_clock+1 to both game_clock and this user's clock_at_previous_turn
+    local current_clock = game_clock.read()
+    game_clock.write(current_clock + 1)
+    clock_at_previous_turn.write(user_id, current_clock + 1)
 
     return (
         trade_occurs_bool,
