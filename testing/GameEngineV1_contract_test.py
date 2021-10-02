@@ -82,6 +82,9 @@ async def populated_game(game_factory):
         await engine.admin_set_user_amount(USER_COUNT,
             user_money_pre).invoke()
 
+    # Initialize clock
+    await engine.admin_init_clock(USER_COUNT).invoke()
+
     return engine, sample_item_count_list, sample_item_money_list
 
 

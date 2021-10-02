@@ -273,6 +273,23 @@ func admin_set_user_amount{
     return ()
 end
 
+# Initialize global and per-user clock
+@external
+func admin_init_clock{
+        storage_ptr : Storage*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        num_users : felt,
+    ):
+    # init global clock
+    game_clock.write(0)
+ 
+    # init per-user clock
+    loop_users_clock(num_users, 0)    
+    
+    return ()
+end
 
 ############ Game functions ############
 # Actions turn (move user, execute trade).
@@ -412,11 +429,25 @@ func have_turn{
     let (local market_post_trade_post_event_money) = location_has_money.read(
         location_id, item_id)
 
-    # Read game_clock and user's clock_at_previous_turn and assert lockup is over
-    let (current_clock) = game_clock.read()
+    # Read game_clock and user's clock_at_previous_turn and assert lockup is over if game has started
+    # TODO: are the pointer rebindings necessary here? can we solve reference revokes in another way?
+    let (local current_clock) = game_clock.read()
     let (user_clock_at_previous_turn) = clock_at_previous_turn.read(user_id)
-    assert_nn_le(user_clock_at_previous_turn + GAME_CLOCK_LOCKUP_PERIOD, current_clock) # assert_nn_le(x,y) checks 0<=x<=y    
-    
+    if current_clock!=0:
+        assert_nn_le(user_clock_at_previous_turn + GAME_CLOCK_LOCKUP_PERIOD, current_clock) # assert_nn_le(x,y) checks 0<=x<=y    
+        tempvar storage_ptr : Storage* = storage_ptr
+        tempvar pedersen_ptr : HashBuiltin* = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+        tempvar syscall_ptr : felt* = syscall_ptr
+        tempvar bitwise_ptr: BitwiseBuiltin* = bitwise_ptr
+    else:
+        tempvar storage_ptr : Storage* = storage_ptr
+        tempvar pedersen_ptr : HashBuiltin* = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+        tempvar syscall_ptr : felt* = syscall_ptr
+        tempvar bitwise_ptr: BitwiseBuiltin* = bitwise_ptr
+    end
+
     # Update global & per-user clock values
     game_clock.write(current_clock + 1)
     clock_at_previous_turn.write(user_id, current_clock + 1)
@@ -975,6 +1006,24 @@ func loop_users{
     loop_users(num_users=num_users-1, amount=amount)
     # Num users 1 on first entry. User index is num_users-1.
     user_has_item.write(user_id=num_users-1, item_id=0, value=amount)
+    return ()
+end
+
+# Loops over all users and initializes its clock_at_previous_turn.
+func loop_users_clock{
+        storage_ptr : Storage*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        num_users : felt,
+        clock : felt
+    ):
+    if num_users == 0:
+        return ()
+    end
+    loop_users_clock(num_users=num_users-1, clock=clock)
+    # Num users 1 on first entry. User index is num_users-1.
+    clock_at_previous_turn.write(user_id=num_users-1, value=clock)
     return ()
 end
 
