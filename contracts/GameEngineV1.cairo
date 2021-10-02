@@ -412,7 +412,7 @@ func have_turn{
         location_id, item_id)
 
     # TODO: read game_clock, => write game_clock+1 to both game_clock and this user's clock_at_previous_turn
-    local current_clock = game_clock.read()
+    let (current_clock) = game_clock.read()
     game_clock.write(current_clock + 1)
     clock_at_previous_turn.write(user_id, current_clock + 1)
 
