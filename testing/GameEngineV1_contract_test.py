@@ -1,13 +1,47 @@
 import pytest
 import asyncio
+import random
 from starkware.starknet.testing.starknet import Starknet
 from utils.Signer import Signer
 
+### Constants
 signer = Signer(123456789987654321)
 L1_ADDRESS = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984
 
 # E.g., >1000.
 USER_COUNT = 10
+LOCATION_COUNT = 40
+ITEM_COUNT = 19 # item_id lies in [1,19]
+GAME_CLOCK_LOCKUP_PERIOD = 5 # must be consistent with the GAME_CLOCK_LOCKUP_PERIOD constant in GameEngineV1.cairo
+EVENT_NAMES = [
+        "trade_occurs_bool",
+        "user_pre_trade_item",
+        "user_post_trade_pre_event_item",
+        "user_post_trade_post_event_item",
+        "user_pre_trade_money",
+        "user_post_trade_pre_event_money",
+        "user_post_trade_post_event_money",
+        "market_pre_trade_item",
+        "market_post_trade_pre_event_item",
+        "market_post_trade_post_event_item",
+        "market_pre_trade_money",
+        "market_post_trade_pre_event_money",
+        "market_post_trade_post_event_money",
+        "money_reduction_factor",
+        "item_reduction_factor",
+        "regional_item_reduction_factor",
+        "dealer_dash_bool",
+        "wrangle_dashed_dealer_bool",
+        "mugging_bool",
+        "run_from_mugging_bool",
+        "gang_war_bool",
+        "defend_gang_war_bool",
+        "cop_raid_bool",
+        "bribe_cops_bool",
+        "find_item_bool",
+        "local_shipment_bool",
+        "warehouse_seizure_bool"
+    ]
 
 @pytest.fixture(scope='module')
 def event_loop():
@@ -61,7 +95,7 @@ async def populated_registry(game_factory):
 async def populated_game(game_factory):
     _, _, engine, _, _ = game_factory
     # Populate the item pair of interest across all locations.
-    total_locations= 40
+    total_locations= LOCATION_COUNT
     user_money_pre = 10000
     # E.g., 10 items in location 1, 20 loc 2.
     sample_item_count_list = [total_locations,
@@ -82,15 +116,15 @@ async def populated_game(game_factory):
         await engine.admin_set_user_amount(USER_COUNT,
             user_money_pre).invoke()
 
-    # Initialize clock
-    await engine.admin_init_clock(USER_COUNT).invoke()
-
     return engine, sample_item_count_list, sample_item_money_list
 
 
 @pytest.mark.asyncio
 async def test_single_turn_logic(populated_game, populated_registry):
     engine, sample_item_count_list, sample_item_money_list = populated_game
+    
+    # Initialize clock
+    await engine.admin_init_clock(USER_COUNT).invoke()
 
     user_id = 3
     location_id = 34
@@ -115,39 +149,11 @@ async def test_single_turn_logic(populated_game, populated_registry):
     turn = await engine.have_turn(user_id, location_id,
         buy_or_sell, item_id, give_quantity).invoke()
 
-    event_name = [
-        "trade_occurs_bool",
-        "user_pre_trade_item",
-        "user_post_trade_pre_event_item",
-        "user_post_trade_post_event_item",
-        "user_pre_trade_money",
-        "user_post_trade_pre_event_money",
-        "user_post_trade_post_event_money",
-        "market_pre_trade_item",
-        "market_post_trade_pre_event_item",
-        "market_post_trade_post_event_item",
-        "market_pre_trade_money",
-        "market_post_trade_pre_event_money",
-        "market_post_trade_post_event_money",
-        "money_reduction_factor",
-        "item_reduction_factor",
-        "regional_item_reduction_factor",
-        "dealer_dash_bool",
-        "wrangle_dashed_dealer_bool",
-        "mugging_bool",
-        "run_from_mugging_bool",
-        "gang_war_bool",
-        "defend_gang_war_bool",
-        "cop_raid_bool",
-        "bribe_cops_bool",
-        "find_item_bool",
-        "local_shipment_bool",
-        "warehouse_seizure_bool"
-    ]
+    
     print("Turn events")
     [
-        print(f"Result: {turn[index]}\t{event_name[index]}")
-        for index in range(len(event_name))
+        print(f"Result: {turn[index]}\t{EVENT_NAMES[index]}")
+        for index in range(len(EVENT_NAMES))
     ]
     (
         trade_occurs_bool,
@@ -239,7 +245,7 @@ async def test_single_turn_logic(populated_game, populated_registry):
     if local_shipment_bool == 0 and warehouse_seizure_bool == 1:
         assert regional_item_reduction_factor < 100
 
-    # Check event factors appliied.
+    # Check event factors applied.
     # Check regional event item effect.
     assert market_post_trade_post_event_item == \
         regional_item_reduction_factor * \
@@ -285,3 +291,135 @@ async def test_single_turn_logic(populated_game, populated_registry):
     random_initialized_user = await engine.check_user_state(
         9).invoke()
     print('rand user', random_initialized_user)
+
+
+@pytest.mark.asyncio
+async def test_clock_multi_user_turn_logic(populated_game, populated_registry):
+    engine, sample_item_count_list, sample_item_money_list = populated_game
+
+    # Initialize clock
+    await engine.admin_init_clock(USER_COUNT).invoke()
+
+    # Test: every user buys a fixed amount of a random item at a random city
+    #       with no repeating city&item so that user's actions are independent;
+    #       make sure no transaction reverts and that
+    #       observed == expected in terms of quantity of item bought
+
+    # Pre-trade setup
+    turn_user_id_s = [i for i in range(USER_COUNT)] # each user makes one turn
+    random.shuffle(turn_user_id_s)
+    turn_location_id_s = random.sample([i for i in range(LOCATION_COUNT)], USER_COUNT)
+    turn_item_id_s = random.sample([i+1 for i in range(ITEM_COUNT)], USER_COUNT) # skipping item#0 (money)
+    turn_payment = 2000
+
+    # Fetching pre-trade state from engine contract
+    state_pre_trade_user = {}
+    state_pre_trade_loc_item = {}
+
+    for i in range(USER_COUNT):
+        state_pre_trade_user[turn_user_id_s[i]] = await engine.check_user_state(turn_user_id_s[i]).invoke()
+
+    for loc_id in range(LOCATION_COUNT):
+        state_pre_trade_loc_item[loc_id] = {}
+        for item_id in [i for i in range(ITEM_COUNT+1)]: # money amount at market needed for calculating expected trade result
+            state_pre_trade_loc_item[loc_id][item_id] = await engine.check_market_state(loc_id, item_id).invoke()
+    
+    # Printing pre-trade state
+    '''
+    print('\n\n== Pre-trade state ==')
+    for user_id in turn_user_id_s:
+        print(f'{user_id} / {state_pre_trade_user[user_id]}')
+    print()
+
+    for loc_id in range(LOCATION_COUNT):
+        for item_id in [i+1 for i in range(ITEM_COUNT)]:
+            print(f'loc{loc_id} - item{item_id} / {state_pre_trade_loc_item[loc_id][item_id]}')
+    
+    ret = await engine.check_game_clock().invoke()
+    print(f"game_clock = {ret.game_clock_value}")
+
+    for i in range(USER_COUNT):
+        ret = await engine.check_user_clock_at_previous_turn(i).invoke()
+        print(f"user#{i}'s user_clock_at_previous_turn = {ret.game_clock_value}")
+    print()
+    '''
+
+    # Confirming game clock and each user's clock at previous turn are initialized correctly (to zero)
+    ret = await engine.check_game_clock().invoke()
+    assert ret.game_clock_value == 0
+    for i in range(USER_COUNT):
+        ret = await engine.check_user_clock_at_previous_turn(i).invoke()
+        assert ret.game_clock_value == 0
+    print("Confirmed: game_clock and each user's clock_at_previous_turn are initialized correctly to 0")
+    print("Pre-trade setup completed.\n")
+
+    # Make turns
+    turn_s = []
+    for i in range(USER_COUNT):
+        user_id = turn_user_id_s[i]
+        loc_id =  turn_location_id_s[i]
+        item_id = turn_item_id_s[i]
+
+        ret = await engine.check_game_clock().invoke()
+        print(f"game_clock before {i}th turn = {ret.game_clock_value}")
+
+        ret = await engine.check_user_clock_at_previous_turn(user_id).invoke()
+        print(f"user#{user_id}'s user_clock_at_previous_turn before turn = {ret.game_clock_value}")
+
+        print(f"user#{user_id} about to pay {turn_payment} to buy item#{item_id} at location#{loc_id}")
+
+        buy_or_sell = 0 # all buys
+        turn = await engine.have_turn(user_id, loc_id,
+            buy_or_sell, item_id, turn_payment).invoke()
+        turn_s.append(turn)
+
+        print(f'> {i}th turn completed.\n')
+    print("Each player has made one turn.")
+
+    # Fetching post-trade state from engine contract
+    # and extract quantities of items bought per user as "observed" results
+    state_post_trade_user = {}
+    state_post_trade_loc_item = {}
+
+    for i in range(USER_COUNT):
+        state_post_trade_user[turn_user_id_s[i]] = await engine.check_user_state(turn_user_id_s[i]).invoke()
+
+    for loc_id in range(LOCATION_COUNT):
+        state_post_trade_loc_item[loc_id] = {}
+        for item_id in [i+1 for i in range(ITEM_COUNT)]:
+            state_post_trade_loc_item[loc_id][item_id] = await engine.check_market_state(loc_id, item_id).invoke()
+    
+    # Printing post-trade state
+    '''
+    print('\n\n== Post-trade state ==')
+    for user_id in turn_user_id_s:
+        print(f'{user_id} / {state_post_trade_user[user_id]}')
+    print()
+
+    for loc_id in range(LOCATION_COUNT):
+        for item_id in [i+1 for i in range(ITEM_COUNT)]:
+            print(f'loc{loc_id} - item{item_id} / {state_post_trade_loc_item[loc_id][item_id]}')
+    '''
+
+    # Simulate trades to produce "expected" quantities of items bought per user
+    # for each user, expected quantity of item bought =
+    # (market_inventory_pre_trade * user_money_paid) // (market_money_pre_trade + user_money_paid)
+    print("Simulating trades to calculate expected results:")
+    expected_s = []
+    for i in range(1):
+        user_id = turn_user_id_s[i]
+        loc_id =  turn_location_id_s[i]
+        item_id = turn_item_id_s[i]
+
+        market_inventory_pre_trade = state_pre_trade_loc_item[loc_id][item_id]
+        user_money_paid = turn_payment
+        market_money_pre_trade = state_pre_trade_loc_item[loc_id][0]
+
+        #print(f'market_inventory_pre_trade = {market_inventory_pre_trade}')
+        #print(f'market_money_pre_trade = {market_money_pre_trade}')
+        #expected_quantity_bought = (market_inventory_pre_trade * user_money_paid) // (market_money_pre_trade + user_money_paid)
+
+        #print(f"> user{user_id} paid {turn_payment} at loc#{loc_id} for item#{item_id}; expected to get {expected_quantity_bought} in return.")
+        #expected_s.append(expected_quantity_bought)
+
+    # Checking "observed" results against "expected" results in terms of quantity of item bought

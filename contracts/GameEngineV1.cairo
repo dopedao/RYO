@@ -1,12 +1,10 @@
 %lang starknet
 %builtins pedersen range_check bitwise
 
-from starkware.cairo.common.cairo_builtins import (HashBuiltin,
-    BitwiseBuiltin)
+from starkware.cairo.common.cairo_builtins import (HashBuiltin, BitwiseBuiltin)
 from starkware.starknet.common.storage import Storage
-from starkware.cairo.common.math import (assert_nn_le,
-    unsigned_div_rem, split_felt)
-from starkware.cairo.common.math_cmp import is_nn_le
+from starkware.cairo.common.math import (assert_nn_le, assert_nn, unsigned_div_rem, split_felt)
+from starkware.cairo.common.math_cmp import (is_nn_le, is_not_zero)
 from starkware.cairo.common.hash import hash2
 from starkware.cairo.common.bitwise import bitwise_xor
 from starkware.cairo.common.alloc import alloc
@@ -34,7 +32,7 @@ const LOCAL_SHIPMENT_BP = 5000
 const LOCAL_SHIPMENT_IMPACT = 20  # Regional impact is 20% item gain.
 const WAREHOUSE_SEIZURE_BP = 5000
 const WAREHOUSE_SEIZURE_IMPACT = 20  # Regional impact 20% item loss.
-const GAME_CLOCK_LOCKUP_PERIOD = 10  # game_clock >= user's clock_at_previous_turn + GAME_CLOCK_LOCKUP_PERIOD for user to make the next turn
+const GAME_CLOCK_LOCKUP_PERIOD = 5  # game_clock >= user's clock_at_previous_turn + GAME_CLOCK_LOCKUP_PERIOD for user to make the next turn
 
 # Probabilities are for minimum-stat wearable (score=1).
 # For a max-stat wearable (score=10), the probability is scaled down.
@@ -429,12 +427,14 @@ func have_turn{
     let (local market_post_trade_post_event_money) = location_has_money.read(
         location_id, item_id)
 
-    # Read game_clock and user's clock_at_previous_turn and assert lockup is over if game has started
+    # Read game_clock and user's clock_at_previous_turn and assert lockup is over if user has previously moved
     # TODO: are the pointer rebindings necessary here? can we solve reference revokes in another way?
     let (local current_clock) = game_clock.read()
-    let (user_clock_at_previous_turn) = clock_at_previous_turn.read(user_id)
-    if current_clock!=0:
-        assert_nn_le(user_clock_at_previous_turn + GAME_CLOCK_LOCKUP_PERIOD, current_clock) # assert_nn_le(x,y) checks 0<=x<=y    
+    let (local user_clock_at_previous_turn) = clock_at_previous_turn.read(user_id)
+    let (local user_has_moved) = is_not_zero(user_clock_at_previous_turn)
+
+    if user_has_moved == 1:
+        assert_nn_le (user_clock_at_previous_turn + GAME_CLOCK_LOCKUP_PERIOD, current_clock) # assert_nn_le(x,y) checks 0<=x<=y    
         tempvar storage_ptr : Storage* = storage_ptr
         tempvar pedersen_ptr : HashBuiltin* = pedersen_ptr
         tempvar range_check_ptr = range_check_ptr
@@ -448,9 +448,10 @@ func have_turn{
         tempvar bitwise_ptr: BitwiseBuiltin* = bitwise_ptr
     end
 
-    # Update global & per-user clock values
-    game_clock.write(current_clock + 1)
-    clock_at_previous_turn.write(user_id, current_clock + 1)
+    # Update global & per-user clock 
+    tempvar current_clock_incr = current_clock + 1
+    game_clock.write(current_clock_incr)
+    clock_at_previous_turn.write(user_id, current_clock_incr)
 
     return (
         trade_occurs_bool,
@@ -553,6 +554,38 @@ func check_market_state{
     return (item_quantity, money_quantity)
 end
 
+# A read-only function to inspect game_clock
+@view
+func check_game_clock{
+        storage_ptr : Storage*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+    ) -> (
+        game_clock_value : felt
+    ):
+    alloc_locals
+    # Get the quantity held for each item for item-money pair
+    let (local game_clock_value) = game_clock.read()
+    return (game_clock_value)
+end
+
+# A read-only function to inspect a given user's clock_at_previous_turn
+@view
+func check_user_clock_at_previous_turn{
+        storage_ptr : Storage*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        user_id : felt
+    ) -> (
+        game_clock_value : felt
+    ):
+    alloc_locals
+    # Get the quantity held for each item for item-money pair
+    let (local game_clock_value) = clock_at_previous_turn.read(user_id)
+    return (game_clock_value)
+end
 
 ############ Helper Functions ############
 # Execute trade
