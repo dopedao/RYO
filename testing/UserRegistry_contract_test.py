@@ -1,29 +1,54 @@
 import pytest
 import asyncio
 from starkware.starknet.testing.starknet import Starknet
-from utils.Signer import Signer
+from utils.Account import Account
 
-signer = Signer(123456789987654321)
+# Create signers that use a private key to sign transaction objects.
+NUM_SIGNING_ACCOUNTS = 2
+DUMMY_PRIVATE = 123456789987654321
+# All accounts currently have the same L1 fallback address.
 L1_ADDRESS = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984
-
 
 @pytest.fixture(scope='module')
 def event_loop():
     return asyncio.new_event_loop()
 
 @pytest.fixture(scope='module')
-async def registry_factory():
+async def account_factory():
+    # Initialize network
     starknet = await Starknet.empty()
-    account = await starknet.deploy("contracts/Account.cairo")
+    accounts = []
+    print(f'Deploying {NUM_SIGNING_ACCOUNTS} accounts...')
+    for i in range(NUM_SIGNING_ACCOUNTS):
+        account = Account(DUMMY_PRIVATE + i, L1_ADDRESS)
+        await account.create(starknet)
+        accounts.append(account)
+
+        print(f'Account {i} is: {account}')
+
+    # Admin is usually accounts[0], user_1 = accounts[1].
+    # To build a transaction to call func_xyz(arg_1, arg_2)
+    # on a TargetContract:
+
+    # user_1 = accounts[1]
+    # await user_1.tx_with_nonce(
+    #     to=TargetContract,
+    #     selector_name='func_xyz',
+    #     calldata=[arg_1, arg_2])
+    return starknet, accounts
+
+
+@pytest.fixture(scope='module')
+async def registry_factory(account_factory):
+    starknet, accounts = account_factory
     registry = await starknet.deploy("contracts/UserRegistry.cairo")
-    await account.initialize(signer.public_key, L1_ADDRESS).invoke()
-    return starknet, account, registry
+    return starknet, accounts, registry
 
 
 @pytest.mark.asyncio
 async def test_initializer(registry_factory):
-    _, account, registry = registry_factory
-
+    _, accounts, registry = registry_factory
+    admin = accounts[0]
     user_count = 500
     sample_data = 84622096520155505419920978765481155
     # Repeating sample data
@@ -34,8 +59,10 @@ async def test_initializer(registry_factory):
     ring_bribe_index = 76
     pubkey_prefix = 1000000
     # Populate the registry with homogeneous users (same data each).
-    await registry.admin_fill_registry(user_count, sample_data).invoke()
-
+    await admin.tx_with_nonce(
+        to=registry.contract_address,
+        selector_name='admin_fill_registry',
+        calldata=[user_count, sample_data])
 
     user_a_id = 271
     user_a_pubkey = user_a_id + pubkey_prefix
@@ -52,5 +79,3 @@ async def test_initializer(registry_factory):
     assert weapon_score == 3
     assert ring_score == 1
     print(f'Initialised {user_count} users and called for user {user_a_id}.')
-
-
