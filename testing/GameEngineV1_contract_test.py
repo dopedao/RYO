@@ -1,5 +1,6 @@
 import pytest
 import asyncio
+import random
 from starkware.starknet.testing.starknet import Starknet
 from utils.Account import Account
 
@@ -11,6 +12,40 @@ L1_ADDRESS = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984
 
 # Number of users the game simulates for testing. E.g., >1000.
 USER_COUNT = 10
+
+# Number of ticks a player is locked out before its next turn is allowed; MUST be consistent with MIN_TURN_LOCKOUT in contract
+MIN_TURN_LOCKOUT = 3
+
+# event name copied from game engine contract
+EVENT_NAME = [
+        "trade_occurs_bool",
+        "user_pre_trade_item",
+        "user_post_trade_pre_event_item",
+        "user_post_trade_post_event_item",
+        "user_pre_trade_money",
+        "user_post_trade_pre_event_money",
+        "user_post_trade_post_event_money",
+        "market_pre_trade_item",
+        "market_post_trade_pre_event_item",
+        "market_post_trade_post_event_item",
+        "market_pre_trade_money",
+        "market_post_trade_pre_event_money",
+        "market_post_trade_post_event_money",
+        "money_reduction_factor",
+        "item_reduction_factor",
+        "regional_item_reduction_factor",
+        "dealer_dash_bool",
+        "wrangle_dashed_dealer_bool",
+        "mugging_bool",
+        "run_from_mugging_bool",
+        "gang_war_bool",
+        "defend_gang_war_bool",
+        "cop_raid_bool",
+        "bribe_cops_bool",
+        "find_item_bool",
+        "local_shipment_bool",
+        "warehouse_seizure_bool"
+    ]
 
 @pytest.fixture(scope='module')
 def event_loop():
@@ -138,16 +173,66 @@ async def populated_game(game_factory):
 
 
 @pytest.mark.asyncio
-async def test_playerlockout(populated_game):
+async def test_playerlockout(populated_game, populated_registry):
     engine, _, _ = populated_game
-    # TODO
+    
+    # TODO: perhaps make MIN_TURN_LOCKOUT a storage variable in contract instead of constant
+    #       so that we can set it to 0 for faster testing
 
+    # This test first sets up 1 user, who makes two consecutive turns, the second of which should raise exception;
+    # then this test sets up MIN_TURN_LOCKOUT+1 users and each user makes one turn in order followed by the first user
+    # making its second turn, which should raise no exception.
+    # Note: test test assumes MIN_TURN_LOCKOUT>0; otherwise, this test would always pass
+    # Note: this test bypasses the user account generation for faster testing purposes
+
+    if MIN_TURN_LOCKOUT == 0:
+        return 
+
+    print(f"> [test_playerlockout] test begins with MIN_TURN_LOCKOUT = {MIN_TURN_LOCKOUT}")
+
+    # sub-test #1: 1 user making two consecutive turns
+    user_id = 1
+    location_id = 1
+    item_id = 1
+    buy_or_sell = 0 # buy
+    give_quantity = 2000
+
+    turn_1 = await engine.have_turn(user_id, location_id,
+        buy_or_sell, item_id, give_quantity).invoke()
+
+    with pytest.raises(Exception) as e_info:
+        turn_2 = await engine.have_turn(user_id, location_id,
+            buy_or_sell, item_id, give_quantity).invoke()
+    print(f"> [test_playerlockout] sub-test #1 raises exception: {e_info.value.args}")
+    print( "> [test_playerlockout] sub-test #1 passes with exception raised correctly.")
+
+    # sub-test #2: MIN_TURN_LOCKOUT+1 users making turns in order, followed by the first user making its second turn
+    for i in range(MIN_TURN_LOCKOUT+1):
+        user_id = i+2 # skipping user 0 (admin) and 1 (used by sub-test #1)
+        location_id = i+1
+        item_id = random.randint(1, 19)
+        buy_or_sell = 0 # buy only since players start with all money and no items
+        give_quantity = 2000
+        turn = await engine.have_turn(user_id, location_id,
+            buy_or_sell, item_id, give_quantity).invoke()
+        print(f"> [test_playerlockout] sub-test #2 #{i}-turn by user#{user_id} completed.")
+    
+    # back to the first user making its second turn after exactly MIN_TURN_LOCKOUT ticks
+    user_id = 2
+    location_id = 6
+    item_id = 10
+    turn = await engine.have_turn(user_id, location_id,
+        buy_or_sell, item_id, give_quantity).invoke()
+    print(f"> [test_playerlockout] sub-test #2 #{MIN_TURN_LOCKOUT+1}-turn by user#{user_id} (its second turn) completed.")
+
+    print("> [test_playerlockout] sub-test 2 passes")
+    return
 
 @pytest.mark.asyncio
 async def test_single_turn_logic(populated_game, populated_registry):
     engine, sample_item_count_list, sample_item_money_list = populated_game
 
-    user_id = 3
+    user_id = 9 # avoid reusing user_id already used by test_playerlockout
     location_id = 34
     item_id = 13
     # Pick a different location in the same suburb (4, 14, 24, 34)
@@ -170,39 +255,11 @@ async def test_single_turn_logic(populated_game, populated_registry):
     turn = await engine.have_turn(user_id, location_id,
         buy_or_sell, item_id, give_quantity).invoke()
 
-    event_name = [
-        "trade_occurs_bool",
-        "user_pre_trade_item",
-        "user_post_trade_pre_event_item",
-        "user_post_trade_post_event_item",
-        "user_pre_trade_money",
-        "user_post_trade_pre_event_money",
-        "user_post_trade_post_event_money",
-        "market_pre_trade_item",
-        "market_post_trade_pre_event_item",
-        "market_post_trade_post_event_item",
-        "market_pre_trade_money",
-        "market_post_trade_pre_event_money",
-        "market_post_trade_post_event_money",
-        "money_reduction_factor",
-        "item_reduction_factor",
-        "regional_item_reduction_factor",
-        "dealer_dash_bool",
-        "wrangle_dashed_dealer_bool",
-        "mugging_bool",
-        "run_from_mugging_bool",
-        "gang_war_bool",
-        "defend_gang_war_bool",
-        "cop_raid_bool",
-        "bribe_cops_bool",
-        "find_item_bool",
-        "local_shipment_bool",
-        "warehouse_seizure_bool"
-    ]
+    
     print("Turn events")
     [
-        print(f"Result: {turn[index]}\t{event_name[index]}")
-        for index in range(len(event_name))
+        print(f"Result: {turn[index]}\t{EVENT_NAME[index]}")
+        for index in range(len(EVENT_NAME))
     ]
     (
         trade_occurs_bool,
