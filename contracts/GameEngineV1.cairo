@@ -111,7 +111,7 @@ end
 # Location and market are equivalent terms (one market per location)
 # 40 location_ids [0-39].
 # user_ids: e.g., [0,10000].
-# item_ids: [1,11]. 0=money, 1=item1, 2=item2, ..., etc.
+# item_ids: [1,19]. 0=money, 1=item1, 2=item2, ..., etc.
 # buy=0, sell=1.
 
 ############ Game state ############
