@@ -269,10 +269,11 @@ some rought numbers down and try it out.
 Quick-coding tasks:
 
 - Initialised multiple player states.
-- Turn rate limiting. Game has global clock that increments every time
-    a turn occurs. User has a lockout of x clock ticks.
 - Game end criterion based on global clock.
 - Update the `item_id`s in `GameEngineV1` to be in range 1-19 to reflect `mappings/drugs_value.csv`.
+- Move the `MarketMaker.cairo` logic into the game file - it doesn't hold state so doesn't need
+to be a separate contract.
+- Potentially separate out tests into different files to reduce the time required for tests.
 
 Coding tasks:
 

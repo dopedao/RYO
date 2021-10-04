@@ -175,7 +175,7 @@ async def populated_game(game_factory):
 @pytest.mark.asyncio
 async def test_playerlockout(populated_game, populated_registry):
     engine, _, _ = populated_game
-    
+
     # TODO: perhaps make MIN_TURN_LOCKOUT a storage variable in contract instead of constant
     #       so that we can set it to 0 for faster testing
 
@@ -186,7 +186,7 @@ async def test_playerlockout(populated_game, populated_registry):
     # Note: this test bypasses the user account generation for faster testing purposes
 
     if MIN_TURN_LOCKOUT == 0:
-        return 
+        return
 
     print(f"> [test_playerlockout] test begins with MIN_TURN_LOCKOUT = {MIN_TURN_LOCKOUT}")
 
@@ -216,7 +216,7 @@ async def test_playerlockout(populated_game, populated_registry):
         turn = await engine.have_turn(user_id, location_id,
             buy_or_sell, item_id, give_quantity).invoke()
         print(f"> [test_playerlockout] sub-test #2 #{i}-turn by user#{user_id} completed.")
-    
+
     # back to the first user making its second turn after exactly MIN_TURN_LOCKOUT ticks
     user_id = 2
     location_id = 6
@@ -255,7 +255,7 @@ async def test_single_turn_logic(populated_game, populated_registry):
     turn = await engine.have_turn(user_id, location_id,
         buy_or_sell, item_id, give_quantity).invoke()
 
-    
+
     print("Turn events")
     [
         print(f"Result: {turn[index]}\t{EVENT_NAME[index]}")
