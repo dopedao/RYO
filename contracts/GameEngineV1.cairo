@@ -44,6 +44,12 @@ const MIN_EVENT_FRACTION = 20  # 20% the stated XYZ_BP probability.
 # Number of turns by other players that must occur before next turn.
 const MIN_TURN_LOCKOUT = 3
 
+# Drug lord percentage basis points.
+const DRUG_LORD_PERCENTAGE = 200
+
+# Number of stats that a player specifies for combat.
+const NUM_COMBAT_STATS = 30
+
 # A struct that holds the unpacked DOPE NFT data for the user.
 struct UserData:
     member weapon_strength : felt  # low to high, [0, 10]. 0=None.
@@ -107,6 +113,23 @@ namespace IUserRegistry:
     ):
     end
 end
+
+# Declare the interfacs with which to call the Combat contract.
+@contract_interface
+namespace ICombat:
+    func fight_1v1(
+        user_data : UserData,
+        lord_user_data : UserData,
+        len_user_combat_stats : felt,
+        user_combat_stats : felt*,
+        len_drug_lord_stats : felt,
+        drug_lord_combat_stats : felt*)
+    ) -> (
+        user_wins_bool : felt
+    ):
+    end
+end
+
 ############ Game key ############
 # Location and market are equivalent terms (one market per location)
 # 40 location_ids [0-39].
@@ -184,6 +207,24 @@ func clock_at_previous_turn(
        user_id : felt,
    ) -> (
        value : felt
+   ):
+end
+
+# Returns the user_id who is currently the drug lord in that location.
+@storage_var
+func drug_lord(
+       location_id : felt,
+   ) -> (
+       user_id : felt
+   ):
+end
+
+# Returns the hash of the stats of the drug lord in that location.
+@storage_var
+func drug_lord_stat_hash(
+       location_id : felt,
+   ) -> (
+       stat_hash : felt
    ):
 end
 
@@ -289,7 +330,11 @@ func have_turn{
         location_id : felt,
         buy_or_sell : felt,
         item_id : felt,
-        amount_to_give : felt
+        amount_to_give : felt,
+        len_user_combat_stats : felt,
+        user_combat_stats : felt*,
+        len_drug_lord_stats : felt,
+        drug_lord_combat_stats : felt*
     ) -> (
         trade_occurs_bool : felt,
         user_pre_trade_item : felt,
@@ -328,8 +373,31 @@ func have_turn{
 
     # Get unique user data.
     let (local user_data : UserData) = fetch_user_data(user_id)
+    let (local lord_user_id) = drug_lord.read(location_id)
+    let (local lord_user_data) = fetch_user_data(lord_user_id)
     # TODO - Use unique user data to modify events:
     # E.g., use user_data.foot_speed to change change run_from_mugging
+
+    # Fight the drug lord. King-of-the-Hill style.
+    let (win_bool : felt) = fight(
+        location_id, user_id,
+        user_data, lord_user_data,
+        len_user_combat_stats, user_combat_stats,
+        len_drug_lord_stats, drug_lord_combat_stats)
+
+    if win_bool == 1:
+        # User becomes new lord.
+        drug_lord.write(location_id, user_id)
+    else:
+        # Pay the drug lord their % cut before the trade.
+        let (lord_user_id) = drug_lord.read(location_id)
+        # Calculate 1 basis point (.01%) of the amount the user is giving (money or drug).
+        let cut_1_BP = unsigned_div_rem(amount_to_give, 10000)
+        let lord_cut = cut_1_bp * DRUG_LORD_PERCENTAGE
+        # The drug lord is another user. Increase their money or drug.
+        user_has_item(lord_user_id, item_id * buy_or_sell, lord_cut)
+        let amount_to_give = amount_to_give - lord_cut
+    end
 
     ## TEST ONLY ##
     assert user_data.weapon_strength = 3
@@ -411,6 +479,7 @@ func have_turn{
     assert_nn_le(MIN_TURN_LOCKOUT + last_turn, current_clock)
     game_clock.write(current_clock + 1)
     clock_at_previous_turn.write(user_id, current_clock + 1)
+
 
     return (
         trade_occurs_bool,
@@ -1030,3 +1099,60 @@ func fetch_user_data{
 
     return (user_stats=user_stats)
 end
+
+
+# Fight the drug lord.
+func fight_lord{
+        syscall_ptr : felt*,
+        storage_ptr : Storage*,
+        pedersen_ptr : HashBuiltin*,
+        bitwise_ptr: BitwiseBuiltin*,
+        range_check_ptr
+    }(
+        location_id : felt,
+        user_id : felt,
+        user_data : UserData,
+        lord_user_data : UserData,
+        len_user_combat_stats : felt,
+        user_combat_stats : felt*,
+        len_drug_lord_stats : felt,
+        drug_lord_combat_stats : felt*
+    ) -> (
+        win_bool : felt
+    ):
+
+    # Check that the user provided the drug lord stats.
+    drug_lord_combat_stats
+    lord_stats = alloc()
+    assert lord_stats[0] = NUM_COMBAT_STATS
+    assert lord_stats[1] = drug_lord_combat_stats
+    let (current_lord_hash) = drug_lord_stat_hash.read(location_id)
+    # Hash the stats provided.
+    let (lord_hash) = hash_chain(lord_stats)
+    assert current_lord_hash = lord_hash
+    if current_lord_hash != lord_hash:
+        # If you fail to provide the current lord stats, pay the tax.
+        return(win_bool=0)
+
+    # Execute combat.
+    let (win_bool : felt) = ICombat(
+        user_data : UserData,
+        lord_user_data : UserData,
+        len_user_combat_stats : felt,
+        user_combat_stats : felt*,
+        len_drug_lord_stats : felt,
+        drug_lord_combat_stats : felt*)
+
+    if win_bool = 1:
+        # Hash and store the user_id and combat stats as new lord.
+        new_lord_stats = alloc()
+        assert new_lord_stats[0] = NUM_COMBAT_STATS
+        assert new_lord_stats[1] = user_combat_stats
+        let (new_lord_hash) = hash_chain(new_lord_stats)
+        drug_lord_stat_hash.write(location_id, new_lord_hash)
+        drug_lord.write(location_id, user_id)
+    else:
+        tempvar pedersen_ptr = pedersen_ptr
+    end
+
+    return win_bool=win_bool
