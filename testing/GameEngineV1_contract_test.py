@@ -163,11 +163,11 @@ async def populated_game(game_factory):
             calldata=[item_id, sample_item_count_list,
                 sample_item_money_list])
         '''
-        # Give the users money (id=0).
-        await admin.tx_with_nonce(
-            to=engine.contract_address,
-            selector_name='admin_set_user_amount',
-            calldata=[USER_COUNT, user_money_pre])
+    # Give the users money (id=0).
+    await admin.tx_with_nonce(
+        to=engine.contract_address,
+        selector_name='admin_set_user_amount',
+        calldata=[USER_COUNT, user_money_pre])
 
     return engine, sample_item_count_list, sample_item_money_list
 
