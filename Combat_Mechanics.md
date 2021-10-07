@@ -1,4 +1,4 @@
-# Asynchronchous combat
+# Asynchronous combat
 
 ```
 TL;DR
