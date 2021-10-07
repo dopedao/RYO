@@ -131,11 +131,11 @@ func attack(
     ):
 
     attack_react(att, def)
-
+    # TODO
     defence(att, def)
-
+    # TODO
     defence_react(att, def)
-
+    # TODO
     return (defeated_bool)
 end
 
