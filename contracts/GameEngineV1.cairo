@@ -331,9 +331,9 @@ func have_turn{
         buy_or_sell : felt,
         item_id : felt,
         amount_to_give : felt,
-        len_user_combat_stats : felt,
+        user_combat_stats_len : felt,
         user_combat_stats : felt*,
-        len_drug_lord_stats : felt,
+        drug_lord_stats_len : felt,
         drug_lord_combat_stats : felt*
     ) -> (
         trade_occurs_bool : felt,
@@ -398,11 +398,6 @@ func have_turn{
         user_has_item(lord_user_id, item_id * buy_or_sell, lord_cut)
         let amount_to_give = amount_to_give - lord_cut
     end
-
-    ## TEST ONLY ##
-    assert user_data.weapon_strength = 3
-    assert user_data.ring_bribe = 1
-    ## ######### ##
 
     local syscall_ptr : felt* = syscall_ptr
     # E.g., Sell 300 units of item. amount_to_give = 300.

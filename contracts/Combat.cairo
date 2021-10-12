@@ -2,6 +2,7 @@
 %builtins range_check
 
 from starkware.cairo.common.math import assert_nn_le, unsigned_div_rem
+from starkware.cairo.common.math_cmp import is_nn_le
 
 ##### Intro #####
 #
@@ -29,25 +30,26 @@ end
 # Slider-style traits that a user selects.
 # Defined by the position in the Stats array (member_a = index_0).
 struct Fighter:
-    member strength
-    member agility
-    member duck
-    member block
-    member climb
-    member strike
-    member shoot
-    member grapple
-    member courage
-    member IQ
-    member psyops
-    member notoriety
-    member friends
-    member stamina
-    member health
-    member speed
+    member strength : felt
+    member agility : felt
+    member duck : felt
+    member block : felt
+    member climb : felt
+    member strike : felt
+    member shoot : felt
+    member grapple : felt
+    member courage : felt
+    member iq : felt
+    member psyops : felt
+    member notoriety : felt
+    member friends : felt
+    member stamina : felt
+    member health : felt
+    member speed : felt
     member core : UserData
-    member score
-    member defeated
+    member score : felt
+    member defeated : felt
+    member temp_damage : felt
 end
 # TODO ^^ add more and refine. Target is maybe 30.
 
@@ -59,19 +61,22 @@ func fight_1v1{
     }(
         user_data : UserData,
         lord_user_data : UserData,
-        len_user_combat_stats : felt,
+        user_combat_stats_len : felt,
         user_combat_stats : felt*,
-        len_drug_lord_stats : felt,
-        drug_lord_combat_stats : felt*)
+        drug_lord_combat_stats_len : felt,
+        drug_lord_combat_stats : felt*
     ) -> (
         user_wins_bool : felt
     ):
+    alloc_locals
     # Make user stats readable.
     let (local user : Fighter) = array_to_struct(user_combat_stats,
         user_data)
     # If the user selected illegal parameters, they lose
     let (legal_params_bool) = are_params_legal(user)
-    if legal_params_bool = 0:
+    local range_check_ptr = range_check_ptr
+
+    if legal_params_bool == 0:
         return (user_wins_bool=0)
     end
 
@@ -86,18 +91,20 @@ func fight_1v1{
 end
 
 # Entry function for the fight
-func fight{}(
+func fight(
         user : Fighter,
         lord : Fighter,
         round : felt
     ) -> (
         defeated_bool : felt
     ):
+    alloc_locals
     # If anyone is defeated before the last round, return.
-    if defeat_bool = 1:
+    let defeated_bool = (1 - user.defeated) * (1 - lord.defeated)
+    if defeated_bool == 0:
         return (defeated_bool)
-
-    if round = 0:
+    end
+    if round == 0:
         return (defeated_bool)
     end
 
@@ -107,43 +114,103 @@ func fight{}(
     # One round is two parts: First attack then be attacked.
 
     # E.g., attack, block attack, defend, block defend
-    let (defeated_bool) = attack(att=user, def=lord)
+    let (defeated_bool) = attack_sequence(att=user, def=lord)
 
     # If anyone is defeated, return.
     if user.defeated + lord.defeated != 0:
         return (defeated_bool=1)
-
-    let (defeated_bool) = attack(att=lord, def=user)
+    end
+    let (defeated_bool) = attack_sequence(att=lord, def=user)
 
     # If anyone is defeated, return.
     if user.defeated + lord.defeated != 0:
         return (defeated_bool=1)
-
+    end
     return (defeated_bool=0)
 end
 
 # Executes a four-part sequence for specified attacker/defender.
-func attack(
-        att : Fighter
+func attack_sequence(
+        att : Fighter,
         def : Fighter
     ) -> (
         defeated_bool : felt
     ):
-
+    # In an attack, the defender accumulates damage, however, the
+    # attacker may also receive damage from a react action.
+    # Reset the damage cache before the sequence begins.
+    assert att.temp_damage = 0
+    assert def.temp_damage = 0
+    attack(att, def)
     attack_react(att, def)
-    # TODO
     defence(att, def)
-    # TODO
     defence_react(att, def)
+
+    return (defeated_bool=0)
+end
+
+# Attacker damages the defender.
+func attack(
+        att : Fighter,
+        def : Fighter
+    ):
+    # TODO More action complexity and dependency.
+    # E.g., conditionals, non-linearity, multipliers and modifiers
+    # based on other traits.
+    assert def.temp_damage = att.strike * att.strength +
+        att.shoot * att.shoot
+
+    return ()
+end
+
+# Attacker gets damaged by the defender.
+func attack_react(
+        att : Fighter,
+        def : Fighter
+    ):
+    assert att.temp_damage = def.iq * def.iq + def.courage * def.psyops
+    return ()
+end
+
+# Defender reduces the damage sustained.
+func defence(
+        att : Fighter,
+        def : Fighter
+    ):
     # TODO
-    return (defeated_bool)
+    let damage_reduction = def.duck * def.speed + def.climb * def.stamina
+    let (no_clout) = is_nn_le(notoriety + friends, 10)
+    if no_clout = 0:
+        # Reduced damage only if has clout.
+        assert damage_reduction = damage_reduction + friends * friends
+    end
+    assert def.temp_damage = def.temp_damage - damage_reduction
+    return ()
+end
+
+# Attacker counters the defence, and defender sustains damage.
+func defence_react(
+        att : Fighter,
+        def : Fighter
+    ):
+    let outwit = att.psyops + att.iq
+    let (cant_outwit) = is_nn_le(outwit, 10)
+    if cant_outwit = 0:
+        # If the attacker outwits, increase damage to defender.
+        damage = def.temp_damage * 1.2 + att.stamina
+    assert def.temp_damage = def.temp_damage + damage
+    # TODO Make sure negatives are handled (damage > health).
+    # E.g., if the defender is very strong, being attacked may
+    # increase health, which is possibly okay.
+    assert def.health = def.health - def.temp_damage
+    return ()
 end
 
 
-
-
 # Enforces the constraints on the params selected by the user.
-func are_params_legal(
+func are_params_legal{
+        range_check_ptr
+    }(
         F : Fighter
     ) -> (
         legal_params_bool : felt
@@ -163,11 +230,11 @@ func are_params_legal(
     let physical = F.strength + F.agility
     let protec = F.duck + F.block + F.climb
     let attac = F.strike + F.shoot + F.grapple
-    let mind = F.courage + F.IQ + F.psyops
+    let mind = F.courage + F.iq + F.psyops
     let social = F.notoriety + F.friends
     let drainable = F.stamina + F.health + F.speed
-    let sum = physical * physical + protec * protec + attac * attac
-        + mind * mind + social * social + drainable * drainable
+    let sum = physical * physical + protec * protec + attac * attac +
+        mind * mind + social * social + drainable * drainable
 
     let (legal_params_bool : felt) = is_nn_le(sum, MAX_QUADRATIC_TOTAL)
 
@@ -184,7 +251,8 @@ func array_to_struct(
         fighter : Fighter
     ):
     alloc_locals
-    local F : fighter
+    # Initialize the fighter. Health is 10x. e.g., 9 = 90 HP
+    local F : Fighter
     assert F.strength = arr[0]
     assert F.agility = arr[1]
     assert F.duck = arr[2]
@@ -194,14 +262,14 @@ func array_to_struct(
     assert F.shoot = arr[6]
     assert F.grapple = arr[7]
     assert F.courage = arr[8]
-    assert F.IQ = arr[9]
+    assert F.iq = arr[9]
     assert F.psyops = arr[10]
     assert F.notoriety = arr[11]
     assert F.friends = arr[12]
     assert F.stamina = arr[13]
-    assert F.health = arr[14]
+    assert F.health = arr[14] * 10
     assert F.speed = arr[15]
-    assert F.data = user_data
+    assert F.core = user_data
 
     return (fighter=F)
 end

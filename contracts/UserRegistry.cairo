@@ -154,11 +154,8 @@ func unpack_score{
     local bitwise_ptr: BitwiseBuiltin* = bitwise_ptr
     # 1. Create a 4-bit mask at and to the left of the index
     # E.g., 000111100 = 2**2 + 2**3 + 2**4 + 2**5
-    let (local bit_a) = pow(2, index)
-    let (local bit_b) = pow(2, index + 1)
-    let (local bit_c) = pow(2, index + 2)
-    let (local bit_d) = pow(2, index + 3)
-    local mask = bit_a + bit_b + bit_c + bit_d
+    let power = pow(2, index)
+    local mask = (1+2+4+8) * power
 
     # 2. Apply mask using bitwise operation: mask AND data.
     let (masked) = bitwise_and(mask, data)
