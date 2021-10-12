@@ -8,6 +8,8 @@ from starkware.cairo.common.math import (assert_nn_le,
     unsigned_div_rem, split_felt)
 from starkware.cairo.common.math_cmp import is_nn_le
 from starkware.cairo.common.hash import hash2
+from starkware.cairo.common.hash_state import (hash_init,
+    hash_update, HashState)
 from starkware.cairo.common.bitwise import bitwise_xor
 from starkware.cairo.common.alloc import alloc
 
@@ -80,6 +82,14 @@ func user_registry_address(
     ):
 end
 
+# Modifiable address pytest deployments.
+@storage_var
+func combat_address(
+    ) -> (
+        address : felt
+    ):
+end
+
 # Declare the interface with which to call the MarketMaker contract.
 @contract_interface
 namespace IMarketMaker:
@@ -120,10 +130,10 @@ namespace ICombat:
     func fight_1v1(
         user_data : UserData,
         lord_user_data : UserData,
-        len_user_combat_stats : felt,
+        user_combat_stats_len : felt,
         user_combat_stats : felt*,
-        len_drug_lord_stats : felt,
-        drug_lord_combat_stats : felt*)
+        drug_lord_combat_stats_len : felt,
+        drug_lord_combat_stats : felt*
     ) -> (
         user_wins_bool : felt
     ):
@@ -257,6 +267,18 @@ func set_user_registry_address{
     return ()
 end
 
+@external
+func set_combat_address{
+        storage_ptr : Storage*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        address : felt
+    ):
+    # Used for testing. This can be constant on deployment.
+    combat_address.write(address)
+    return ()
+end
 
 ############ Game State Initialization ############
 # Sets the initial market maker values for a given item_id.
@@ -379,27 +401,34 @@ func have_turn{
     # E.g., use user_data.foot_speed to change change run_from_mugging
 
     # Fight the drug lord. King-of-the-Hill style.
-    let (win_bool : felt) = fight(
+    let (win_bool : felt) = fight_lord(
         location_id, user_id,
         user_data, lord_user_data,
-        len_user_combat_stats, user_combat_stats,
-        len_drug_lord_stats, drug_lord_combat_stats)
-
-    if win_bool == 1:
-        # User becomes new lord.
-        drug_lord.write(location_id, user_id)
-    else:
-        # Pay the drug lord their % cut before the trade.
-        let (lord_user_id) = drug_lord.read(location_id)
-        # Calculate 1 basis point (.01%) of the amount the user is giving (money or drug).
-        let cut_1_BP = unsigned_div_rem(amount_to_give, 10000)
-        let lord_cut = cut_1_bp * DRUG_LORD_PERCENTAGE
-        # The drug lord is another user. Increase their money or drug.
-        user_has_item(lord_user_id, item_id * buy_or_sell, lord_cut)
-        let amount_to_give = amount_to_give - lord_cut
-    end
+        user_combat_stats_len, user_combat_stats,
+        drug_lord_combat_stats_len, drug_lord_combat_stats)
 
     local syscall_ptr : felt* = syscall_ptr
+    local amount_to_give_post_cut
+
+    #if win_bool == 1:
+    #    # User becomes new lord.
+    #    drug_lord.write(location_id, user_id)
+    #    assert amount_to_give_post_cut = amount_to_give
+    #   tempvar storage_ptr : Storage* = storage_ptr
+    #else:
+    #    # Pay the drug lord their % cut before the trade.
+    #    let (lord_user_id) = drug_lord.read(location_id)
+    #    # Calculate 1 basis point (.01%) of the amount the user is giving (money or #drug).
+    #   let (cut_1_BP, _) = unsigned_div_rem(amount_to_give, 10000)
+    #    let lord_cut = cut_1_BP * DRUG_LORD_PERCENTAGE
+    #    # The drug lord is another user. Increase their money or drug.
+    #   # id = 0 if buying.
+    #    let giving_id = item_id * buy_or_sell
+    #    user_has_item.write(lord_user_id, giving_id, lord_cut)
+    #   assert amount_to_give_post_cut = amount_to_give - lord_cut
+    #   tempvar storage_ptr : Storage* = storage_ptr
+    #end
+
     # E.g., Sell 300 units of item. amount_to_give = 300.
     # E.g., Buy using 120 units of money. amount_to_give = 120.
     # Record initial state for UI and QA.
@@ -413,8 +442,8 @@ func have_turn{
 
     # Affect pseudorandom seed at start of turn.
     # User can grind a favourable number by incrementing lots of 10.
-    let(low_precision_quant, _) = unsigned_div_rem(amount_to_give, 10)
-    let (pseudorandom : felt) = add_to_seed(item_id, amount_to_give)
+    let(low_precision_quant, _) = unsigned_div_rem(amount_to_give_post_cut, 10)
+    let (pseudorandom : felt) = add_to_seed(item_id, amount_to_give_post_cut)
     # Get all events for this turn.
     # For UI, pass through values temporarily (in lieu of 'events').
     let (
@@ -436,8 +465,10 @@ func have_turn{
     ) = get_events(user_data)
 
     # Apply trade and save results for market QA checks.
+    # TODO: QA checks need to account for cut taken by drug_lord.
+    #    E.g. amount to give is reduced if player doesn't defeat drug lord.
     execute_trade(user_id, location_id, buy_or_sell, item_id,
-            amount_to_give, trade_occurs_bool)
+            amount_to_give_post_cut, trade_occurs_bool)
 
     # Save post-trade pre-event state.
     let (local market_post_trade_pre_event_item) = location_has_item.read(
@@ -1089,9 +1120,6 @@ func fetch_user_data{
         ring_bribe=ring,
         special_drug=drug
     )
-
-
-
     return (user_stats=user_stats)
 end
 
@@ -1108,46 +1136,61 @@ func fight_lord{
         user_id : felt,
         user_data : UserData,
         lord_user_data : UserData,
-        len_user_combat_stats : felt,
+        user_combat_stats_len : felt,
         user_combat_stats : felt*,
-        len_drug_lord_stats : felt,
+        drug_lord_combat_stats_len : felt,
         drug_lord_combat_stats : felt*
     ) -> (
         win_bool : felt
     ):
-
+    alloc_locals
     # Check that the user provided the drug lord stats.
-    drug_lord_combat_stats
-    lord_stats = alloc()
+
+    # Hash the stats provided. Add len to start of array-to-hash.
+    let (lord_stats : felt*) = alloc()
     assert lord_stats[0] = NUM_COMBAT_STATS
-    assert lord_stats[1] = drug_lord_combat_stats
+    assert &lord_stats[1] =  drug_lord_combat_stats
+    local pedersen_ptr : HashBuiltin* = pedersen_ptr
+
+
+    let (provided_lord_hash_ptr : HashState*) = hash_init()
+    let (provided_lord_hash_ptr : HashState*) = hash_update{
+        hash_ptr=pedersen_ptr}(provided_lord_hash_ptr,
+        drug_lord_combat_stats, drug_lord_combat_stats_len)
+
     let (current_lord_hash) = drug_lord_stat_hash.read(location_id)
-    # Hash the stats provided.
-    let (lord_hash) = hash_chain(lord_stats)
-    assert current_lord_hash = lord_hash
-    if current_lord_hash != lord_hash:
+    if current_lord_hash != provided_lord_hash_ptr.current_hash:
         # If you fail to provide the current lord stats, pay the tax.
-        return(win_bool=0)
-
-    # Execute combat.
-    let (win_bool : felt) = ICombat(
-        user_data : UserData,
-        lord_user_data : UserData,
-        len_user_combat_stats : felt,
-        user_combat_stats : felt*,
-        len_drug_lord_stats : felt,
-        drug_lord_combat_stats : felt*)
-
-    if win_bool = 1:
-        # Hash and store the user_id and combat stats as new lord.
-        new_lord_stats = alloc()
-        assert new_lord_stats[0] = NUM_COMBAT_STATS
-        assert new_lord_stats[1] = user_combat_stats
-        let (new_lord_hash) = hash_chain(new_lord_stats)
-        drug_lord_stat_hash.write(location_id, new_lord_hash)
-        drug_lord.write(location_id, user_id)
-    else:
-        tempvar pedersen_ptr = pedersen_ptr
+        return (win_bool=0)
     end
 
-    return win_bool=win_bool
+    let (combat_addr) = combat_address.read()
+    local pedersen_ptr : HashBuiltin* = pedersen_ptr
+    # Execute combat.
+    let (win_bool : felt) = ICombat.fight_1v1(
+        combat_addr,
+        user_data,
+        lord_user_data,
+        user_combat_stats_len,
+        user_combat_stats,
+        drug_lord_combat_stats_len,
+        drug_lord_combat_stats)
+
+    local storage_ptr : Storage* = storage_ptr
+    local range_check_ptr = range_check_ptr
+    local syscall_ptr : felt* = syscall_ptr
+
+    if win_bool == 0:
+        return (win_bool=0)
+    end
+
+    # Hash and store the user_id and combat stats as new lord.
+    let (new_lord_hash_ptr : HashState*) = hash_init()
+    let (new_lord_hash_ptr : HashState*) = hash_update{
+        hash_ptr=pedersen_ptr}(new_lord_hash_ptr,
+        user_combat_stats, user_combat_stats_len)
+    drug_lord_stat_hash.write(location_id, new_lord_hash_ptr.current_hash)
+    drug_lord.write(location_id, user_id)
+
+    return (win_bool=1)
+end

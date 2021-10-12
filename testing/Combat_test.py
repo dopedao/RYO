@@ -50,8 +50,9 @@ async def test_combat(combat_factory):
     _, accounts, combat = combat_factory
     admin = accounts[0]
 
-    user_data = 0
-    lord_user_data = 0
+    # Test framework doesn't currenlty handle struct arguments.
+    user_data = 0  # Struct.
+    lord_user_data = 0  # Struct.
     user_combat_stats_len = 16
     user_combat_stats = [8]*16
     drug_lord_combat_stats_len = 16

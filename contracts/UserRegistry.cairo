@@ -154,14 +154,16 @@ func unpack_score{
     local bitwise_ptr: BitwiseBuiltin* = bitwise_ptr
     # 1. Create a 4-bit mask at and to the left of the index
     # E.g., 000111100 = 2**2 + 2**3 + 2**4 + 2**5
-    let power = pow(2, index)
-    local mask = (1+2+4+8) * power
+    # E.g.,  2**(i) + 2**(i+1) + 2**(i+2) + 2**(i+3) = (2**i)(15)
+    let (power) = pow(2, index)
+    # 1 + 2 + 4 + 8 = 15
+    let mask = 15 * power
 
     # 2. Apply mask using bitwise operation: mask AND data.
     let (masked) = bitwise_and(mask, data)
 
     # 3. Shift element right by dividing by the order of the mask.
-    let (score, _) = unsigned_div_rem(masked, bit_a)
+    let (score, _) = unsigned_div_rem(masked, power)
 
     return (score)
 end

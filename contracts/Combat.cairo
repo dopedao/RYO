@@ -91,7 +91,9 @@ func fight_1v1{
 end
 
 # Entry function for the fight
-func fight(
+func fight{
+        range_check_ptr
+    }(
         user : Fighter,
         lord : Fighter,
         round : felt
@@ -130,7 +132,9 @@ func fight(
 end
 
 # Executes a four-part sequence for specified attacker/defender.
-func attack_sequence(
+func attack_sequence{
+        range_check_ptr
+    }(
         att : Fighter,
         def : Fighter
     ) -> (
@@ -146,11 +150,14 @@ func attack_sequence(
     defence(att, def)
     defence_react(att, def)
 
+    # TODO: If health < 0, defeated_ool = 1.
     return (defeated_bool=0)
 end
 
 # Attacker damages the defender.
-func attack(
+func attack{
+        range_check_ptr
+    }(
         att : Fighter,
         def : Fighter
     ):
@@ -164,7 +171,9 @@ func attack(
 end
 
 # Attacker gets damaged by the defender.
-func attack_react(
+func attack_react{
+        range_check_ptr
+    }(
         att : Fighter,
         def : Fighter
     ):
@@ -173,32 +182,41 @@ func attack_react(
 end
 
 # Defender reduces the damage sustained.
-func defence(
+func defence{
+        range_check_ptr
+    }(
         att : Fighter,
         def : Fighter
     ):
     # TODO
+    alloc_locals
     let damage_reduction = def.duck * def.speed + def.climb * def.stamina
-    let (no_clout) = is_nn_le(notoriety + friends, 10)
-    if no_clout = 0:
+    let (no_clout) = is_nn_le(def.notoriety + def.friends, 10)
+    local range_check_ptr = range_check_ptr
+    if no_clout == 0:
         # Reduced damage only if has clout.
-        assert damage_reduction = damage_reduction + friends * friends
+        assert damage_reduction = damage_reduction + def.friends * def.friends
     end
     assert def.temp_damage = def.temp_damage - damage_reduction
     return ()
 end
 
 # Attacker counters the defence, and defender sustains damage.
-func defence_react(
+func defence_react{
+        range_check_ptr
+    }(
         att : Fighter,
         def : Fighter
     ):
+    alloc_locals
     let outwit = att.psyops + att.iq
     let (cant_outwit) = is_nn_le(outwit, 10)
-    if cant_outwit = 0:
+    local range_check_ptr = range_check_ptr
+    if cant_outwit == 0:
         # If the attacker outwits, increase damage to defender.
-        damage = def.temp_damage * 1.2 + att.stamina
-    assert def.temp_damage = def.temp_damage + damage
+        assert def.temp_damage = def.temp_damage + att.stamina
+    end
+
     # TODO Make sure negatives are handled (damage > health).
     # E.g., if the defender is very strong, being attacked may
     # increase health, which is possibly okay.
