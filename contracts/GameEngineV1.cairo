@@ -333,7 +333,7 @@ func have_turn{
         amount_to_give : felt,
         user_combat_stats_len : felt,
         user_combat_stats : felt*,
-        drug_lord_stats_len : felt,
+        drug_lord_combat_stats_len : felt,
         drug_lord_combat_stats : felt*
     ) -> (
         trade_occurs_bool : felt,
