@@ -389,45 +389,8 @@ func have_turn{
     alloc_locals
     # Uncomment for pytest: Get address of UserRegistry.
     # let user_registry = USER_REGISTRY_ADDRESS
-
     # Check if user has registered to play.
     check_user(user_id)
-
-    # Get unique user data.
-    let (local user_data : UserData) = fetch_user_data(user_id)
-    let (local lord_user_id) = drug_lord.read(location_id)
-    let (local lord_user_data) = fetch_user_data(lord_user_id)
-    # TODO - Use unique user data to modify events:
-    # E.g., use user_data.foot_speed to change change run_from_mugging
-
-    # Fight the drug lord. King-of-the-Hill style.
-    let (win_bool : felt) = fight_lord(
-        location_id, user_id,
-        user_data, lord_user_data,
-        user_combat_stats_len, user_combat_stats,
-        drug_lord_combat_stats_len, drug_lord_combat_stats)
-
-    local syscall_ptr : felt* = syscall_ptr
-    local amount_to_give_post_cut
-
-    #if win_bool == 1:
-    #    # User becomes new lord.
-    #    drug_lord.write(location_id, user_id)
-    #    assert amount_to_give_post_cut = amount_to_give
-    #   tempvar storage_ptr : Storage* = storage_ptr
-    #else:
-    #    # Pay the drug lord their % cut before the trade.
-    #    let (lord_user_id) = drug_lord.read(location_id)
-    #    # Calculate 1 basis point (.01%) of the amount the user is giving (money or #drug).
-    #   let (cut_1_BP, _) = unsigned_div_rem(amount_to_give, 10000)
-    #    let lord_cut = cut_1_BP * DRUG_LORD_PERCENTAGE
-    #    # The drug lord is another user. Increase their money or drug.
-    #   # id = 0 if buying.
-    #    let giving_id = item_id * buy_or_sell
-    #    user_has_item.write(lord_user_id, giving_id, lord_cut)
-    #   assert amount_to_give_post_cut = amount_to_give - lord_cut
-    #   tempvar storage_ptr : Storage* = storage_ptr
-    #end
 
     # E.g., Sell 300 units of item. amount_to_give = 300.
     # E.g., Buy using 120 units of money. amount_to_give = 120.
@@ -440,9 +403,50 @@ func have_turn{
     let (local market_pre_trade_money) = location_has_money.read(
         location_id, item_id)
 
+    # Get unique user data.
+    let (local user_data : UserData) = fetch_user_data(user_id)
+    let (local lord_user_id) = drug_lord.read(location_id)
+    let (local lord_user_data : UserData) = fetch_user_data(lord_user_id)
+    # TODO - Use unique user data to modify events:
+    # E.g., use user_data.foot_speed to change change run_from_mugging
+
+    # Fight the drug lord. King-of-the-Hill style.
+    let (win_bool : felt) = fight_lord(
+        location_id, user_id,
+        user_data, lord_user_data,
+        user_combat_stats_len, user_combat_stats,
+        drug_lord_combat_stats_len, drug_lord_combat_stats)
+
+    # TODO - update this line
+    local amount_to_give_post_cut = amount_to_give
+
+
+        #if win_bool == 1:
+#            # Does not pay cut
+#            assert amount_to_give_post_cut = amount_to_give
+#            # User becomes new lord.
+#            drug_lord.write(location_id, user_id)
+        #else:
+#            # Pay the drug lord their % cut before the trade.
+
+#            let (lord_user_id) = drug_lord.read(location_id)
+#            # Calculate 1 basis point (.01%) of the amount the user is
+#            # giving (money or drug).
+#            let (cut_1_BP, _) = unsigned_div_rem(amount_to_give, 10000)
+#            let lord_cut = cut_1_BP * DRUG_LORD_PERCENTAGE
+#            # The drug lord is another user. Increase their money or drug.
+#            # id = 0 if buying.
+#            let giving_id = item_id * buy_or_sell
+#            user_has_item.write(lord_user_id, giving_id, lord_cut)
+#            assert amount_to_give_post_cut = amount_to_give - lord_cut
+        #end
+
+
+
+
     # Affect pseudorandom seed at start of turn.
     # User can grind a favourable number by incrementing lots of 10.
-    let(low_precision_quant, _) = unsigned_div_rem(amount_to_give_post_cut, 10)
+    let (low_precision_quant, _) = unsigned_div_rem(amount_to_give_post_cut, 10)
     let (pseudorandom : felt) = add_to_seed(item_id, amount_to_give_post_cut)
     # Get all events for this turn.
     # For UI, pass through values temporarily (in lieu of 'events').
@@ -707,6 +711,7 @@ end
 
 # Add to seed.
 func add_to_seed{
+        syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         storage_ptr : Storage*,
         bitwise_ptr : BitwiseBuiltin*,
@@ -780,6 +785,7 @@ end
 
 # Evaluates all major events.
 func get_events{
+        syscall_ptr : felt*,
         storage_ptr : Storage*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr,
@@ -1145,29 +1151,20 @@ func fight_lord{
     ):
     alloc_locals
     # Check that the user provided the drug lord stats.
-
-    # Hash the stats provided. Add len to start of array-to-hash.
-    let (lord_stats : felt*) = alloc()
-    assert lord_stats[0] = NUM_COMBAT_STATS
-    assert &lord_stats[1] =  drug_lord_combat_stats
-    local pedersen_ptr : HashBuiltin* = pedersen_ptr
-
-
-    let (provided_lord_hash_ptr : HashState*) = hash_init()
-    let (provided_lord_hash_ptr : HashState*) = hash_update{
-        hash_ptr=pedersen_ptr}(provided_lord_hash_ptr,
-        drug_lord_combat_stats, drug_lord_combat_stats_len)
-
+    local storage_ptr : Storage* = storage_ptr
+    let (provided_lord_hash) = list_to_hash(drug_lord_combat_stats,
+        drug_lord_combat_stats_len)
     let (current_lord_hash) = drug_lord_stat_hash.read(location_id)
-    if current_lord_hash != provided_lord_hash_ptr.current_hash:
-        # If you fail to provide the current lord stats, pay the tax.
+    # If you fail to provide the current lord stats, pay the tax.
+    if current_lord_hash != provided_lord_hash:
         return (win_bool=0)
     end
 
     let (combat_addr) = combat_address.read()
     local pedersen_ptr : HashBuiltin* = pedersen_ptr
+
     # Execute combat.
-    let (win_bool : felt) = ICombat.fight_1v1(
+    let (local win_bool : felt) = ICombat.fight_1v1(
         combat_addr,
         user_data,
         lord_user_data,
@@ -1175,9 +1172,6 @@ func fight_lord{
         user_combat_stats,
         drug_lord_combat_stats_len,
         drug_lord_combat_stats)
-
-    local storage_ptr : Storage* = storage_ptr
-    local range_check_ptr = range_check_ptr
     local syscall_ptr : felt* = syscall_ptr
 
     if win_bool == 0:
@@ -1185,12 +1179,29 @@ func fight_lord{
     end
 
     # Hash and store the user_id and combat stats as new lord.
-    let (new_lord_hash_ptr : HashState*) = hash_init()
-    let (new_lord_hash_ptr : HashState*) = hash_update{
-        hash_ptr=pedersen_ptr}(new_lord_hash_ptr,
-        user_combat_stats, user_combat_stats_len)
-    drug_lord_stat_hash.write(location_id, new_lord_hash_ptr.current_hash)
+    local storage_ptr : Storage* = storage_ptr
+    let (user_combat_hash) = list_to_hash(user_combat_stats,
+        user_combat_stats_len)
+    drug_lord_stat_hash.write(location_id, user_combat_hash)
     drug_lord.write(location_id, user_id)
 
-    return (win_bool=1)
+    return(win_bool=1)
+end
+
+
+# Computes the unique hash of a list of felts.
+func list_to_hash{
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        list : felt*,
+        list_len : felt
+    ) -> (
+        hash : felt
+    ):
+
+    let (list_hash : HashState*) = hash_init()
+    let (list_hash : HashState*) = hash_update{
+        hash_ptr=pedersen_ptr}(list_hash, list, list_len)
+    return (list_hash.current_hash)
 end
