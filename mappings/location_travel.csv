@@ -1,24 +1,20 @@
 region,district_1,district_2,district_3,district_4,travel_cost_out_of_1000,(optional stats: region appearance count out of 8000)
-Miami (TBC),Downtown,Bricknell,Miami Beach,Wynwood,130,
-Medellin (TBC),Poblado,El Centro,Envigado,Bello,220,
-New York (TBC),L.E.S,Harlem,Brooklyn,Midtown,100,
-Los Angeles (TBC),Venice Beach,DownTown,SouthCentral,Hollywood,150,
-The Bayou,Upriver,Highground,Platoon,Old Bridge,,
-Atlanta,Oakland City,West End,Grove Park,Adamsville,,
-Compton,Sunny Cove,Leland,Downtown,,,
-Oakland,,,,,,
-SOMA,,,,,,
-Hong Kong,,,,,,
-London,,,,,,
-Chicago,,,,,,
-Brooklyn,,,,,,
-Detroit,,,,,,
-Mob Town,,,,,,
-Murdertown,,,,,,1109
-Sin City,,,,,,
-Big Smoke,,,,,,
-The Backwoods,,,,,,
-The Big Easy,,,,,,1016
-Queens,,,,,,
-BedStuy,,,,,,1029
-Buffalo,,,,,,
+The Bayou,Upriver,Highground,Platoon,Old Bridge,1000,
+Atlanta,Oakland City,West End,Grove Park,Adamsville,1400,
+Compton,Sunny Cove,Leland,Downtown,Sherman Oaks,1200,
+Oakland,Eastmont,Webster,Claremont,Piedmont,1000,
+SOMA,South brach,Yerba buena,Rincon Hill,Central,800,
+Hong Kong,Kowloon,Central District,Lan Kwai Fong,Tai Tam,1400,
+London,Westminster,Cambde,Kensington,Knightsbridge,800,
+Chicago,Englewood,West Garfield Park,Lincoln Park,Beverly,1400,
+Brooklyn,Brownsville,Bushwick,Fort Greene,Carroll Gardens,1000,
+Detroit,Van Steuban,Warrendale,Fiskorn,Palmer Woods,800,
+Mob Town,Grove Park,Riverside,Canton,Berea,1400,
+Murdertown,Pike Creek,Highland,Downtown,Wooster,1200,1109
+Sin City,Sacred Oaks,The Docks,Central,Old Town,1000,
+Big Smoke,Old Bridge,Dock Lands,Central,High Rise,800,
+The Backwoods,Old Town,Deep north,Hillside,West Rim,1400,
+The Big Easy,Central City,Saint Roch,Audoubon,Uptown,1000,1016
+Queens,Long Island City,Ridgewood,Rochdale,Howard Beach,1200,
+BedStuy,Bedford,Stuyvesant Heights,Ocean Hill,Central,800,1029
+Buffalo,Parkside,North Park,Kenfield,Emerson,1200,
