@@ -57,7 +57,6 @@ end
 # winner through combat using innate UserData and selected Stats.
 @external
 func fight_1v1{
-        syscall_ptr : felt*,
         range_check_ptr
     }(
         user_data : UserData,

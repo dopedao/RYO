@@ -46,8 +46,8 @@ const MIN_EVENT_FRACTION = 20  # 20% the stated XYZ_BP probability.
 # Number of turns by other players that must occur before next turn.
 const MIN_TURN_LOCKOUT = 3
 
-# Drug lord percentage basis points.
-const DRUG_LORD_PERCENTAGE = 200
+# Drug lord percentage (2 = 2%).
+const DRUG_LORD_PERCENTAGE = 2
 
 # Number of stats that a player specifies for combat.
 const NUM_COMBAT_STATS = 30
@@ -411,37 +411,17 @@ func have_turn{
     # E.g., use user_data.foot_speed to change change run_from_mugging
 
     # Fight the drug lord. King-of-the-Hill style.
-    let (win_bool : felt) = fight_lord(
+    let (local win_bool : felt) = fight_lord(
         location_id, user_id,
         user_data, lord_user_data,
         user_combat_stats_len, user_combat_stats,
         drug_lord_combat_stats_len, drug_lord_combat_stats)
 
-    # TODO - update this line
-    local amount_to_give_post_cut = amount_to_give
-
-
-        #if win_bool == 1:
-#            # Does not pay cut
-#            assert amount_to_give_post_cut = amount_to_give
-#            # User becomes new lord.
-#            drug_lord.write(location_id, user_id)
-        #else:
-#            # Pay the drug lord their % cut before the trade.
-
-#            let (lord_user_id) = drug_lord.read(location_id)
-#            # Calculate 1 basis point (.01%) of the amount the user is
-#            # giving (money or drug).
-#            let (cut_1_BP, _) = unsigned_div_rem(amount_to_give, 10000)
-#            let lord_cut = cut_1_BP * DRUG_LORD_PERCENTAGE
-#            # The drug lord is another user. Increase their money or drug.
-#            # id = 0 if buying.
-#            let giving_id = item_id * buy_or_sell
-#            user_has_item.write(lord_user_id, giving_id, lord_cut)
-#            assert amount_to_give_post_cut = amount_to_give - lord_cut
-        #end
-
-
+    local storage_ptr : Storage* = storage_ptr
+    # Drug lord takes a cut.
+    let (local amount_to_give_post_cut) = take_cut(user_id,
+            location_id, buy_or_sell, item_id,
+            amount_to_give, win_bool)
 
 
     # Affect pseudorandom seed at start of turn.
@@ -1199,9 +1179,47 @@ func list_to_hash{
     ) -> (
         hash : felt
     ):
-
     let (list_hash : HashState*) = hash_init()
     let (list_hash : HashState*) = hash_update{
         hash_ptr=pedersen_ptr}(list_hash, list, list_len)
     return (list_hash.current_hash)
+end
+
+# Gives the drug lord a cut of whatever the user is giving.
+func take_cut{
+        syscall_ptr : felt*,
+        storage_ptr : Storage*,
+        pedersen_ptr : HashBuiltin*,
+        bitwise_ptr: BitwiseBuiltin*,
+        range_check_ptr
+    }(
+        user_id : felt,
+        location_id : felt,
+        buy_or_sell : felt,
+        item_id : felt,
+        amount_to_give : felt,
+        win_bool : felt
+    ) -> (
+        amount_to_give_post_cut : felt
+    ):
+    alloc_locals
+    if win_bool == 1:
+        # User becomes new lord.
+        drug_lord.write(location_id, user_id)
+        # Does not pay cut
+        return (amount_to_give)
+    end
+
+    # Pay the drug lord their % cut before the trade.
+    let (lord_user_id) = drug_lord.read(location_id)
+    # Calculate cut from amount the user is giving (money or drug).
+    # E.g., amount to give 451. 1pc = 4.51 = 4.
+    let (cut_1_PC, _) = unsigned_div_rem(amount_to_give, 100)
+    let lord_cut = cut_1_PC * DRUG_LORD_PERCENTAGE
+    # The drug lord is another user. Increase their money or drug.
+    # id = 0 if buying.
+    let giving_id = item_id * buy_or_sell
+    user_has_item.write(lord_user_id, giving_id, lord_cut)
+
+    return (amount_to_give - lord_cut)
 end
