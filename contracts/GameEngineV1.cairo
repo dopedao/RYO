@@ -1135,6 +1135,16 @@ func fight_lord{
     let (provided_lord_hash) = list_to_hash(drug_lord_combat_stats,
         drug_lord_combat_stats_len)
     let (current_lord_hash) = drug_lord_stat_hash.read(location_id)
+
+    # If no current lord, save and 'win'.
+    if current_lord_hash == 0:
+        local storage_ptr : Storage* = storage_ptr
+        let (user_combat_hash) = list_to_hash(user_combat_stats,
+            user_combat_stats_len)
+        drug_lord_stat_hash.write(location_id, user_combat_hash)
+        drug_lord.write(location_id, user_id)
+        return (win_bool=1)
+    end
     # If you fail to provide the current lord stats, pay the tax.
     if current_lord_hash != provided_lord_hash:
         return (win_bool=0)
@@ -1165,7 +1175,7 @@ func fight_lord{
     drug_lord_stat_hash.write(location_id, user_combat_hash)
     drug_lord.write(location_id, user_id)
 
-    return(win_bool=1)
+    return( win_bool=1)
 end
 
 
