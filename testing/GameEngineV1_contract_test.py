@@ -408,5 +408,5 @@ async def test_single_turn_logic(populated_game, populated_registry):
         regional_item_reduction_factor // 100
 
     random_initialized_user = await engine.check_user_state(
-        9).invoke()
+        user_id - 1).invoke()
     print('rand user', random_initialized_user)
