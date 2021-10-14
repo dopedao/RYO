@@ -24,6 +24,17 @@
     {
         "inputs": [
             {
+                "name": "address",
+                "type": "felt"
+            }
+        ],
+        "name": "set_combat_address",
+        "outputs": [],
+        "type": "function"
+    },
+    {
+        "inputs": [
+            {
                 "name": "item_id",
                 "type": "felt"
             },
@@ -95,6 +106,22 @@
             {
                 "name": "amount_to_give",
                 "type": "felt"
+            },
+            {
+                "name": "user_combat_stats_len",
+                "type": "felt"
+            },
+            {
+                "name": "user_combat_stats",
+                "type": "felt*"
+            },
+            {
+                "name": "drug_lord_combat_stats_len",
+                "type": "felt"
+            },
+            {
+                "name": "drug_lord_combat_stats",
+                "type": "felt*"
             }
         ],
         "name": "have_turn",
@@ -261,6 +288,42 @@
             },
             {
                 "name": "id10",
+                "type": "felt"
+            },
+            {
+                "name": "id11",
+                "type": "felt"
+            },
+            {
+                "name": "id12",
+                "type": "felt"
+            },
+            {
+                "name": "id13",
+                "type": "felt"
+            },
+            {
+                "name": "id14",
+                "type": "felt"
+            },
+            {
+                "name": "id15",
+                "type": "felt"
+            },
+            {
+                "name": "id16",
+                "type": "felt"
+            },
+            {
+                "name": "id17",
+                "type": "felt"
+            },
+            {
+                "name": "id18",
+                "type": "felt"
+            },
+            {
+                "name": "id19",
                 "type": "felt"
             },
             {

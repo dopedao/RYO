@@ -13,6 +13,10 @@ L1_ADDRESS = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984
 # Number of users the game simulates for testing. E.g., >1000.
 USER_COUNT = 10
 
+# Combat stats.
+USER_COMBAT_STATS = [5]*16
+DRUG_LORD_STATS = [3]*16
+
 # Number of ticks a player is locked out before its next turn is allowed; MUST be consistent with MIN_TURN_LOCKOUT in contract
 MIN_TURN_LOCKOUT = 3
 
@@ -82,18 +86,21 @@ async def game_factory(account_factory):
     engine = await starknet.deploy("contracts/GameEngineV1.cairo")
     market = await starknet.deploy("contracts/MarketMaker.cairo")
     registry = await starknet.deploy("contracts/UserRegistry.cairo")
+    combat = await starknet.deploy("contracts/Combat.cairo")
 
     # Save the other contract address in the game contract.
     await engine.set_market_maker_address(
         address=market.contract_address).invoke()
     await engine.set_user_registry_address(
         address=registry.contract_address).invoke()
-    return starknet, accounts, engine, market, registry
+    await engine.set_combat_address(
+        address=combat.contract_address).invoke()
+    return starknet, accounts, engine, market, registry, combat
 
 
 @pytest.mark.asyncio
 async def test_account_unique(game_factory):
-    _, accounts, _, _, _, = game_factory
+    _, accounts, _, _, _, _ = game_factory
     admin = accounts[0].signer.public_key
     user_1 = accounts[1].signer.public_key
     assert admin != user_1
@@ -101,7 +108,7 @@ async def test_account_unique(game_factory):
 
 @pytest.mark.asyncio
 async def test_market(game_factory):
-    _, _, _, market, _, = game_factory
+    _, _, _, market, _, _ = game_factory
     market_a_pre = 300
     market_b_pre = 500
     user_a_pre = 40  # User gives 40.
@@ -114,7 +121,7 @@ async def test_market(game_factory):
 
 @pytest.fixture(scope='module')
 async def populated_registry(game_factory):
-    _, accounts, _, _, registry = game_factory
+    _, accounts, _, _, registry, _ = game_factory
     admin = accounts[0]
     # Populate the registry with some data.
     sample_data = 84622096520155505419920978765481155
@@ -133,7 +140,7 @@ async def populated_registry(game_factory):
 
 @pytest.fixture(scope='module')
 async def populated_game(game_factory):
-    _, accounts, engine, _, _ = game_factory
+    _, accounts, engine, _, _, _ = game_factory
     admin = accounts[0]
     # Populate the item pair of interest across all locations.
     total_locations= 40
@@ -198,11 +205,13 @@ async def test_playerlockout(populated_game, populated_registry):
     give_quantity = 2000
 
     turn_1 = await engine.have_turn(user_id, location_id,
-        buy_or_sell, item_id, give_quantity).invoke()
+        buy_or_sell, item_id, give_quantity,
+        USER_COMBAT_STATS, DRUG_LORD_STATS).invoke()
 
     with pytest.raises(Exception) as e_info:
         turn_2 = await engine.have_turn(user_id, location_id,
-            buy_or_sell, item_id, give_quantity).invoke()
+            buy_or_sell, item_id, give_quantity,
+            USER_COMBAT_STATS, DRUG_LORD_STATS).invoke()
     print(f"> [test_playerlockout] sub-test #1 raises exception: {e_info.value.args}")
     print( "> [test_playerlockout] sub-test #1 passes with exception raised correctly.")
 
@@ -214,7 +223,8 @@ async def test_playerlockout(populated_game, populated_registry):
         buy_or_sell = 0 # buy only since players start with all money and no items
         give_quantity = 2000
         turn = await engine.have_turn(user_id, location_id,
-            buy_or_sell, item_id, give_quantity).invoke()
+            buy_or_sell, item_id, give_quantity,
+            USER_COMBAT_STATS, DRUG_LORD_STATS).invoke()
         print(f"> [test_playerlockout] sub-test #2 #{i}-turn by user#{user_id} completed.")
 
     # back to the first user making its second turn after exactly MIN_TURN_LOCKOUT ticks
@@ -222,7 +232,8 @@ async def test_playerlockout(populated_game, populated_registry):
     location_id = 6
     item_id = 10
     turn = await engine.have_turn(user_id, location_id,
-        buy_or_sell, item_id, give_quantity).invoke()
+        buy_or_sell, item_id, give_quantity,
+        USER_COMBAT_STATS, DRUG_LORD_STATS).invoke()
     print(f"> [test_playerlockout] sub-test #2 #{MIN_TURN_LOCKOUT+1}-turn by user#{user_id} (its second turn) completed.")
 
     print("> [test_playerlockout] sub-test 2 passes")
@@ -244,6 +255,7 @@ async def test_single_turn_logic(populated_game, populated_registry):
     # If selling, it is "give x item". If buying, it is "give x money".
     give_quantity = 2000
 
+
     pre_trade_user = await engine.check_user_state(user_id).invoke()
 
     pre_trade_market = await engine.check_market_state(
@@ -253,7 +265,8 @@ async def test_single_turn_logic(populated_game, populated_registry):
     print('pre_trade_user', pre_trade_user)
     # Execute a game turn.
     turn = await engine.have_turn(user_id, location_id,
-        buy_or_sell, item_id, give_quantity).invoke()
+        buy_or_sell, item_id, give_quantity,
+        USER_COMBAT_STATS, DRUG_LORD_STATS).invoke()
 
 
     print("Turn events")
@@ -395,5 +408,5 @@ async def test_single_turn_logic(populated_game, populated_registry):
         regional_item_reduction_factor // 100
 
     random_initialized_user = await engine.check_user_state(
-        9).invoke()
+        user_id - 1).invoke()
     print('rand user', random_initialized_user)

@@ -1,0 +1,75 @@
+[
+    {
+        "members": [
+            {
+                "name": "weapon_strength",
+                "offset": 0,
+                "type": "felt"
+            },
+            {
+                "name": "vehicle_speed",
+                "offset": 1,
+                "type": "felt"
+            },
+            {
+                "name": "foot_speed",
+                "offset": 2,
+                "type": "felt"
+            },
+            {
+                "name": "necklace_bribe",
+                "offset": 3,
+                "type": "felt"
+            },
+            {
+                "name": "ring_bribe",
+                "offset": 4,
+                "type": "felt"
+            },
+            {
+                "name": "special_drug",
+                "offset": 5,
+                "type": "felt"
+            }
+        ],
+        "name": "UserData",
+        "size": 6,
+        "type": "struct"
+    },
+    {
+        "inputs": [
+            {
+                "name": "user_data",
+                "type": "UserData"
+            },
+            {
+                "name": "lord_user_data",
+                "type": "UserData"
+            },
+            {
+                "name": "user_combat_stats_len",
+                "type": "felt"
+            },
+            {
+                "name": "user_combat_stats",
+                "type": "felt*"
+            },
+            {
+                "name": "drug_lord_combat_stats_len",
+                "type": "felt"
+            },
+            {
+                "name": "drug_lord_combat_stats",
+                "type": "felt*"
+            }
+        ],
+        "name": "fight_1v1",
+        "outputs": [
+            {
+                "name": "user_wins_bool",
+                "type": "felt"
+            }
+        ],
+        "type": "function"
+    }
+]
