@@ -35,10 +35,6 @@
     {
         "inputs": [
             {
-                "name": "item_id",
-                "type": "felt"
-            },
-            {
                 "name": "item_list_len",
                 "type": "felt"
             },
@@ -55,7 +51,7 @@
                 "type": "felt*"
             }
         ],
-        "name": "admin_set_pairs_for_item",
+        "name": "admin_set_pairs",
         "outputs": [],
         "type": "function"
     },

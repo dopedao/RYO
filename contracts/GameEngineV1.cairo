@@ -766,7 +766,7 @@ func loop_over_items{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        item_id : felt
+        item_id : felt,
         location_id : felt,
         item_list : felt*,
         money_list : felt*,

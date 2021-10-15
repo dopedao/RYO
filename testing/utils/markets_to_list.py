@@ -19,11 +19,22 @@ def csv_to_list(file):
                 list.append(col)
         return list
 
-def get_list(name, file):
+def get_list(file):
     val_list = csv_to_list(file)
-    #print(f'{name} fetched, starts with: {val_list[0:3]} length {len(val_list)}')
     val_str = ' '.join(val_list)
+    # Prints to env variable.
     print(val_str)
+
+def test_get_list(name, file):
+    val_list = csv_to_list(file)
+    print(f'{name} fetched, starts with: {val_list[0:3]} length {len(val_list)}')
+    return val_list
+
+def populate_test_markets():
+    # Used by pytest
+    money_list = test_get_list('money', files[0])
+    item_list = test_get_list('items', files[1])
+    return money_list, item_list
 
 if __name__ == "__main__":
     # Used by export_markets.sh
@@ -32,4 +43,4 @@ if __name__ == "__main__":
     # python market_to_list.py 1
 
     filename = files[int(sys.argv[1])]
-    get_list(filename, filename)
+    get_list(filename)

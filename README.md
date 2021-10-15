@@ -143,13 +143,13 @@ First, collect the market values from the `mappings/` directory.
 This script saves them to environment variables `$MARKET_ITEMS` and
 `$MARKET_MONEY` in a format that the StarkNet CLI will use.
 ```
-. ./mappings/export_markets.sh
+. ./testing/utils/export_markets.sh
 ```
 Then
 ```
 bin/shell starknet invoke \
     --network=alpha \
-    --address 0x01c721e3452005ddc95f10bf8dc86c98c32a224085c258024931ddbaa8a44557 \
+    --address DEPLOYED_ADDRESS \
     --abi abi/GameEngineV1_contract_abi.json \
     --function admin_set_pairs \
     --inputs 1444 $MARKET_ITEMS 1444 $MARKET_MONEY
@@ -159,7 +159,7 @@ CLI - Write (initialize user). Set up `user_id=733` to have `2000` of item `5`.
 ```
 bin/shell starknet invoke \
     --network=alpha \
-    --address 0x01c721e3452005ddc95f10bf8dc86c98c32a224085c258024931ddbaa8a44557 \
+    --address DEPLOYED_ADDRESS \
     --abi abi/GameEngineV1_contract_abi.json \
     --function admin_set_user_amount \
     --inputs 733 5 2000
@@ -168,7 +168,7 @@ CLI - Read (user state)
 ```
 bin/shell starknet call \
     --network=alpha \
-    --address 0x01c721e3452005ddc95f10bf8dc86c98c32a224085c258024931ddbaa8a44557 \
+    --address DEPLOYED_ADDRESS \
     --abi abi/GameEngineV1_contract_abi.json \
     --function check_user_state \
     --inputs 733
@@ -178,7 +178,7 @@ buy is `0`) item `5`, giving `100` units.
 ```
 bin/shell starknet invoke \
     --network=alpha \
-    --address 0x01c721e3452005ddc95f10bf8dc86c98c32a224085c258024931ddbaa8a44557 \
+    --address DEPLOYED_ADDRESS \
     --abi abi/GameEngineV1_contract_abi.json \
     --function have_turn \
     --inputs 733 34 1 5 100
@@ -187,7 +187,7 @@ Calling the `check_user_state()` function again reveals that the `100` units wer
 exchanged for some quantity of money.
 
 Alternatively, see and do all of the above with the Voyager browser
-[here](https://voyager.online/contract/0x01c721e3452005ddc95f10bf8dc86c98c32a224085c258024931ddbaa8a44557#writeContract).
+[here](https://voyager.online/contract/DEPLOYED_ADDRESS#writeContract).
 
 ## Game flow
 
@@ -211,8 +211,8 @@ user_1 ->
             fight current drug lord
                 use combo of NFT + custom_fighter traits
                 user also provides list of current winner traits
-                autobattle happens
-                winner gets a cut of trades
+                autobattle happens, drug lord appointed
+                drug lord gets a cut of trades
             add to random seed.
             modify event probabilites based on wearables.
             user location update.

@@ -3,6 +3,11 @@ import asyncio
 import random
 from starkware.starknet.testing.starknet import Starknet
 from utils.Account import Account
+from utils.markets_to_list import populate_test_markets
+import sys
+
+# Increase limit to enable initializing the market.
+sys.setrecursionlimit(10000)
 
 # Create signers that use a private key to sign transaction objects.
 NUM_SIGNING_ACCOUNTS = 4
@@ -16,6 +21,11 @@ USER_COUNT = 10
 # Combat stats.
 USER_COMBAT_STATS = [5]*16
 DRUG_LORD_STATS = [3]*16
+
+# Params
+CITIES = 19
+DISTRICTS_PER_CITY = 4
+ITEM_TYPES = 19
 
 # Number of ticks a player is locked out before its next turn is allowed; MUST be consistent with MIN_TURN_LOCKOUT in contract
 MIN_TURN_LOCKOUT = 3
@@ -143,40 +153,30 @@ async def populated_game(game_factory):
     _, accounts, engine, _, _, _ = game_factory
     admin = accounts[0]
     # Populate the item pair of interest across all locations.
-    total_locations= 40
+
     user_money_pre = 10000
-    # E.g., 10 items in location 1, 20 loc 2.
-    sample_item_count_list = [total_locations,
-        20, 40, 60, 80, 100, 120, 140, 160, 180, 200,
-        220, 240, 260, 280, 300, 320, 340, 360, 380, 400,
-        420, 440, 460, 480, 500, 520, 540, 560, 580, 600,
-        620, 640, 660, 680, 700, 720, 740, 760, 780, 800]
-    # E.g., 100 money in curve for item location 1, 200 loc 2.
-    sample_item_money_list = [total_locations,
-        200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800, 2000,
-        2200, 2400, 2600, 2800, 3000, 3200, 3400, 3600, 3800, 4000,
-        4200, 4400, 4600, 4800, 5000, 5200, 5400, 5600, 5800, 6000,
-        6200, 6400, 6600, 6800, 7000, 7200, 7400, 7600, 7800, 8000]
-    for item_id in range(1, 20):
-        await engine.admin_set_pairs_for_item(item_id,
-            sample_item_count_list, sample_item_money_list).invoke()
-        '''
-        # This new account-based tx currently fails with:
-        # TypeError: '<=' not supported between instances of 'int' and 'list'
-        # Passing a list will need handling.
-        await admin.tx_with_nonce(
-            to=engine.contract_address,
-            selector_name='admin_set_pairs_for_item',
-            calldata=[item_id, sample_item_count_list,
-                sample_item_money_list])
-        '''
+    list_length = CITIES * DISTRICTS_PER_CITY * ITEM_TYPES
+    money_list, item_list = populate_test_markets()
+    assert len(money_list) == len(item_list) == list_length
+    await engine.admin_set_pairs(len(item_list), item_list,
+        len(money_list), money_list).invoke()
+    '''
+    # This new account-based tx currently fails with:
+    # TypeError: '<=' not supported between instances of 'int' and 'list'
+    # Passing a list will need handling.
+    calldata_list = [list_length] + item_list + [list_length] + money_list
+    await admin.tx_with_nonce(
+        to=engine.contract_address,
+        selector_name='admin_set_pairs',
+        calldata=calldata_list)
+    '''
     # Give the users money (id=0).
     await admin.tx_with_nonce(
         to=engine.contract_address,
         selector_name='admin_set_user_amount',
         calldata=[USER_COUNT, user_money_pre])
 
-    return engine, sample_item_count_list, sample_item_money_list
+    return engine, item_list, money_list
 
 
 @pytest.mark.asyncio
@@ -245,16 +245,25 @@ async def test_single_turn_logic(populated_game, populated_registry):
 
     user_id = 9 # avoid reusing user_id already used by test_playerlockout
     location_id = 34
+    city_index = location_id // 4 # 34 is in city index 8 (Brooklyn)
+    # 34 is brooklyn district index 2 (34 % 4 = 2)
+    district_index = location_id % 4 # = 2
+    # 8 * 4 = 32 = district 0. So Brooklyn is locs [32, 33, 34, 35]
+    # A nearby district is therefore id=35
+    random_location = 35
     item_id = 13
-    # Pick a different location in the same suburb (4, 14, 24, 34)
-    random_location = 24
-    random_market_pre_turn_item = sample_item_count_list[random_location]
+    # The index of the random location is:
+    # All items in previous cities +
+    prev_city_items = (city_index - 1) * DISTRICTS_PER_CITY * ITEM_TYPES
+    prev_dist_items = (district_index - 1) * ITEM_TYPES
+    prev_items = item_id - 1
+    initialized_index = prev_city_items + prev_dist_items + prev_items
+    random_market_pre_turn_item = sample_item_count_list[initialized_index]
     # Set action (buy=0, sell=1)
     buy_or_sell = 0
     # How much is the user giving (either money or item)
     # If selling, it is "give x item". If buying, it is "give x money".
     give_quantity = 2000
-
 
     pre_trade_user = await engine.check_user_state(user_id).invoke()
 
@@ -304,8 +313,8 @@ async def test_single_turn_logic(populated_game, populated_registry):
         warehouse_seizure_bool
     ) = turn
 
-    assert market_pre_trade_item == sample_item_count_list[location_id]
-    assert market_pre_trade_money == sample_item_money_list[location_id]
+    assert market_pre_trade_item == sample_item_count_list[initialized_index]
+    assert market_pre_trade_money == sample_item_money_list[initialized_index]
 
     if dealer_dash_bool == 1 and wrangle_dashed_dealer_bool == 0:
         assert trade_occurs_bool == 0
@@ -410,3 +419,4 @@ async def test_single_turn_logic(populated_game, populated_registry):
     random_initialized_user = await engine.check_user_state(
         user_id - 1).invoke()
     print('rand user', random_initialized_user)
+
