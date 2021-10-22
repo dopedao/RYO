@@ -5,7 +5,7 @@ from starkware.cairo.common.cairo_builtins import (HashBuiltin,
     BitwiseBuiltin)
 from starkware.starknet.common.storage import Storage
 from starkware.cairo.common.math import (assert_nn_le,
-    unsigned_div_rem, split_felt)
+    unsigned_div_rem, split_felt, assert_not_zero)
 from starkware.cairo.common.math_cmp import is_nn_le
 from starkware.cairo.common.hash import hash2
 from starkware.cairo.common.hash_state import (hash_init,
@@ -303,10 +303,22 @@ func admin_set_pairs{
         money_list_len : felt,
         money_list : felt*,
     ):
+
+    # testing
+    alloc_locals
+    local last_money = money_list[1443]
+    assert last_money = 107
+    local last_item = item_list[1443]
+    assert last_item = 116
+    local first_money = money_list[0]
+    assert first_money = 101
+    local first_item = item_list[0]
+    assert first_item = 121
+
     # Spawns the 1444 AMMs each with an item and money quantity.
 
-    # The game starts with 76 locations (19 cities with 4 districts)
-    # each with 19 item-money pairs.
+    # The game starts with 76 locations. [0, 75]
+    # 19 cities with 4 districts. Each with 19 item-money pairs.
     # First locations, then item ids, then save value from each list.
     # Location ids [0, 75]
     #   Item ids [0, 19]
@@ -324,7 +336,7 @@ func admin_set_pairs{
 
 
     # Pass both lists and item number to iterate and save.
-    loop_over_locations(item_list_len - 1, item_list, money_list)
+    loop_over_locations(76, item_list, money_list)
     # Start the game clock where everyone can play.
     game_clock.write(MIN_TURN_LOCKOUT)
     return ()
@@ -604,7 +616,7 @@ func check_market_state{
         item_id : felt
     ) -> (
         item_quantity : felt,
-        money_quantity
+        money_quantity : felt
     ):
     alloc_locals
     # Get the quantity held for each item for item-money pair
@@ -785,13 +797,22 @@ func loop_over_items{
     # On first round, first entry, index = 0*19 + 1 - 1 = 0
     # On first round , second entry, index = 0*19 + 2 - 1 = 1
     # On second round, first entry, index = 1*19 + 1 - 1 = 20
+
+    # TODO remove these - testing only
+    assert_nn_le(location_id, 75)
+    assert_not_zero(item_id)
+    assert_nn_le(item_id, 19)
+
+    # Get index of the element: Each location has 19 elements,
+    # followed by anFirst locat
     let index = location_id * 19 + item_id - 1
     # Locations are zero-based.
     # Items are 1-based. (because for a user, item_id=0 is money).
-    location_has_item.write(location_id, item_id,
-        item_list[index])
-    location_has_money.write(location_id, item_id,
-        money_list[index])
+
+    let money_val = money_list[index]
+    let item_val = item_list[index]
+    location_has_item.write(location_id, item_id, item_val)
+    location_has_money.write(location_id, item_id, money_val)
     return ()
 end
 
@@ -814,6 +835,7 @@ func loop_over_locations{
     loop_over_locations(location_id - 1, item_list, money_list)
     # Part 2. Loop the items in this location.
     # Upon first entry here location_id=1, on second location_id=2.
+    # Go over the items starting with location_id=0.
     loop_over_items(19, location_id - 1, item_list, money_list)
     return ()
 end

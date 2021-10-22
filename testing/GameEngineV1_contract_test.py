@@ -10,7 +10,7 @@ import sys
 sys.setrecursionlimit(10000)
 
 # Create signers that use a private key to sign transaction objects.
-NUM_SIGNING_ACCOUNTS = 4
+NUM_SIGNING_ACCOUNTS = 2
 DUMMY_PRIVATE = 123456789987654321
 # All accounts currently have the same L1 fallback address.
 L1_ADDRESS = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984
@@ -158,13 +158,15 @@ async def populated_game(game_factory):
     list_length = CITIES * DISTRICTS_PER_CITY * ITEM_TYPES
     money_list, item_list = populate_test_markets()
     assert len(money_list) == len(item_list) == list_length
-    await engine.admin_set_pairs(len(item_list), item_list,
-        len(money_list), money_list).invoke()
-    '''
+
+    # The first element in the list is the list length.
+    await engine.admin_set_pairs(item_list, money_list).invoke()
+
     # This new account-based tx currently fails with:
-    # TypeError: '<=' not supported between instances of 'int' and 'list'
-    # Passing a list will need handling.
-    calldata_list = [list_length] + item_list + [list_length] + money_list
+    # E           An ASSERT_EQ instruction failed: 11:240 != 11:2888
+    # E           assert [fp + (-4)] = __calldata_actual_size
+    '''
+    calldata_list = item_list + money_list
     await admin.tx_with_nonce(
         to=engine.contract_address,
         selector_name='admin_set_pairs',
@@ -176,8 +178,19 @@ async def populated_game(game_factory):
         selector_name='admin_set_user_amount',
         calldata=[USER_COUNT, user_money_pre])
 
+
+
     return engine, item_list, money_list
 
+# Checks to make sure the markets were initialized properly.
+@pytest.mark.asyncio
+async def test_market_spawn(populated_game):
+    engine, item_list, money_list = populated_game
+    # Recall that item_id=1 is the first item (money is id=0)
+    (spawn_item, spawn_money) = await engine.check_market_state(
+        location_id=0, item_id=1).invoke()
+    assert spawn_item == item_list[0]
+    assert spawn_money == money_list[0]
 
 @pytest.mark.asyncio
 async def test_playerlockout(populated_game, populated_registry):

@@ -22,7 +22,7 @@ def csv_to_list(file):
 def get_list(file):
     val_list = csv_to_list(file)
     val_str = ' '.join(val_list)
-    # Prints to env variable.
+    # Prints to sequence of strings for an env variable.
     print(val_str)
 
 def test_get_list(name, file):
@@ -33,7 +33,10 @@ def test_get_list(name, file):
 def populate_test_markets():
     # Used by pytest
     money_list = test_get_list('money', files[0])
+    money_list = [int(i) for i in money_list]
     item_list = test_get_list('items', files[1])
+    item_list = [int(i) for i in item_list]
+    # Return list of integers.
     return money_list, item_list
 
 if __name__ == "__main__":
