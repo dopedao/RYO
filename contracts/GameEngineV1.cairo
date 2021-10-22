@@ -304,16 +304,6 @@ func admin_set_pairs{
         money_list : felt*,
     ):
 
-    # testing
-    alloc_locals
-    local last_money = money_list[1443]
-    assert last_money = 107
-    local last_item = item_list[1443]
-    assert last_item = 116
-    local first_money = money_list[0]
-    assert first_money = 101
-    local first_item = item_list[0]
-    assert first_item = 121
 
     # Spawns the 1444 AMMs each with an item and money quantity.
 
@@ -797,11 +787,6 @@ func loop_over_items{
     # On first round, first entry, index = 0*19 + 1 - 1 = 0
     # On first round , second entry, index = 0*19 + 2 - 1 = 1
     # On second round, first entry, index = 1*19 + 1 - 1 = 20
-
-    # TODO remove these - testing only
-    assert_nn_le(location_id, 75)
-    assert_not_zero(item_id)
-    assert_nn_le(item_id, 19)
 
     # Get index of the element: Each location has 19 elements,
     # followed by anFirst locat
