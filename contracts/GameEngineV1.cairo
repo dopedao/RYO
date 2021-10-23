@@ -58,6 +58,9 @@ const LOCATIONS = 19
 # Number of districts per location.
 const DISTRICTS = 4
 
+# Amount of money a user starts with.
+const STARTING_MONEY = 20000
+
 # A struct that holds the unpacked DOPE NFT data for the user.
 struct UserData:
     member weapon_strength : felt  # low to high, [0, 10]. 0=None.
@@ -156,6 +159,15 @@ end
 # E.g., first location (location_id=0), first item (item_id=1)
 
 ############ Game state ############
+# Records if a user has been initialized (flips to 1 on first turn).
+@storage_var
+func user_initialized(
+        user_id : felt
+    ) -> (
+        bool : felt
+    ):
+end
+
 # Specify user, item, return quantity.
 @storage_var
 func user_has_item(
@@ -346,22 +358,6 @@ func toggle_admin{
     return ()
 end
 
-# Gives all users an amount of money.
-@external
-func admin_set_user_amount{
-        storage_ptr : Storage*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        num_users : felt,
-        money_quantity : felt
-    ):
-    # Set the quantity of money for all users.
-    loop_users(num_users, money_quantity)
-    return ()
-end
-
-
 ############ Game functions ############
 # Actions turn (move user, execute trade).
 @external
@@ -413,9 +409,12 @@ func have_turn{
     alloc_locals
     # Uncomment for pytest: Get address of UserRegistry.
     # let user_registry = USER_REGISTRY_ADDRESS
+
+    # User_id will be the account contract address of the player.
+    # TODO: let (user_id) = get_caller_address
+
     # Check if user has registered to play.
     check_user(user_id)
-
     # E.g., Sell 300 units of item. amount_to_give = 300.
     # E.g., Buy using 120 units of money. amount_to_give = 120.
     # Record initial state for UI and QA.
@@ -1104,24 +1103,6 @@ func update_regional_items{
     return ()
 end
 
-# Loops over all users and initializes a balance.
-func loop_users{
-        storage_ptr : Storage*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        num_users : felt,
-        amount : felt
-    ):
-    if num_users == 0:
-        return ()
-    end
-    loop_users(num_users=num_users-1, amount=amount)
-    # Num users 1 on first entry. User index is num_users-1.
-    user_has_item.write(user_id=num_users-1, item_id=0, value=amount)
-    return ()
-end
-
 # Checks the user has the correct credentials and returns game data.
 func check_user{
         syscall_ptr : felt*,
@@ -1134,14 +1115,28 @@ func check_user{
     ) -> (
         user_data : felt
     ):
+    alloc_locals
+    # The user_id is the account contract address of the user.
     # Calls UserRegistry and retrieves information stored there.
     # let (user_registry) = user_registry_address.read()
-    # let(pub_key, player_data) = IUserRegistry.get_user_info()
-
+    # let(local pub_key, player_data) = IUserRegistry.get_user_info()
     # Assert message sender pubkey used here matches the one retrieved.
-    # assert pub_key = msg.sender
+    # assert pub_key = user_id
 
-    # Return the registry-based characteristics of the player.
+    # Check that the user is initialized. If not, give money.
+    let (already_initialized) = user_initialized.read(user_id)
+    if already_initialized == 0:
+        user_has_item.write(user_id, 0, STARTING_MONEY)
+        tempvar storage_ptr : Storage* = storage_ptr
+        tempvar pedersen_ptr : HashBuiltin* = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+    else:
+        tempvar storage_ptr : Storage* = storage_ptr
+        tempvar pedersen_ptr : HashBuiltin* = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
+    end
+
+    # TODO: Return the registry-based characteristics of the player.
     let user_data = 0
     return (user_data)
 end

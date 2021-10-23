@@ -74,33 +74,29 @@ Flow:
 3. Deploy with CLI
 4. Interact using the CLI or the explorer
 
-File name prefixes are paired (e.g., contract, ABI and test all share comon prefix).
-
 ### Compile
 
 The compiler will check the integrity of the code locally.
 It will also produce an ABI, which is a mapping of the contract functions
 (used to interact with the contract).
+
+Compile all contracts:
 ```
-bin/shell starknet-compile contracts/GameEngineV1.cairo \
-    --output contracts/GameEngineV1_compiled.json \
-    --abi abi/GameEngineV1_contract_abi.json
+bin/compile
+```
 
-bin/shell starknet-compile contracts/MarketMaker.cairo \
-    --output contracts/MarketMaker_compiled.json \
-    --abi abi/MarketMaker_contract_abi.json
-
-bin/shell starknet-compile contracts/UserRegistry.cairo \
-    --output contracts/UserRegistry_compiled.json \
-    --abi abi/UserRegistry_contract_abi.json
-
-bin/shell starknet-compile contracts/Combat.cairo \
-    --output contracts/Combat_compiled.json \
-    --abi abi/Combat_contract_abi.json
+Compile an individual contract:
+```
+starknet-compile contracts/GameEngineV1.cairo \
+    --output artifacts/compiled/GameEngineV1.json \
+    --abi artifacts/abi/GameEngineV1_abi.json
 ```
 
 ### Test
 
+Run all github actions tests: `bin/test`
+
+Run individual tests
 ```
 bin/shell pytest -s testing/GameEngineV1_contract_test.py
 
@@ -111,83 +107,61 @@ bin/shell pytest -s testing/UserRegistry_contract_test.py
 
 ### Deploy
 
+The deploy script deploys all the contracts and exports the addresses
+in the form `ContractNameAddress` to the current environment.
+
 ```
-bin/shell starknet deploy --contract contracts/GameEngineV1_compiled.json \
-    --network=alpha
-
-bin/shell starknet deploy --contract contracts/MarketMaker_compiled.json \
-    --network=alpha
+. bin/deploy
+```
+See deployed addresses [here](deployed_addresses.md)
 ```
 
-Upon deployment, the CLI will return an address, which can be used
-to interact with.
-
+```
 Check deployment status by passing in the transaction ID you receive:
 ```
-bin/shell starknet tx_status --network=alpha --id=176230
+bin/shell starknet tx_status --network=alpha --id=TRANSACTION_ID
 ```
 `PENDING` Means that the transaction passed the validation and is waiting to be sent on-chain.
-```
-{
-    "block_id": 18880,
-    "tx_status": "PENDING"
-}
-```
+
 ### Admin initialisation
 
-Set up initial values for every market curve. Pass two lists,
-one for market item quantities, the other for market money quantities,
-Ordred first by location_id, then by item_id.
-
-First, collect the market values from the `mappings/` directory.
-This script saves them to environment variables `$MARKET_ITEMS` and
-`$MARKET_MONEY` in a format that the StarkNet CLI will use.
+Save deployment addresses into the game contract and
+then save the initial market state, pulling values from the
+`mappings/inital_markets_*.csv`
 ```
-. ./testing/utils/export_markets.sh
-```
-Then
-```
-bin/shell starknet invoke \
-    --network=alpha \
-    --address DEPLOYED_ADDRESS \
-    --abi abi/GameEngineV1_contract_abi.json \
-    --function admin_set_pairs \
-    --inputs 1444 $MARKET_ITEMS 1444 $MARKET_MONEY
+TODO: Complete/fix this script.
+bin/set_initial_values
 ```
 
-CLI - Write (initialize user). Set up `user_id=733` to have `2000` of item `5`.
+### Have turn
+
+Users will be defined by their Account contract address later.
+For now, manually declare the `user_id`.
+
+User `733` goes to location `34` to buy (sell is `1`,
+buy is `0`) item `5`, giving `1000` units (of money), receiving whatever
+that purchases.
 ```
 bin/shell starknet invoke \
     --network=alpha \
-    --address DEPLOYED_ADDRESS \
-    --abi abi/GameEngineV1_contract_abi.json \
-    --function admin_set_user_amount \
-    --inputs 733 5 2000
-```
-CLI - Read (user state)
-```
-bin/shell starknet call \
-    --network=alpha \
-    --address DEPLOYED_ADDRESS \
-    --abi abi/GameEngineV1_contract_abi.json \
-    --function check_user_state \
-    --inputs 733
-```
-CLI - Write (Have a turn). User `733` goes to location `34` to sell (sell is `1`,
-buy is `0`) item `5`, giving `100` units.
-```
-bin/shell starknet invoke \
-    --network=alpha \
-    --address DEPLOYED_ADDRESS \
+    --address $GameEngineV1Address \
     --abi abi/GameEngineV1_contract_abi.json \
     --function have_turn \
-    --inputs 733 34 1 5 100
+    --inputs 733 34 0 5 1000
 ```
 Calling the `check_user_state()` function again reveals that the `100` units were
 exchanged for some quantity of money.
 
+```
+bin/shell starknet call \
+    --network=alpha \
+    --address $GameEngineV1Address \
+    --abi abi/GameEngineV1_contract_abi.json \
+    --function check_user_state \
+    --inputs 733
+```
 Alternatively, see and do all of the above with the Voyager browser
-[here](https://voyager.online/contract/DEPLOYED_ADDRESS#writeContract).
+[here](https://voyager.online/contract/ADDRESS).
 
 ## Game flow
 
@@ -206,6 +180,7 @@ user_1 ->
         have_turn(got_to_loc, trade_x_for_y, custom_fighter)
             check if game finished.
             check user authentification.
+            give user money if first turn.
             get wearables from registry.
             check if user allowed using game clock.
             fight current drug lord
@@ -265,15 +240,15 @@ Quick-coding tasks:
 This allows for open number of players. Remove `admin_set_user_amount` and `loop_users`.
 - Game end criterion based on global clock.
 - Potentially separate out tests into different files to reduce the time required for tests.
+- Make the bash script `bin/set_initial_values` pass the initial
+market values as a list (rather than string).
 
 Coding tasks:
 
 - Refine both the likelihood (basis points per user turn) and impact (percentage
 change) that events have and treak the constant at the top of `contracts/GameEngineV1.cairo`.
 E.g., how often should you get mugged, how much money would you lose.
-- Initialize users with money upon first turn. (e.g., On first turn triggers save
-of starting amount e.g., 10,000, then sets the flag to )
-- Create caps on maximum parameters (40 location_ids, 10k user_ids, 10 item_ids)
+- Make the market initialisation function smaller (exceeded pedersen builtin, tx_id=302029). E.g., break it into 8 separate transactions.
 - User authentication. E.g., signature verification.
 - More testing of held-item binary encoding implementation in `UserRegistry`
 - More testing of effect of wearables on event occurences.
@@ -294,11 +269,12 @@ of system where places have different market dynamics. E.g.,:
     atributes that come from the Hustler (1 item per slot). E.g., how
     should combate integrate the score that each item has.
 
-
-
-Maybe tasks:
+Design considerations/todo
 
 - Add health clock. E.g., some events lower health
+- Outline combat mechanics, inputs and structure
+- Consider how side games between turns could be used to inform
+actions on next turn.
 
 
 Welcome:

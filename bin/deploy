@@ -1,11 +1,30 @@
 #!/bin/bash
 set -eu
 
-starknet deploy --contract Account_compiled.json \
-    --network=alpha
+# For each contract compiled with bin/compile, deploy and record the
+# deployment address.
 
-starknet deploy --contract GameEngineV1_compiled.json \
-    --network=alpha
+GameEngineV1=$(starknet deploy --contract artifacts/compiled/GameEngineV1.json \
+    --network=alpha)
+echo -e "\nGameEngineV1: ${GameEngineV1}"
+GameEngineV1Address=$(echo -e ${GameEngineV1} | grep -o '\b0x\w*' )
 
-starknet deploy --contract MarketMaker_compiled.json \
-    --network=alpha
+MarketMaker=$(starknet deploy --contract artifacts/compiled/MarketMaker.json \
+    --network=alpha)
+echo -e "\nMarketMaker: ${MarketMaker}"
+MarketMakerAddress=$(echo -e ${MarketMaker} | grep -o '\b0x\w*' )
+
+UserRegistry=$(starknet deploy --contract artifacts/compiled/UserRegistry.json \
+    --network=alpha)
+echo -e "\nUserRegistry: ${UserRegistry}"
+UserRegistryAddress=$(echo -e ${UserRegistry} | grep -o '\b0x\w*' )
+
+Account=$(starknet deploy --contract artifacts/compiled/Account.json \
+    --network=alpha)
+echo -e "\nAccount: ${Account}"
+AccountAddress=$(echo -e ${Account} | grep -o '\b0x\w*' )
+
+Combat=$(starknet deploy --contract artifacts/compiled/Combat.json \
+    --network=alpha)
+echo -e "\nCombat: ${Combat}"
+CombatAddress=$(echo -e ${Combat} | grep -o '\b0x\w*' )
