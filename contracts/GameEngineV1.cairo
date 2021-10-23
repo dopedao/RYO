@@ -335,6 +335,7 @@ func admin_set_pairs{
     assert admin_locked = 0
 
 
+
     # Pass both lists and item number to iterate and save.
     loop_over_locations(76, item_list, money_list)
     # Start the game clock where everyone can play.
@@ -512,7 +513,7 @@ func have_turn{
     update_regional_items(location_id, item_id,
         regional_item_reduction_factor)
 
-    # Return the post-trade post-event values for UI and QA checks.
+    # Return the post-trade posmarket_post_trade_post_event_item-event values for UI and QA checks.
     let (local market_post_trade_post_event_item) = location_has_item.read(
         location_id, item_id)
     let (local market_post_trade_post_event_money) = location_has_money.read(
@@ -1090,9 +1091,14 @@ func update_regional_items{
 
     # For the supplied location_id, find the ids of nearby districts.
     # E.g., loc 7 is second city third district (city 1, district 3)
-    # 1. City = integer division by number of districts. 7//4 = 1.
-    let (city, _) = unsigned_div_rem(location_id, DISTRICTS)
+    # 1. City = integer division by number of districts. 7//4 = 1
+    # and location 34 is city index 8.
+    let (city_index, _) = unsigned_div_rem(location_id, DISTRICTS)
     # Loction id is the city + district index. [0, 3] for 4 districts.
+    # E.g. for city index 8, the location_ids are:
+    # 8 * 4, 8 * 4 + 1, 8 * 4 + 2, 8 * 4 + 3.
+    # So location_id for first city in this region is:
+    let city = city_index * DISTRICTS
 
     # new = old * factor.
 

@@ -252,30 +252,41 @@ async def test_playerlockout(populated_game, populated_registry):
     print("> [test_playerlockout] sub-test 2 passes")
     return
 
+def market_spawn_list_index(city_index, district_index, item_id):
+    # Markets are populated with a list that is sorted by location
+    # then item. Get index by accounting for city, then dist, then item.
+    prev_city_items = (city_index) * DISTRICTS_PER_CITY * ITEM_TYPES
+    prev_dist_items = (district_index) * ITEM_TYPES
+    prev_items = item_id - 1
+    return prev_city_items + prev_dist_items + prev_items
+
 @pytest.mark.asyncio
 async def test_single_turn_logic(populated_game, populated_registry):
     engine, sample_item_count_list, sample_item_money_list = populated_game
 
     user_id = 9 # avoid reusing user_id already used by test_playerlockout
     location_id = 34
+    item_id = 13
     city_index = location_id // 4 # 34 is in city index 8 (Brooklyn)
     # 34 is brooklyn district index 2 (34 % 4 = 2)
     district_index = location_id % 4 # = 2
+    # See more in GameEngine contract function update_regional_items.
+
+    initialized_index = market_spawn_list_index(city_index,
+        district_index, item_id)
+    # Will test effect on a nearby district:
     # 8 * 4 = 32 = district 0. So Brooklyn is locs [32, 33, 34, 35]
-    # A nearby district is therefore id=35
+    # A nearby district is therefore id=35. (district index=3)
     random_location = 35
-    item_id = 13
-    # The index of the random location is:
-    # All items in previous cities +
-    prev_city_items = (city_index - 1) * DISTRICTS_PER_CITY * ITEM_TYPES
-    prev_dist_items = (district_index - 1) * ITEM_TYPES
-    prev_items = item_id - 1
-    initialized_index = prev_city_items + prev_dist_items + prev_items
-    random_market_pre_turn_item = sample_item_count_list[initialized_index]
+
+    # Note the initial item count for the same item in a different location.
+    rand_index = market_spawn_list_index(random_location // 4, 3,
+        item_id)
+    random_market_pre_turn_item = sample_item_count_list[rand_index]
     # Set action (buy=0, sell=1)
     buy_or_sell = 0
     # How much is the user giving (either money or item)
-    # If selling, it is "give x item". If buying, it is "give x money".
+    # If selling, it is "give 50 item". If buying, it is "give 50 money".
     give_quantity = 2000
 
     pre_trade_user = await engine.check_user_state(user_id).invoke()

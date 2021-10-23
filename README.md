@@ -261,7 +261,8 @@ armor, name suffixes, etc.).
 
 Quick-coding tasks:
 
-- Initialised multiple player states.
+- Add a check for when a user has first turn, gives them money (e.g., 20k).
+This allows for open number of players. Remove `admin_set_user_amount` and `loop_users`.
 - Game end criterion based on global clock.
 - Potentially separate out tests into different files to reduce the time required for tests.
 
