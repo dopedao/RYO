@@ -266,12 +266,6 @@ async def test_single_turn_logic(populated_game, populated_registry):
 
     user_id = 9 # avoid reusing user_id already used by test_playerlockout
     location_id = 34
-    city_index = location_id // 4 # 34 is in city index 8 (Brooklyn)
-    # 34 is brooklyn district index 2 (34 % 4 = 2)
-    district_index = location_id % 4 # = 2
-    # 8 * 4 = 32 = district 0. So Brooklyn is locs [32, 33, 34, 35]
-    # A nearby district is therefore id=35
-    random_location = 35
     item_id = 13
     city_index = location_id // 4 # 34 is in city index 8 (Brooklyn)
     # 34 is brooklyn district index 2 (34 % 4 = 2)
