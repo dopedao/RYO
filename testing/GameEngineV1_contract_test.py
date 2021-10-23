@@ -3,9 +3,14 @@ import asyncio
 import random
 from starkware.starknet.testing.starknet import Starknet
 from utils.Account import Account
+from utils.markets_to_list import populate_test_markets
+import sys
+
+# Increase limit to enable initializing the market.
+sys.setrecursionlimit(10000)
 
 # Create signers that use a private key to sign transaction objects.
-NUM_SIGNING_ACCOUNTS = 4
+NUM_SIGNING_ACCOUNTS = 2
 DUMMY_PRIVATE = 123456789987654321
 # All accounts currently have the same L1 fallback address.
 L1_ADDRESS = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984
@@ -16,6 +21,11 @@ USER_COUNT = 10
 # Combat stats.
 USER_COMBAT_STATS = [5]*16
 DRUG_LORD_STATS = [3]*16
+
+# Params
+CITIES = 19
+DISTRICTS_PER_CITY = 4
+ITEM_TYPES = 19
 
 # Number of ticks a player is locked out before its next turn is allowed; MUST be consistent with MIN_TURN_LOCKOUT in contract
 MIN_TURN_LOCKOUT = 3
@@ -143,41 +153,44 @@ async def populated_game(game_factory):
     _, accounts, engine, _, _, _ = game_factory
     admin = accounts[0]
     # Populate the item pair of interest across all locations.
-    total_locations= 40
+
     user_money_pre = 10000
-    # E.g., 10 items in location 1, 20 loc 2.
-    sample_item_count_list = [total_locations,
-        20, 40, 60, 80, 100, 120, 140, 160, 180, 200,
-        220, 240, 260, 280, 300, 320, 340, 360, 380, 400,
-        420, 440, 460, 480, 500, 520, 540, 560, 580, 600,
-        620, 640, 660, 680, 700, 720, 740, 760, 780, 800]
-    # E.g., 100 money in curve for item location 1, 200 loc 2.
-    sample_item_money_list = [total_locations,
-        200, 400, 600, 800, 1000, 1200, 1400, 1600, 1800, 2000,
-        2200, 2400, 2600, 2800, 3000, 3200, 3400, 3600, 3800, 4000,
-        4200, 4400, 4600, 4800, 5000, 5200, 5400, 5600, 5800, 6000,
-        6200, 6400, 6600, 6800, 7000, 7200, 7400, 7600, 7800, 8000]
-    for item_id in range(1, 20):
-        await engine.admin_set_pairs_for_item(item_id,
-            sample_item_count_list, sample_item_money_list).invoke()
-        '''
-        # This new account-based tx currently fails with:
-        # TypeError: '<=' not supported between instances of 'int' and 'list'
-        # Passing a list will need handling.
-        await admin.tx_with_nonce(
-            to=engine.contract_address,
-            selector_name='admin_set_pairs_for_item',
-            calldata=[item_id, sample_item_count_list,
-                sample_item_money_list])
-        '''
+    list_length = CITIES * DISTRICTS_PER_CITY * ITEM_TYPES
+    money_list, item_list = populate_test_markets()
+    assert len(money_list) == len(item_list) == list_length
+
+    # The first element in the list is the list length.
+    await engine.admin_set_pairs(item_list, money_list).invoke()
+
+    # This new account-based tx currently fails with:
+    # E           An ASSERT_EQ instruction failed: 11:240 != 11:2888
+    # E           assert [fp + (-4)] = __calldata_actual_size
+    '''
+    calldata_list = item_list + money_list
+    await admin.tx_with_nonce(
+        to=engine.contract_address,
+        selector_name='admin_set_pairs',
+        calldata=calldata_list)
+    '''
     # Give the users money (id=0).
     await admin.tx_with_nonce(
         to=engine.contract_address,
         selector_name='admin_set_user_amount',
         calldata=[USER_COUNT, user_money_pre])
 
-    return engine, sample_item_count_list, sample_item_money_list
 
+
+    return engine, item_list, money_list
+
+# Checks to make sure the markets were initialized properly.
+@pytest.mark.asyncio
+async def test_market_spawn(populated_game):
+    engine, item_list, money_list = populated_game
+    # Recall that item_id=1 is the first item (money is id=0)
+    (spawn_item, spawn_money) = await engine.check_market_state(
+        location_id=0, item_id=1).invoke()
+    assert spawn_item == item_list[0]
+    assert spawn_money == money_list[0]
 
 @pytest.mark.asyncio
 async def test_playerlockout(populated_game, populated_registry):
@@ -239,6 +252,14 @@ async def test_playerlockout(populated_game, populated_registry):
     print("> [test_playerlockout] sub-test 2 passes")
     return
 
+def market_spawn_list_index(city_index, district_index, item_id):
+    # Markets are populated with a list that is sorted by location
+    # then item. Get index by accounting for city, then dist, then item.
+    prev_city_items = (city_index) * DISTRICTS_PER_CITY * ITEM_TYPES
+    prev_dist_items = (district_index) * ITEM_TYPES
+    prev_items = item_id - 1
+    return prev_city_items + prev_dist_items + prev_items
+
 @pytest.mark.asyncio
 async def test_single_turn_logic(populated_game, populated_registry):
     engine, sample_item_count_list, sample_item_money_list = populated_game
@@ -246,15 +267,27 @@ async def test_single_turn_logic(populated_game, populated_registry):
     user_id = 9 # avoid reusing user_id already used by test_playerlockout
     location_id = 34
     item_id = 13
-    # Pick a different location in the same suburb (4, 14, 24, 34)
-    random_location = 24
-    random_market_pre_turn_item = sample_item_count_list[random_location]
+    city_index = location_id // 4 # 34 is in city index 8 (Brooklyn)
+    # 34 is brooklyn district index 2 (34 % 4 = 2)
+    district_index = location_id % 4 # = 2
+    # See more in GameEngine contract function update_regional_items.
+
+    initialized_index = market_spawn_list_index(city_index,
+        district_index, item_id)
+    # Will test effect on a nearby district:
+    # 8 * 4 = 32 = district 0. So Brooklyn is locs [32, 33, 34, 35]
+    # A nearby district is therefore id=35. (district index=3)
+    random_location = 35
+
+    # Note the initial item count for the same item in a different location.
+    rand_index = market_spawn_list_index(random_location // 4, 3,
+        item_id)
+    random_market_pre_turn_item = sample_item_count_list[rand_index]
     # Set action (buy=0, sell=1)
     buy_or_sell = 0
     # How much is the user giving (either money or item)
-    # If selling, it is "give x item". If buying, it is "give x money".
+    # If selling, it is "give 50 item". If buying, it is "give 50 money".
     give_quantity = 2000
-
 
     pre_trade_user = await engine.check_user_state(user_id).invoke()
 
@@ -304,8 +337,8 @@ async def test_single_turn_logic(populated_game, populated_registry):
         warehouse_seizure_bool
     ) = turn
 
-    assert market_pre_trade_item == sample_item_count_list[location_id]
-    assert market_pre_trade_money == sample_item_money_list[location_id]
+    assert market_pre_trade_item == sample_item_count_list[initialized_index]
+    assert market_pre_trade_money == sample_item_money_list[initialized_index]
 
     if dealer_dash_bool == 1 and wrangle_dashed_dealer_bool == 0:
         assert trade_occurs_bool == 0
@@ -410,3 +443,4 @@ async def test_single_turn_logic(populated_game, populated_registry):
     random_initialized_user = await engine.check_user_state(
         user_id - 1).invoke()
     print('rand user', random_initialized_user)
+

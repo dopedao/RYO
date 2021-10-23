@@ -17,6 +17,28 @@ Join in and learn about:
         - L1 for data availability
         - State transitions executed by validity proofs that the EVM checks.
 
+Basics:
+
+- Try to increase your inventory by swapping assets with NPC dealers.
+    - 19 cities with 4 districts each. Each district has a
+- Try to dethrone the local drug lord with a hand-crafted battler.
+    - Each city has a drug lord who takes a cut from each trade.
+    - Drug lords a appointed by battle (king of the hill).
+
+## Why
+
+For fun. The game state of this shared calculator game cannot be falsified,
+what dynamics does this produce?
+
+
+Some dynamics may evolve around:
+
+- The market is transparent and opportunities openly visible.
+- Probabalistic events cause chaos and shake up the market.
+- Submitted drug lord battlers must take into account the current
+drug lord stats, but also defend against future challengers.
+
+
 ## Setup
 
 Clone this repo and use our docker shell to interact with starknet:
@@ -38,12 +60,12 @@ installation if you are not using docker.
 If using VS-code for writing code, install the extension for syntax highlighting:
 
 ```
-curl -LO https://github.com/starkware-libs/cairo-lang/releases/download/v0.4.0/cairo-0.4.0.vsix
-code --install-extension cairo-0.4.0.vsix
+curl -LO https://github.com/starkware-libs/cairo-lang/releases/download/v0.4.2/cairo-0.4.2.vsix
+code --install-extension cairo-0.4.2.vsix
 code .
 ```
 
-## Dev
+## Outline
 
 Flow:
 
@@ -111,36 +133,33 @@ bin/shell starknet tx_status --network=alpha --id=176230
     "tx_status": "PENDING"
 }
 ```
-### Interact
+### Admin initialisation
 
-CLI - Write (initialise markets). Set up `item_id=5` across all 40 locations.
-Each pair has 10x more money than item quantity. All items have the same curve
+Set up initial values for every market curve. Pass two lists,
+one for market item quantities, the other for market money quantities,
+Ordred first by location_id, then by item_id.
 
+First, collect the market values from the `mappings/` directory.
+This script saves them to environment variables `$MARKET_ITEMS` and
+`$MARKET_MONEY` in a format that the StarkNet CLI will use.
+```
+. ./testing/utils/export_markets.sh
+```
+Then
 ```
 bin/shell starknet invoke \
     --network=alpha \
-    --address 0x01c721e3452005ddc95f10bf8dc86c98c32a224085c258024931ddbaa8a44557 \
+    --address DEPLOYED_ADDRESS \
     --abi abi/GameEngineV1_contract_abi.json \
-    --function admin_set_pairs_for_item \
-    --inputs 5 \
-        40 \
-        20 40 60 80 100 120 140 160 180 200 \
-        220 240 260 280 300 320 340 360 380 400 \
-        420 440 460 480 500 520 540 560 580 600 \
-        620 640 660 680 700 720 740 760 780 800 \
-        40 \
-        200 400 600 800 1000 1200 1400 1600 1800 2000 \
-        2200 2400 2600 2800 3000 3200 3400 3600 3800 4000 \
-        4200 4400 4600 4800 5000 5200 5400 5600 5800 6000 \
-        6200 6400 6600 6800 7000 7200 7400 7600 7800 8000
+    --function admin_set_pairs \
+    --inputs 1444 $MARKET_ITEMS 1444 $MARKET_MONEY
 ```
-Change `5` to another `item_id` in the range `1-10` to populate other curves.
 
 CLI - Write (initialize user). Set up `user_id=733` to have `2000` of item `5`.
 ```
 bin/shell starknet invoke \
     --network=alpha \
-    --address 0x01c721e3452005ddc95f10bf8dc86c98c32a224085c258024931ddbaa8a44557 \
+    --address DEPLOYED_ADDRESS \
     --abi abi/GameEngineV1_contract_abi.json \
     --function admin_set_user_amount \
     --inputs 733 5 2000
@@ -149,7 +168,7 @@ CLI - Read (user state)
 ```
 bin/shell starknet call \
     --network=alpha \
-    --address 0x01c721e3452005ddc95f10bf8dc86c98c32a224085c258024931ddbaa8a44557 \
+    --address DEPLOYED_ADDRESS \
     --abi abi/GameEngineV1_contract_abi.json \
     --function check_user_state \
     --inputs 733
@@ -159,7 +178,7 @@ buy is `0`) item `5`, giving `100` units.
 ```
 bin/shell starknet invoke \
     --network=alpha \
-    --address 0x01c721e3452005ddc95f10bf8dc86c98c32a224085c258024931ddbaa8a44557 \
+    --address DEPLOYED_ADDRESS \
     --abi abi/GameEngineV1_contract_abi.json \
     --function have_turn \
     --inputs 733 34 1 5 100
@@ -168,7 +187,7 @@ Calling the `check_user_state()` function again reveals that the `100` units wer
 exchanged for some quantity of money.
 
 Alternatively, see and do all of the above with the Voyager browser
-[here](https://voyager.online/contract/0x01c721e3452005ddc95f10bf8dc86c98c32a224085c258024931ddbaa8a44557#writeContract).
+[here](https://voyager.online/contract/DEPLOYED_ADDRESS#writeContract).
 
 ## Game flow
 
@@ -184,11 +203,16 @@ user_1 ->
 
 Routine play:
 user_1 ->
-        have_turn(got_to_loc, trade_x_for_y)
+        have_turn(got_to_loc, trade_x_for_y, custom_fighter)
             check if game finished.
             check user authentification.
             get wearables from registry.
             check if user allowed using game clock.
+            fight current drug lord
+                use combo of NFT + custom_fighter traits
+                user also provides list of current winner traits
+                autobattle happens, drug lord appointed
+                drug lord gets a cut of trades
             add to random seed.
             modify event probabilites based on wearables.
             user location update.
@@ -225,56 +249,21 @@ for anyone wanting to try out Cairo.
 
 Non-coding tasks:
 
-- Use [this google sheet](https://docs.google.com/spreadsheets/d/1-qIYqnk0MJ6y9x7LcxW-OezpXjPwy7GFL3VbZdQnlmc/edit#gid=0) to CTRL-F the counts for the items in
-`mappings/thingxyz_score.csv` (final column in each document) to help inform score creation.
-Could also script it, but probably takes just as long.
-    - The counts are 'total in sheet', and
-are a rough guide, so don't worry about a single DOPE having 2x "murdertown" items - just count
-it as 2 for simplicity.
-    - Need to account for name clashes during searching:
-        - Drug 'soma', place 'SOMA'.
-        - Shoe 'Air Jordan 1 Chicagos', place 'Chicago'.
-    - This may really be unecessary if items are distributed evenly and have the same ballpark
-    counts. TBC.
-- Assign scores to all the DOPE wearables/itmes in `mappings/thingxyz_score.csv`.
+- Assign different places 'cost to travel' in `mappings/location_travel.csv`. Doesn't have to be pure geographical.
+- Review the names of the 'districts' in `mappings/location_travel.csv`. Add interesting
+ones and remove ones that aren't as fun. The regions names are fixed.
+- Revise/sssign scores to all the DOPE wearables/itmes in `mappings/thingxyz_score.csv`.
 E.g., is a `Baseball Bat` or a handgun more powerful, or what is more costly per 'unit'
 `Krokodil` or `Oxycontin`. Might also be interesting to look at documenting/using the
 rarity of each of these items to help inform the score.
-- Create names for all the districts in `mappings/location_travel.csv`.
-The names can be creative rather than strictly factual. Four districts per region.
-    - We started to make new regions (Miami, Medellin, New York & Los Angeles),
-    but no DOPE NFTs directly link to these. Need to decide if we want to stick to
-    the NFT fields or keep these (+/- add more). Leaning toward sticking to NFT.
-    If keeping them, need to check for clashes/overlap in the first four vs the remaining and tweak the first if need be.
-- Assign a cost-to-travel for regions in `mappings/location_travel.csv`. Traveling to different
-districts within a region is free.
-    - Cost is relative (can be scaled depending on how much money people have in the game).
-    Cost is a rough number - may reflect a combination of distance and other factors.
-    - Code note: Locations are implemented as follows:
-        - Currently the game architecture has 40 Locations with be 10 cities/regions [0, 9]
-        each with 4 suburbs/districts [0, 4].
-        - E.g., locations 0, 11, 21, 31 are city 1. Locations 2, 12, 22, 32 are
-        city 2. So `location_id=27` is city 7, suburb 2. Free to travel to
-        other suburbs in same city (7, 17, 37).
-        - The city number will be adusted to match the final row count in
-        `mappings/location_travel.csv`.
-    - It may be interesting to look at statistics on distribution of the locations amongst
-    DOPE NFTs. How often do all the locations appear? Does it make sense for the game to use
-    this as a player trait (e.g., player from x has some benefit in location x).
-- Fill out `mappings/initial_markets_cost_rel_100.csv` with how
-much items should start of costing in a certain area, where 100 is 'average' and 120 is 20% above
-average, 80 is 20% below average.
-- Fill out `mappings/initial_markets_quantity_rel_100.csv` with how
-many items should start of in a certain area, where 100 is 'average' and 120 is 20% above
-average, 80 is 20% below average. Areas can have different profiles, with different combinations of quantity and price
-at the start of the game to create a different vibe/market dynamic. Will be good to just get
-some rought numbers down and try it out.
+- Create new `mappings/thingxyz_score.csv` for the missing categories (clothes, waist
+armor, name suffixes, etc.).
 
 Quick-coding tasks:
 
-- Initialised multiple player states.
+- Add a check for when a user has first turn, gives them money (e.g., 20k).
+This allows for open number of players. Remove `admin_set_user_amount` and `loop_users`.
 - Game end criterion based on global clock.
-- Update the `item_id`s in `GameEngineV1` to be in range 1-19 to reflect `mappings/drugs_value.csv`.
 - Potentially separate out tests into different files to reduce the time required for tests.
 
 Coding tasks:
@@ -288,6 +277,24 @@ of starting amount e.g., 10,000, then sets the flag to )
 - User authentication. E.g., signature verification.
 - More testing of held-item binary encoding implementation in `UserRegistry`
 - More testing of effect of wearables on event occurences.
+- Write a script that populates `mappings/initial_markets_item.csv`
+and `mappings/initial_markets_money.csv` in a way that is interesting. The
+values are currently randomised in [50, 150]. The script could incorporate
+factors such as a normal value for the drug. It ideally implements some sort
+of system where places have different market dynamics. E.g.,:
+    - A city (all four districts) can have low drug quantity, or high drug quantity, or have
+    a few drugs that is has a high quantity of.
+    - A city can have a high amount of money but low quantity of drugs.
+    - Low quantity of all drugs, low prices.
+    - High quantity of some drugs, high prices.
+- Think about the mechanics of the battles in `Combat.cairo`.
+    - How many variables,what they are, how to create a system that
+    forces users to be creative and make tradeoffs in the design of their combat submissions. (e.g., the values they submit during their turn).
+    - Think about how to integrate the non-flexible combat
+    atributes that come from the Hustler (1 item per slot). E.g., how
+    should combate integrate the score that each item has.
+
+
 
 Maybe tasks:
 

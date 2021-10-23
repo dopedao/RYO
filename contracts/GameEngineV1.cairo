@@ -5,7 +5,7 @@ from starkware.cairo.common.cairo_builtins import (HashBuiltin,
     BitwiseBuiltin)
 from starkware.starknet.common.storage import Storage
 from starkware.cairo.common.math import (assert_nn_le,
-    unsigned_div_rem, split_felt)
+    unsigned_div_rem, split_felt, assert_not_zero)
 from starkware.cairo.common.math_cmp import is_nn_le
 from starkware.cairo.common.hash import hash2
 from starkware.cairo.common.hash_state import (hash_init,
@@ -51,6 +51,12 @@ const DRUG_LORD_PERCENTAGE = 2
 
 # Number of stats that a player specifies for combat.
 const NUM_COMBAT_STATS = 30
+
+# Number of locations (defined by DOPE NFT).
+const LOCATIONS = 19
+
+# Number of districts per location.
+const DISTRICTS = 4
 
 # A struct that holds the unpacked DOPE NFT data for the user.
 struct UserData:
@@ -142,10 +148,12 @@ end
 
 ############ Game key ############
 # Location and market are equivalent terms (one market per location)
-# 40 location_ids [0-39].
-# user_ids: e.g., [0,10000].
+# 76 location_ids [0, 75]. (19 cities, 4 districts each).
+# user_ids: e.g., [0, not capped]. These will likely be account addresses.
 # item_ids: [1,19]. 0=money, 1=item1, 2=item2, ..., etc.
 # buy=0, sell=1.
+
+# E.g., first location (location_id=0), first item (item_id=1)
 
 ############ Game state ############
 # Specify user, item, return quantity.
@@ -168,6 +176,7 @@ func user_in_location(
 end
 
 # Returns item count for item-money pair in location.
+# E.g., first location (location_id=0), first item (item_id=1)
 @storage_var
 func location_has_item(
         location_id : felt,
@@ -178,6 +187,7 @@ func location_has_item(
 end
 
 # Returns money count for item-money pair in location.
+# E.g., first location (location_id=0), first item (item_id=1)
 @storage_var
 func location_has_money(
         location_id : felt,
@@ -283,25 +293,51 @@ end
 ############ Game State Initialization ############
 # Sets the initial market maker values for a given item_id.
 @external
-func admin_set_pairs_for_item{
+func admin_set_pairs{
         storage_ptr : Storage*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        item_id : felt,
         item_list_len : felt,
         item_list : felt*,
         money_list_len : felt,
         money_list : felt*,
     ):
-    # item-money pairs for a specified item, ordered by location.
+
+    # testing
+    alloc_locals
+    local last_money = money_list[1443]
+    assert last_money = 107
+    local last_item = item_list[1443]
+    assert last_item = 116
+    local first_money = money_list[0]
+    assert first_money = 101
+    local first_item = item_list[0]
+    assert first_item = 121
+
+    # Spawns the 1444 AMMs each with an item and money quantity.
+
+    # The game starts with 76 locations. [0, 75]
+    # 19 cities with 4 districts. Each with 19 item-money pairs.
+    # First locations, then item ids, then save value from each list.
+    # Location ids [0, 75]
+    #   Item ids [0, 19]
+    #       Save item val.
+    #       Save money val
+
+    # List len = 19 items x 4 districts x 19 drugs = 1444.
+    # Items: [bayou_dist_0_weed_val, bayou_dist_0_cocaine_val,
+    #   ..., buffalo_dist_3_adderall_val]
+    # Money: [bayou_dist_0_weed_money, ..., buffalo_dist_3_adderall_money]
 
     # Check if allowed.
     let (admin_locked : felt) = is_admin_locked.read()
     assert admin_locked = 0
 
+
+
     # Pass both lists and item number to iterate and save.
-    loop_over_locations(item_list_len - 1, item_list, money_list, item_id)
+    loop_over_locations(76, item_list, money_list)
     # Start the game clock where everyone can play.
     game_clock.write(MIN_TURN_LOCKOUT)
     return ()
@@ -477,7 +513,7 @@ func have_turn{
     update_regional_items(location_id, item_id,
         regional_item_reduction_factor)
 
-    # Return the post-trade post-event values for UI and QA checks.
+    # Return the post-trade posmarket_post_trade_post_event_item-event values for UI and QA checks.
     let (local market_post_trade_post_event_item) = location_has_item.read(
         location_id, item_id)
     let (local market_post_trade_post_event_money) = location_has_money.read(
@@ -581,7 +617,7 @@ func check_market_state{
         item_id : felt
     ) -> (
         item_quantity : felt,
-        money_quantity
+        money_quantity : felt
     ):
     alloc_locals
     # Get the quantity held for each item for item-money pair
@@ -736,6 +772,51 @@ func get_pseudorandom{
     return (new_seed)
 end
 
+
+# Recursion to populate one market pair in all locations.
+func loop_over_items{
+        storage_ptr : Storage*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        item_id : felt,
+        location_id : felt,
+        item_list : felt*,
+        money_list : felt*,
+    ) -> ():
+    # Location_id==Index
+    if item_id == 0:
+        # Triggers part 3.
+        return ()
+    end
+    # Call recursively until item_id=1, then a return is hit.
+    loop_over_items(item_id - 1, location_id, item_list, money_list)
+    # Part 3. Save the state.
+    # Upon first entry here item_id=1, on second item_id=2.
+
+    # Get the position of the element in the list.
+    # On first round, first entry, index = 0*19 + 1 - 1 = 0
+    # On first round , second entry, index = 0*19 + 2 - 1 = 1
+    # On second round, first entry, index = 1*19 + 1 - 1 = 20
+
+    # TODO remove these - testing only
+    assert_nn_le(location_id, 75)
+    assert_not_zero(item_id)
+    assert_nn_le(item_id, 19)
+
+    # Get index of the element: Each location has 19 elements,
+    # followed by anFirst locat
+    let index = location_id * 19 + item_id - 1
+    # Locations are zero-based.
+    # Items are 1-based. (because for a user, item_id=0 is money).
+
+    let money_val = money_list[index]
+    let item_val = item_list[index]
+    location_has_item.write(location_id, item_id, item_val)
+    location_has_money.write(location_id, item_id, money_val)
+    return ()
+end
+
 # Recursion to populate one market pair in all locations.
 func loop_over_locations{
         storage_ptr : Storage*,
@@ -745,7 +826,6 @@ func loop_over_locations{
         location_id : felt,
         item_list : felt*,
         money_list : felt*,
-        item_id : felt
     ) -> ():
     # Location_id==Index
     if location_id == 0:
@@ -753,13 +833,11 @@ func loop_over_locations{
         return ()
     end
     # Call recursively until location=1, then a return is hit.
-    loop_over_locations(location_id - 1, item_list, money_list, item_id)
-    # Part 2. Save the state.
+    loop_over_locations(location_id - 1, item_list, money_list)
+    # Part 2. Loop the items in this location.
     # Upon first entry here location_id=1, on second location_id=2.
-    location_has_item.write(location_id - 1, item_id,
-        item_list[location_id - 1])
-    location_has_money.write(location_id - 1, item_id,
-        money_list[location_id - 1])
+    # Go over the items starting with location_id=0.
+    loop_over_items(19, location_id - 1, item_list, money_list)
     return ()
 end
 
@@ -1007,28 +1085,39 @@ func update_regional_items{
         item_id : felt,
         factor : felt
     ):
-    # 40 Locations [0, 39] are divided into 10 cities with 4 suburbs.
-    # E.g., where location 24 has 3 other co-suburbs (4, 14, 34).
-    # ids = location_id mod 10 + [0, 10, 20, 30].
+    # 76 Locations [0, 75] are divided into 19 cities with 4 suburbs.
+    # location_ids are sequential.
+    # [loc_0_dis_0, loc_0_dis_1, ..., loc_75_dis_3, loc_75_dis_3]
+
+    # For the supplied location_id, find the ids of nearby districts.
+    # E.g., loc 7 is second city third district (city 1, district 3)
+    # 1. City = integer division by number of districts. 7//4 = 1
+    # and location 34 is city index 8.
+    let (city_index, _) = unsigned_div_rem(location_id, DISTRICTS)
+    # Loction id is the city + district index. [0, 3] for 4 districts.
+    # E.g. for city index 8, the location_ids are:
+    # 8 * 4, 8 * 4 + 1, 8 * 4 + 2, 8 * 4 + 3.
+    # So location_id for first city in this region is:
+    let city = city_index * DISTRICTS
+
     # new = old * factor.
-    let (_ , rem) = unsigned_div_rem(location_id, 10)
 
     # Get current count, apply factor, save.
-    let (val_0) = location_has_item.read(rem, item_id)
+    let (val_0) = location_has_item.read(city, item_id)
     let (val_0_new, _) = unsigned_div_rem(val_0 * factor, 100)
-    location_has_item.write(rem, item_id, val_0_new)
+    location_has_item.write(city, item_id, val_0_new)
 
-    let (val_1) = location_has_item.read(rem + 10, item_id)
+    let (val_1) = location_has_item.read(city + 1, item_id)
     let (val_1_new, _) = unsigned_div_rem(val_1 * factor, 100)
-    location_has_item.write(rem + 10, item_id, val_1_new)
+    location_has_item.write(city + 1, item_id, val_1_new)
 
-    let (val_2) = location_has_item.read(rem + 20, item_id)
+    let (val_2) = location_has_item.read(city + 2, item_id)
     let (val_2_new, _) = unsigned_div_rem(val_2 * factor, 100)
-    location_has_item.write(rem + 20, item_id, val_2_new)
+    location_has_item.write(city + 2, item_id, val_2_new)
 
-    let (val_3) = location_has_item.read(rem + 30, item_id)
+    let (val_3) = location_has_item.read(city + 3, item_id)
     let (val_3_new, _) = unsigned_div_rem(val_3 * factor, 100)
-    location_has_item.write(rem + 30, item_id, val_3_new)
+    location_has_item.write(city + 3, item_id, val_3_new)
     return ()
 end
 
