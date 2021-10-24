@@ -114,9 +114,7 @@ in the form `ContractNameAddress` to the current environment.
 . bin/deploy
 ```
 See deployed addresses [here](deployed_addresses.md)
-```
 
-```
 Check deployment status by passing in the transaction ID you receive:
 ```
 bin/shell starknet tx_status --network=alpha --id=TRANSACTION_ID
