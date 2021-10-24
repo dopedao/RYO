@@ -154,7 +154,6 @@ async def populated_game(game_factory):
     admin = accounts[0]
     # Populate the item pair of interest across all locations.
 
-    user_money_pre = 10000
     list_length = CITIES * DISTRICTS_PER_CITY * ITEM_TYPES
     money_list, item_list = populate_test_markets()
     assert len(money_list) == len(item_list) == list_length
@@ -172,13 +171,6 @@ async def populated_game(game_factory):
         selector_name='admin_set_pairs',
         calldata=calldata_list)
     '''
-    # Give the users money (id=0).
-    await admin.tx_with_nonce(
-        to=engine.contract_address,
-        selector_name='admin_set_user_amount',
-        calldata=[USER_COUNT, user_money_pre])
-
-
 
     return engine, item_list, money_list
 
@@ -191,6 +183,7 @@ async def test_market_spawn(populated_game):
         location_id=0, item_id=1).invoke()
     assert spawn_item == item_list[0]
     assert spawn_money == money_list[0]
+
 
 @pytest.mark.asyncio
 async def test_playerlockout(populated_game, populated_registry):

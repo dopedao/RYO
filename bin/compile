@@ -1,18 +1,23 @@
 #!/bin/bash
 set -eu
 
+
 starknet-compile contracts/GameEngineV1.cairo \
-    --output contracts/GameEngineV1_compiled.json \
-    --abi abi/GameEngineV1_contract_abi.json
+    --output artifacts/compiled/GameEngineV1.json \
+    --abi artifacts/abi/GameEngineV1_abi.json
 
 starknet-compile contracts/MarketMaker.cairo \
-    --output contracts/MarketMaker_compiled.json \
-    --abi abi/MarketMaker_contract_abi.json
+    --output artifacts/compiled/MarketMaker.json \
+    --abi artifacts/abi/MarketMaker_abi.json
 
 starknet-compile contracts/UserRegistry.cairo \
-    --output contracts/UserRegistry_compiled.json \
-    --abi abi/UserRegistry_contract_abi.json
+    --output artifacts/compiled/UserRegistry.json \
+    --abi artifacts/abi/UserRegistry_abi.json
 
 starknet-compile contracts/Account.cairo \
-    --output contracts/Account_compiled.json \
-    --abi abi/Account_contract_abi.json
+    --output artifacts/compiled/Account.json \
+    --abi artifacts/abi/Account_abi.json
+
+starknet-compile contracts/Combat.cairo \
+    --output artifacts/compiled/Combat.json \
+    --abi artifacts/abi/Combat_abi.json
