@@ -39,6 +39,40 @@ Some dynamics may evolve around:
 drug lord stats, but also defend against future challengers.
 
 
+## System architecture
+
+The game mechanics are separated from the game state variables.
+A controller system manages a mapping of modules to deployed addresses
+and a governance module may update the controller.
+
+- Arbiter (most power)
+- ModuleController (mapping of deployments to module_ids)
+- Modules (open ended set)
+    - Game mechanics (where a player would interact to play)
+    - Storage modules (game variables)
+    - L1 connectors (for integrating L1 state/ownership to L2)
+    - Other arbitrary contracts
+
+The system works as follows:
+
+1. Deploy a new application contract
+2. Point the application to read variables from modules, by
+    1. Querying the `ModuleController` for the deployment address
+    of the `module_id` of interest.
+    2. Reading the state from that address.
+3. If write access is desired, the process is:
+    1. Community review of deployed application code
+    2. `approve_module_to_module_write_access()` executed by
+    the Arbiter contract, which updates permissions in the `ModuleController`.
+
+
+Module requirements:
+- All modules that maintain state that is intended for open-ended use
+must point to the `ModuleController` for write-access permissions.
+    - `has_write_access()` is called by the variable contract to ensure
+    that the calling contract has the power to authorize updates that
+    may affect other modules (which share the same variables).
+
 ## Setup
 
 Clone this repo and use our docker shell to interact with starknet:
