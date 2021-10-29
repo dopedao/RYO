@@ -72,6 +72,18 @@ must point to the `ModuleController` for write-access permissions.
     - `has_write_access()` is called by the variable contract to ensure
     that the calling contract has the power to authorize updates that
     may affect other modules (which share the same variables).
+- A module updgrade MUST NOT remove functions. New functions MAY
+be added, but backward compatibility with other modules is required.
+
+
+Example module upgrade:
+- Weapon overhaul: A module contains a record of who owns which weapon. A new module is written that keeps a record of how often
+a weapon is used. It adds a new function that exposes how worn out
+each weapon is. Another module may use this new variable.
+- Drug upgrade: A module contains the record of who owns which
+drug. A new module is written that represents the drugs as a deposited token with limited scopes. The drugs may be deposited and made available for gameplay, or used in another module (E.g,. Where they may be consumed permanently).
+- Bug fixes: Modules can be upgraded for the purpose of redesigning
+mechanisms or parameters for better play.
 
 ## Setup
 
