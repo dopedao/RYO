@@ -47,8 +47,9 @@ from starkware.cairo.common.math import assert_not_zero
 # and create new dynamics.
 
 ##### Storage #####
+# Stores the address of the Arbiter contract.
 @storage_var
-func arbiter() -> (bool : felt):
+func arbiter() -> (address : felt):
 end
 
 # The contract address for a module.
@@ -71,6 +72,26 @@ func can_write_to(
     ):
 end
 
+##### Constructor #####
+@constructor
+func constructor{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        arbiter_address : felt,
+        module_1 : felt,
+        module_2 : felt
+    ):
+    arbiter.write(arbiter_address)
+    # Store the address of already deployed modules.
+    address_of_module_id.write(1, module_1)
+    module_id_of_address.write(module_1, 1)
+
+    address_of_module_id.write(2, module_2)
+    module_id_of_address.write(module_2, 2)
+    return ()
+end
 
 ##### External functions #####
 # Called by the current Arbiter to replace itself.
@@ -146,7 +167,7 @@ func has_write_access{
     # Get the address of the module calling (being written to).
     let (caller) = get_caller_address()
     let (to_id) = module_id_of_address.read(caller)
-    let (from_id) = address_attempting_to_write
+    let from_id = address_attempting_to_write
     let (bool) = can_write_to.read(from_id, to_id)
     assert_not_zero(bool)
     return ()
@@ -162,7 +183,7 @@ func only_arbiter{
     }():
     alloc_locals
     let (local caller) = get_caller_address()
-    let (arbiter) = arbiter.read()
-    assert caller = arbiter
+    let (current_arbiter) = arbiter.read()
+    assert caller = current_arbiter
     return ()
 end
