@@ -4,24 +4,24 @@ set -eu
 # Save the deployed contract addresses from bin/deploy.
 set_market_addr=$(starknet invoke \
     --network=alpha \
-    --address $GameEngineV1Address \
-    --abi artifacts/abi/GameEngineV1_abi.json \
+    --address $01_DopeWarsAddress \
+    --abi artifacts/abi/01_DopeWars_abi.json \
     --function set_market_maker_address \
     --inputs ${MarketMakerAddress})
 echo -e "\nMarket address set: \n${set_market_addr}"
 
 set_registry_addr=$(starknet invoke \
     --network=alpha \
-    --address $GameEngineV1Address \
-    --abi artifacts/abi/GameEngineV1_abi.json \
+    --address $01_DopeWarsAddress \
+    --abi artifacts/abi/01_DopeWars_abi.json \
     --function set_user_registry_address \
     --inputs ${UserRegistryAddress})
 echo -e "\nRegistry address set: \n${set_registry_addr}"
 
 set_combat_addr=$(starknet invoke \
     --network=alpha \
-    --address $GameEngineV1Address \
-    --abi artifacts/abi/GameEngineV1_abi.json \
+    --address $01_DopeWarsAddress \
+    --abi artifacts/abi/01_DopeWars_abi.json \
     --function set_combat_address \
     --inputs ${CombatAddress})
 echo -e "\nCombat address set: \n${set_combat_addr}"
@@ -50,8 +50,8 @@ market_items="${python3 ./testing/utils/markets_to_list.py 1}"
 # TODO Get this to accept the list of initial values.
 #echo $(starknet invoke \
 #    --network=alpha \
-#    --address ${GameEngineV1Address} \
-#    --abi artifacts/abi/GameEngineV1_abi.json \
+#    --address ${01_DopeWarsAddress} \
+#    --abi artifacts/abi/01_DopeWars_abi.json \
 #    --function admin_set_pairs \
 #    --inputs 1444 ${market_items} 1444 ${market_money})
 

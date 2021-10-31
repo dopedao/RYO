@@ -4,10 +4,10 @@ set -eu
 # For each contract compiled with bin/compile, deploy and record the
 # deployment address.
 
-GameEngineV1=$(starknet deploy --contract artifacts/compiled/GameEngineV1.json \
+01_DopeWars=$(starknet deploy --contract artifacts/compiled/01_DopeWars.json \
     --network=alpha)
-echo -e "\nGameEngineV1: ${GameEngineV1}"
-GameEngineV1Address=$(echo -e ${GameEngineV1} | grep -o '\b0x\w*' )
+echo -e "\n01_DopeWars: ${01_DopeWars}"
+01_DopeWarsAddress=$(echo -e ${01_DopeWars} | grep -o '\b0x\w*' )
 
 MarketMaker=$(starknet deploy --contract artifacts/compiled/MarketMaker.json \
     --network=alpha)
@@ -28,3 +28,5 @@ Combat=$(starknet deploy --contract artifacts/compiled/Combat.json \
     --network=alpha)
 echo -e "\nCombat: ${Combat}"
 CombatAddress=$(echo -e ${Combat} | grep -o '\b0x\w*' )
+
+

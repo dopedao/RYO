@@ -42,7 +42,11 @@ end
 
 # Locks the stored addresses.
 @external
-func lock():
+func lock{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }():
     is_owner()
     lock.write(1)
     return()
@@ -51,7 +55,11 @@ end
 
 # Called to approve a deployed module for a numerical purpose.
 @external
-func set_address_of_controller(
+func set_address_of_controller{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
         contract_address : felt
     ):
     let (locked) = lock.read()
@@ -64,7 +72,13 @@ end
 
 # Called to replace the contract that controls the Arbiter.
 @external
-func replace_self(new_address : felt):
+func replace_self{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        new_address : felt
+    ):
     only_owner()
     let (controller) = contract_address.read()
 
@@ -72,7 +86,11 @@ func replace_self(new_address : felt):
 end
 
 @external
-func appoint_new_owner():
+func appoint_new_owner{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }():
     only_owner()
     owner.write(new_address)
     return ()
@@ -94,7 +112,11 @@ end
 
 # Called to authorise write access of one module to another.
 @external
-func approve_module_to_module_write_access(
+func approve_module_to_module_write_access{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
         module_id_doing_writing : felt
         module_id_being_written_to : felt
     ):
@@ -107,7 +129,11 @@ func approve_module_to_module_write_access(
 end
 
 # Assert that the person calling has authority.
-func only_owner():
+func only_owner{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }():
     let (caller) = get_caller_address()
     let (owner) = arbiter_owner.read()
     assert_equal(caller, owner)

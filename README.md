@@ -129,9 +129,9 @@ bin/compile
 
 Compile an individual contract:
 ```
-starknet-compile contracts/GameEngineV1.cairo \
-    --output artifacts/compiled/GameEngineV1.json \
-    --abi artifacts/abi/GameEngineV1_abi.json
+starknet-compile contracts/01_DopeWars.cairo \
+    --output artifacts/compiled/01_DopeWars.json \
+    --abi artifacts/abi/01_DopeWars_abi.json
 ```
 
 ### Test
@@ -140,7 +140,7 @@ Run all github actions tests: `bin/test`
 
 Run individual tests
 ```
-bin/shell pytest -s testing/GameEngineV1_contract_test.py
+bin/shell pytest -s testing/01_DopeWars_contract_test.py
 
 bin/shell pytest -s testing/MarketMaker_contract_test.py
 
@@ -184,8 +184,8 @@ that purchases.
 ```
 bin/shell starknet invoke \
     --network=alpha \
-    --address $GameEngineV1Address \
-    --abi abi/GameEngineV1_contract_abi.json \
+    --address $01_DopeWarsAddress \
+    --abi abi/01_DopeWars_contract_abi.json \
     --function have_turn \
     --inputs 733 34 0 5 1000
 ```
@@ -195,8 +195,8 @@ exchanged for some quantity of money.
 ```
 bin/shell starknet call \
     --network=alpha \
-    --address $GameEngineV1Address \
-    --abi abi/GameEngineV1_contract_abi.json \
+    --address $01_DopeWarsAddress \
+    --abi abi/01_DopeWars_contract_abi.json \
     --function check_user_state \
     --inputs 733
 ```
@@ -286,7 +286,7 @@ market values as a list (rather than string).
 Coding tasks:
 
 - Refine both the likelihood (basis points per user turn) and impact (percentage
-change) that events have and treak the constant at the top of `contracts/GameEngineV1.cairo`.
+change) that events have and treak the constant at the top of `contracts/01_DopeWars.cairo`.
 E.g., how often should you get mugged, how much money would you lose.
 - Make the market initialisation function smaller (exceeded pedersen builtin, tx_id=302029). E.g., break it into 8 separate transactions.
 - User authentication. E.g., signature verification.
