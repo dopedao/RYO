@@ -44,20 +44,21 @@ async def account_factory():
 async def game_factory(account_factory):
     starknet, accounts = account_factory
 
+    arbiter = await starknet.deploy("contracts/Arbiter.cairo")
+    controller = await starknet.deploy("contracts/ModuleController.cairo")
     engine = await starknet.deploy("contracts/01_DopeWars.cairo")
-    market = await starknet.deploy("contracts/MarketMaker.cairo")
-    registry = await starknet.deploy("contracts/UserRegistry.cairo")
+    location_owned = await starknet.deploy("contracts/02_LocationOwned.cairo")
+    user_owned = await starknet.deploy("contracts/03_UserOwned.cairo")
+    registry = await starknet.deploy("contracts/04_UserRegistry.cairo")
+    combat = await starknet.deploy("contracts/05_Combat.cairo")
 
-    # Save the other contract address in the game contract.
-    await engine.set_market_maker_address(
-        address=market.contract_address).invoke()
-    await engine.set_user_registry_address(
-        address=registry.contract_address).invoke()
-    return starknet, accounts, engine, market, registry
+    return starknet, accounts, arbiter, controller, engine, \
+        location_owned, user_owned, registry, combat
 
 @pytest.fixture(scope='module')
 async def populated_registry(game_factory):
-    _, accounts, _, _, registry = game_factory
+    starknet, accounts, arbiter, controller, engine, \
+        location_owned, user_owned, registry, combat = game_factory
     admin = accounts[0]
     # Populate the registry with some data.
     sample_data = 84622096520155505419920978765481155
@@ -75,7 +76,8 @@ async def populated_registry(game_factory):
 
 @pytest.fixture(scope='module')
 async def populated_game(game_factory):
-    _, accounts, engine, _, _ = game_factory
+    starknet, accounts, arbiter, controller, engine, \
+        location_owned, user_owned, registry, combat = game_factory
     admin = accounts[0]
 
     # Populate the item pair of interest across all locations.

@@ -41,7 +41,7 @@ async def account_factory():
 @pytest.fixture(scope='module')
 async def registry_factory(account_factory):
     starknet, accounts = account_factory
-    registry = await starknet.deploy("contracts/UserRegistry.cairo")
+    registry = await starknet.deploy("contracts/04_UserRegistry.cairo")
     return starknet, accounts, registry
 
 

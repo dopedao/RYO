@@ -58,10 +58,31 @@ be added, but backward compatibility with other modules is required.
 
 Example module upgrade:
 
-- Weapon overhaul: A module contains a record of who owns which weapon. A new module is written that keeps a record of how often
+- Weapon overhaul: A module contains a record of who owns which weapon.
+A new module is written that keeps a record of how often
 a weapon is used. It adds a new function that exposes how worn out
 each weapon is. Another module may use this new variable.
 - Drug upgrade: A module contains the record of who owns which
-drug. A new module is written that represents the drugs as a deposited token with limited scopes. The drugs may be deposited and made available for gameplay, or used in another module (E.g,. Where they may be consumed permanently).
+drug. A new module is written that represents the drugs as a deposited
+token with limited scopes. The drugs may be deposited and made available for gameplay,
+or used in another module (E.g,. Where they may be consumed permanently).
 - Bug fixes: Modules can be upgraded for the purpose of redesigning
 mechanisms or parameters for better play.
+
+## Permissions flow for writing to a global state variable.
+
+A contract that wants to write to a state variable must:
+
+1. Off-chain determine the appropriate `module_id` for the variable.
+2. Fetch the `controller_address` from internal storage.
+3. Call `get_module_address()` in the `ModuleController`.
+4. Call the module with the appropriate function (e.g., `update_var_x()`).
+5. The module receives the request and reads the calling address with
+`get_caller_address()` from the common library.
+6. The module fetches the `controller_address` from internal storage.
+7. The module calls the `has_write_access()` function in the `ModuleController`,
+passing the caller's address (reverts if disallowed.)
+8. The module then updates internal storage with the requested value.
+
+Thus, every module has an `only_approved()` internal method that performs
+steps 5-7.

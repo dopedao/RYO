@@ -29,9 +29,9 @@ from starkware.starknet.common.syscalls import get_caller_address
 
 ######################
 # Module id descriptions. Do not alter, only append.
-# 1 Dope Wars ti83 mechanics.
-# 2 AMM item/money values of NPC dealers.
-# 3 Hustler item/money values.
+# 1 Dope Wars TI-83 mechanics.
+# 2 Location-owned AMM item/money values of NPC dealers.
+# 3 User-owned (Hustler) item/money values.
 # 4 Hustler L1 trait registry.
 # 5 Combat mechanics.
 # 6 [available]
