@@ -2,9 +2,9 @@
 set -eu
 
 
-starknet-compile contracts/01_DopeWarsCalculator.cairo \
-    --output artifacts/compiled/01_DopeWarsCalculator.json \
-    --abi artifacts/abi/01_DopeWarsCalculator_abi.json
+starknet-compile contracts/01_DopeWars.cairo \
+    --output artifacts/compiled/01_DopeWars.json \
+    --abi artifacts/abi/01_DopeWars_abi.json
 
 starknet-compile contracts/MarketMaker.cairo \
     --output artifacts/compiled/MarketMaker.json \

@@ -87,7 +87,7 @@ Other parts of state are perhaps not as criticial. For example, is it important 
 a game record all a players keystrokes? Rather, ensuring that the keystrokes were valid
 and recording important outcomes is more worthwhile.
 
-In `GameEngine` a player chooses to go to a location and make a trade, as their turn is
+In `01_DopeWars` a player chooses to go to a location and make a trade, as their turn is
 processed, the contract generates events that help and hinder the player. They may be
 attacked and they may find a free bag of cocaine. The game does not store the attack, rather
 it emits the event and applies its effect to the core storage record to store

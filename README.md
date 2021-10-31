@@ -12,7 +12,7 @@ History:
 
 - Background mechanism design notion [here](https://dope-wars.notion.site/dope-22fe2860c3e64b1687db9ba2d70b0bb5).
 - Initial exploration / walkthrough viability testing blog [here](https://perama-v.github.io/cairo/game/world).
-- Expansion for forward compatibility [here]https://perama-v.github.io/cairo/game/aggregated-architecture
+- Expansion for forward compatibility [here](https://perama-v.github.io/cairo/game/aggregated-architecture).
 
 The Dope Wars universe is a Loot-style project with many limbs. The
 game engine seeks build the classic calculator game in the blockchain
