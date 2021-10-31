@@ -4,11 +4,25 @@
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.starknet.common.syscalls import get_caller_address
 
-# Stores TODO
+# Returns item count for item-money pair in location.
+# E.g., first location (location_id=0), first item (item_id=1)
 @storage_var
-func TODO(
+func location_has_item(
+        location_id : felt,
+        item_id : felt
     ) -> (
-        value : felt
+        count : felt
+    ):
+end
+
+# Returns money count for item-money pair in location.
+# E.g., first location (location_id=0), first item (item_id=1)
+@storage_var
+func location_has_money(
+        location_id : felt,
+        item_id : felt
+    ) -> (
+        count : felt
     ):
 end
 
