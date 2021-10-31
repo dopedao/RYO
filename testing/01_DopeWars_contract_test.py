@@ -93,7 +93,7 @@ async def account_factory():
 async def game_factory(account_factory):
     starknet, accounts = account_factory
 
-    engine = await starknet.deploy("contracts/GameEngineV1.cairo")
+    engine = await starknet.deploy("contracts/01_DopeWars.cairo")
     market = await starknet.deploy("contracts/MarketMaker.cairo")
     registry = await starknet.deploy("contracts/UserRegistry.cairo")
     combat = await starknet.deploy("contracts/Combat.cairo")

@@ -1,5 +1,10 @@
 
+%lang starknet
+%builtins pedersen range_check
 
+from starkware.cairo.common.cairo_builtins import HashBuiltin
+from starkware.starknet.common.syscalls import get_caller_address
+from starkware.cairo.common.math import assert_not_zero
 
 ##### Controller #####
 #
@@ -66,10 +71,17 @@ func can_write_to(
     ):
 end
 
+
 ##### External functions #####
 # Called by the current Arbiter to replace itself.
 @external
-func appoint_new_arbiter(new_arbiter : felt):
+func appoint_new_arbiter{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        new_arbiter : felt
+    ):
     only_arbiter()
     arbiter.write(new_arbiter)
     return ()
@@ -78,42 +90,57 @@ end
 
 # Called by the Arbiter to set new address mappings.
 @external
-func set_address_for_module_id():
+func set_address_for_module_id{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }():
     only_arbiter()
     let (caller) = get_caller_address()
-    assert
     return ()
 end
 
+
 # Called to authorise write access of one module to another.
 @external
-func set_write_access(
-        module_id_doing_writing : felt
-        module_id_being_written_to : felt):
+func set_write_access{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        module_id_doing_writing : felt,
+        module_id_being_written_to : felt
     ):
     only_arbiter()
-    can_write_to.write(
-        module_id_doing_writing,
-        module_id_being_written_to)
+    can_write_to.write(module_id_doing_writing,
+        module_id_being_written_to, 1)
     return ()
 end
 
 
 ##### View functions #####
 @view
-func get_module_address(
+func get_module_address{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
         module_id : felt
     ) -> (
         address : felt
     ):
-    let (address) = address_of_module_id.read()
+    let (address) = address_of_module_id.read(module_id)
     return (address)
 end
 
 
 # Called by a module before it updates internal state.
 @view
-func has_write_access(
+func has_write_access{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
         address_attempting_to_write : felt
     ):
     # Get the address of the module calling (being written to).
@@ -128,9 +155,14 @@ end
 
 ##### Private functions #####
 # Assert that the person calling has authority.
-func only_arbiter():
-    let (caller) = get_caller_address()
+func only_arbiter{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }():
+    alloc_locals
+    let (local caller) = get_caller_address()
     let (arbiter) = arbiter.read()
-    assert_equal(caller, arbiter)
+    assert caller = arbiter
     return ()
 end

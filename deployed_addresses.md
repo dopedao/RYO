@@ -1,6 +1,6 @@
 ## Deployments
 
-GameEngineV1: Deploy transaction was sent.
+01_DopeWars: Deploy transaction was sent.
 Contract address: 0x07bb48cb18d4bd2afa1b1dc6412ad46aa5d4473c6d54b1ebf0d360707ea78058
 Transaction ID: 301966
 
