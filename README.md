@@ -276,7 +276,7 @@ of system where places have different market dynamics. E.g.,:
     - Think about how to integrate the non-flexible combat
     atributes that come from the Hustler (1 item per slot). E.g., how
     should combate integrate the score that each item has.
-- Extract the global state variables into separate modules.
+- Extract the global state variables i to separate modules.
 
 Design considerations/todo
 

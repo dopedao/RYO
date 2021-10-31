@@ -12,53 +12,15 @@ from starkware.cairo.common.hash_state import (hash_init,
 from starkware.cairo.common.bitwise import bitwise_xor
 from starkware.cairo.common.alloc import alloc
 
-############ Game constants ############
-# Default basis point probabilities applied per turn. 10000=100%.
-# Impact factor scales value. post = (pre * F)// 100). 30 = 30% increase.
-# Impact factor is either added or subtracted from 100.
-# Probabilities are not currently optimised (e.g. all set to 50%).
-
-const DEALER_DASH_BP = 1000  # E.g., 10% chance dealer runs.
-const WRANGLE_DASHED_DEALER_BP = 5000  # E.g., 30% you catch them.
-const MUGGING_BP = 5000  # E.g., 15% chance of mugging.
-const MUGGING_IMPACT = 30  # Impact is 30% money loss = (100-30)/100.
-const RUN_FROM_MUGGING_BP = 5000
-const GANG_WAR_BP = 5000
-const GANG_WAR_IMPACT = 30  # Impact is 30% money loss = (100-30)/100.
-const DEFEND_GANG_WAR_BP = 5000
-const COP_RAID_BP = 5000
-const COP_RAID_IMPACT = 20  # Impact is 20% item & 20% money loss.
-const BRIBE_COPS_BP = 5000
-const FIND_ITEM_BP = 5000
-const FIND_ITEM_IMPACT = 50  # Impact is 50% item gain = (100+50)/100.
-const LOCAL_SHIPMENT_BP = 5000
-const LOCAL_SHIPMENT_IMPACT = 20  # Regional impact is 20% item gain.
-const WAREHOUSE_SEIZURE_BP = 5000
-const WAREHOUSE_SEIZURE_IMPACT = 20  # Regional impact 20% item loss.
-
-# Probabilities are for minimum-stat wearable (score=1).
-# For a max-stat wearable (score=10), the probability is scaled down.
-# E.g., an event_BP of 3000 (30% chance) and an event fraction of
-# 20 will become (30*20/100) = 6% chance for that event for that player.
-const MIN_EVENT_FRACTION = 20  # 20% the stated XYZ_BP probability.
-
-# Number of turns by other players that must occur before next turn.
-const MIN_TURN_LOCKOUT = 3
-
-# Drug lord percentage (2 = 2%).
-const DRUG_LORD_PERCENTAGE = 2
-
-# Number of stats that a player specifies for combat.
-const NUM_COMBAT_STATS = 30
-
-# Number of locations (defined by DOPE NFT).
-const LOCATIONS = 19
-
-# Number of districts per location.
-const DISTRICTS = 4
-
-# Amount of money a user starts with.
-const STARTING_MONEY = 20000
+from contracts.utils.market_maker import trade
+from contracts.utils.game_constants import (DEALER_DASH_BP,
+    WRANGLE_DASHED_DEALER_BP, MUGGING_BP, MUGGING_IMPACT,
+    RUN_FROM_MUGGING_BP, GANG_WAR_BP, GANG_WAR_IMPACT,
+    DEFEND_GANG_WAR_BP, COP_RAID_BP, COP_RAID_IMPACT,
+    BRIBE_COPS_BP, FIND_ITEM_BP, FIND_ITEM_IMPACT, LOCAL_SHIPMENT_BP,
+    LOCAL_SHIPMENT_IMPACT, WAREHOUSE_SEIZURE_BP,
+    WAREHOUSE_SEIZURE_IMPACT, MIN_EVENT_FRACTION, MIN_TURN_LOCKOUT, DRUG_LORD_PERCENTAGE, NUM_COMBAT_STATS,
+    LOCATIONS, DISTRICTS, STARTING_MONEY)
 
 # A struct that holds the unpacked DOPE NFT data for the user.
 struct UserData:
@@ -71,44 +33,13 @@ struct UserData:
 end
 
 ############ Other Contract Info ############
-# Address of previously deployed MarketMaket.cairo contract.
-const MARKET_MAKER_ADDRESS = 0x07f9ad51033cd6107ad7d70d01c3b0ba2dda3331163a45b6b7f1a2952dac0880
-const USER_REGISTRY_ADDRESS = 0x1233455
-# Modifiable address pytest deployments.
-@storage_var
-func market_maker_address(
-    ) -> (
-        address : felt
-    ):
-end
-
-# Modifiable address pytest deployments.
-@storage_var
-func user_registry_address(
-    ) -> (
-        address : felt
-    ):
-end
-
-# Modifiable address pytest deployments.
-@storage_var
-func combat_address(
-    ) -> (
-        address : felt
-    ):
-end
-
-# Declare the interface with which to call the MarketMaker contract.
+# Interface for the ModuleController.
 @contract_interface
-namespace IMarketMaker:
-    func trade(
-        market_a_pre : felt,
-        market_b_pre : felt,
-        user_gives_a : felt
+namespace IModuleController:
+    func get_module_address(
+        module_id : felt
     ) -> (
-        market_a_post : felt,
-        market_b_post : felt,
-        user_gets_b : felt
+        address : felt
     ):
     end
 end
@@ -259,45 +190,23 @@ func drug_lord_stat_hash(
    ):
 end
 
+# Stores the address of the ModuleController.
+@storage_var
+func controller_address() -> (address : felt):
+end
+
 ############ Admin Functions for Testing ############
-# Sets the address of the deployed MarketMaker.cairo contract.
-@external
-func set_market_maker_address{
+# Called on deployment only.
+@constructor
+func constructor{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        address : felt
+        address_of_controller : felt
     ):
-    # Used for testing. This can be constant on deployment.
-    market_maker_address.write(address)
-    return ()
-end
-
-# Sets the address of the deployed UserRegistry.cairo contract.
-@external
-func set_user_registry_address{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        address : felt
-    ):
-    # Used for testing. This can be constant on deployment.
-    user_registry_address.write(address)
-    return ()
-end
-
-@external
-func set_combat_address{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        address : felt
-    ):
-    # Used for testing. This can be constant on deployment.
-    combat_address.write(address)
+    # Store the address of the only fixed contract in the system.
+    controller_address.write(address_of_controller)
     return ()
 end
 
@@ -314,8 +223,6 @@ func admin_set_pairs{
         money_list_len : felt,
         money_list : felt*,
     ):
-
-
     # Spawns the 1444 AMMs each with an item and money quantity.
 
     # The game starts with 76 locations. [0, 75]
@@ -677,14 +584,8 @@ func execute_trade{
     local market_a_pre = market_a_pre_temp
     local market_b_pre = market_b_pre_temp
 
-    # Uncomment for pytest: Get address of MarketMaker.
-    let (market_maker) = market_maker_address.read()
-    # Use the line below for deployment.
-    #let market_maker = MARKET_MAKER_ADDRESS
-
     # Execute trade by calling the market maker contract.
-    let (market_a_post, market_b_post,
-        user_gets_b) = IMarketMaker.trade(market_maker,
+    let (market_a_post, market_b_post, user_gets_b) = trade(
         market_a_pre, market_b_pre, amount_to_give)
 
     # Post-receiving balance depends on user_gets_b.
@@ -1145,7 +1046,9 @@ func fetch_user_data{
         user_stats : UserData
     ):
     alloc_locals
-    let (local registry) = user_registry_address.read()
+    let (controller) = controller_address.read()
+    let (local registry) = IModuleController.get_module_address(
+        controller, 4)
     # Indicies are defined in the UserRegistry contract.
     # Call the UserRegsitry contract to get scores for given user.
     let (local weapon) = IUserRegistry.unpack_score(registry, user_id, 6)
@@ -1207,7 +1110,9 @@ func fight_lord{
         return (win_bool=0)
     end
 
-    let (combat_addr) = combat_address.read()
+    let (controller) = controller_address.read()
+    let (combat_addr) = IModuleController.get_module_address(
+        controller, 5)
     local pedersen_ptr : HashBuiltin* = pedersen_ptr
 
     # Execute combat.

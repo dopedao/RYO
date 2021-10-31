@@ -93,45 +93,30 @@ async def account_factory():
 async def game_factory(account_factory):
     starknet, accounts = account_factory
 
+    arbiter = await starknet.deploy("contracts/Arbiter.cairo")
+    controller = await starknet.deploy("contracts/ModuleController.cairo")
     engine = await starknet.deploy("contracts/01_DopeWars.cairo")
-    market = await starknet.deploy("contracts/MarketMaker.cairo")
-    registry = await starknet.deploy("contracts/UserRegistry.cairo")
-    combat = await starknet.deploy("contracts/Combat.cairo")
+    location_owned = await starknet.deploy("contracts/02_LocationOwned.cairo")
+    user_owned = await starknet.deploy("contracts/03_UserOwned.cairo")
+    registry = await starknet.deploy("contracts/04_UserRegistry.cairo")
+    combat = await starknet.deploy("contracts/05_Combat.cairo")
 
-    # Save the other contract address in the game contract.
-    await engine.set_market_maker_address(
-        address=market.contract_address).invoke()
-    await engine.set_user_registry_address(
-        address=registry.contract_address).invoke()
-    await engine.set_combat_address(
-        address=combat.contract_address).invoke()
-    return starknet, accounts, engine, market, registry, combat
+    return starknet, accounts, arbiter, controller, engine, \
+        location_owned, user_owned, registry, combat
 
 
 @pytest.mark.asyncio
 async def test_account_unique(game_factory):
-    _, accounts, _, _, _, _ = game_factory
+    starknet, accounts, arbiter, controller, engine, \
+        location_owned, user_owned, registry, combat = game_factory
     admin = accounts[0].signer.public_key
     user_1 = accounts[1].signer.public_key
     assert admin != user_1
 
-
-@pytest.mark.asyncio
-async def test_market(game_factory):
-    _, _, _, market, _, _ = game_factory
-    market_a_pre = 300
-    market_b_pre = 500
-    user_a_pre = 40  # User gives 40.
-    res = await market.trade(market_a_pre, market_b_pre, user_a_pre).invoke()
-    (market_a_post, market_b_post, user_b_post, ) = res
-
-    assert market_a_post == market_a_pre + user_a_pre
-    assert market_b_post == market_b_pre - user_b_post
-
-
 @pytest.fixture(scope='module')
 async def populated_registry(game_factory):
-    _, accounts, _, _, registry, _ = game_factory
+    starknet, accounts, arbiter, controller, engine, \
+        location_owned, user_owned, registry, combat = game_factory
     admin = accounts[0]
     # Populate the registry with some data.
     sample_data = 84622096520155505419920978765481155
@@ -150,7 +135,8 @@ async def populated_registry(game_factory):
 
 @pytest.fixture(scope='module')
 async def populated_game(game_factory):
-    _, accounts, engine, _, _, _ = game_factory
+    starknet, accounts, arbiter, controller, engine, \
+        location_owned, user_owned, registry, combat = game_factory
     admin = accounts[0]
     # Populate the item pair of interest across all locations.
 

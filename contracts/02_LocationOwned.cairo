@@ -31,16 +31,20 @@ func constructor{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        controller_address : felt
+        address_of_controller : felt
     ):
     # Store the address of the only fixed contract in the system.
-    controller_address.write(controller_address)
+    controller_address.write(address_of_controller)
     return ()
 end
 
 
 # Called by another module to update a global variable.
-func update_value():
+func update_value{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }():
     # TODO Customise.
     only_approved()
     return ()
@@ -55,11 +59,12 @@ func only_approved{
     }():
     # Get the address of the module trying to write to this contract.
     let (caller) = get_caller_address()
-    let (controller_address) = controller_address.read()
+    let (controller) = controller_address.read()
     # Pass this address on to the ModuleController.
     # "Does this address have write-authority here?"
     # Will revert the transaction if not.
-    IModuleController.has_write_access(contract_address=controller,
+    IModuleController.has_write_access(
+        contract_address=controller,
         address_attempting_to_write=caller)
     return ()
 end
