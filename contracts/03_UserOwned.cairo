@@ -4,11 +4,22 @@
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.starknet.common.syscalls import get_caller_address
 
-# Stores TODO
+# Specify user, item, return quantity.
 @storage_var
-func TODO(
+func user_has_item(
+        user_id : felt,
+        item_id : felt
     ) -> (
-        value : felt
+        count : felt
+    ):
+end
+
+# Location of users. Input user, retrieve city.
+@storage_var
+func user_in_location(
+        user_id : felt
+    ) -> (
+        location_id : felt
     ):
 end
 
@@ -40,14 +51,60 @@ end
 
 
 # Called by another module to update a global variable.
-func update_value{
+func user_has_item_write{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }():
-    # TODO Customise.
+    }(
+        user_id : felt,
+        item_id : felt,
+        value : felt
+    ):
     only_approved()
+    user_has_item.write(user_id, item_id, value)
     return ()
+end
+
+func user_has_item_read{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        user_id : felt,
+        item_id : felt
+    ) ->
+        value
+    ):
+    let (value) = user_has_item.read(user_id, item_id)
+    return (value)
+end
+
+
+# Called by another module to update a global variable.
+func user_in_location_write{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        user_id : felt,
+        value : felt
+    ):
+    only_approved()
+    user_has_item.write(user_id, value)
+    return ()
+end
+
+func user_in_location_read{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        user_id : felt
+    ) ->
+        value
+    ):
+    let (value) = user_in_location.read(user_id)
+    return (value)
 end
 
 
