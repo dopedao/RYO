@@ -10,7 +10,6 @@ from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.signature import verify_ecdsa_signature
 from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
 from starkware.starknet.common.syscalls import call_contract
-from starkware.starknet.common.storage import Storage
 
 struct Message:
     member to: felt
@@ -44,7 +43,7 @@ end
 
 @external
 func initialize{
-        storage_ptr: Storage*,
+        syscall_ptr: felt*,
         pedersen_ptr: HashBuiltin*,
         range_check_ptr
     } (_public_key: felt, _L1_address: felt):
@@ -88,7 +87,7 @@ func hash_calldata{pedersen_ptr: HashBuiltin*}(
 end
 
 func validate{
-        storage_ptr: Storage*,
+        syscall_ptr: felt*,
         pedersen_ptr: HashBuiltin*,
         ecdsa_ptr: SignatureBuiltin*,
         range_check_ptr
@@ -100,7 +99,7 @@ func validate{
     assert _current_nonce = signed_message.message.nonce
 
     # reference implicit arguments to prevent them from being revoked by `hash_message`
-    local storage_ptr : Storage* = storage_ptr
+    local syscall_ptr : felt* = syscall_ptr
     local range_check_ptr = range_check_ptr
 
     # verify signature
@@ -118,10 +117,9 @@ end
 
 @external
 func execute{
-        storage_ptr: Storage*,
+        syscall_ptr: felt*,
         pedersen_ptr: HashBuiltin*,
         ecdsa_ptr: SignatureBuiltin*,
-        syscall_ptr: felt*,
         range_check_ptr
     } (
         to: felt,
@@ -162,7 +160,7 @@ end
 
 @view
 func get_public_key{
-        storage_ptr: Storage*,
+        syscall_ptr: felt*,
         pedersen_ptr: HashBuiltin*,
         range_check_ptr
     }() -> (
@@ -174,7 +172,7 @@ end
 
 @view
 func get_L1_address{
-        storage_ptr: Storage*,
+        syscall_ptr: felt*,
         pedersen_ptr: HashBuiltin*,
         range_check_ptr
     }() -> (
@@ -186,7 +184,7 @@ end
 
 @view
 func get_nonce{
-        storage_ptr: Storage*,
+        syscall_ptr: felt*,
         pedersen_ptr: HashBuiltin*,
         range_check_ptr
     }() -> (
