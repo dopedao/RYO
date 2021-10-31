@@ -98,47 +98,6 @@ func user_initialized(
     ):
 end
 
-# Specify user, item, return quantity.
-@storage_var
-func user_has_item(
-        user_id : felt,
-        item_id : felt
-    ) -> (
-        count : felt
-    ):
-end
-
-# Location of users. Input user, retrieve city.
-@storage_var
-func user_in_location(
-        user_id : felt
-    ) -> (
-        location_id : felt
-    ):
-end
-
-# Returns item count for item-money pair in location.
-# E.g., first location (location_id=0), first item (item_id=1)
-@storage_var
-func location_has_item(
-        location_id : felt,
-        item_id : felt
-    ) -> (
-        count : felt
-    ):
-end
-
-# Returns money count for item-money pair in location.
-# E.g., first location (location_id=0), first item (item_id=1)
-@storage_var
-func location_has_money(
-        location_id : felt,
-        item_id : felt
-    ) -> (
-        count : felt
-    ):
-end
-
 # Seed (for pseudorandom) that players add to.
 @storage_var
 func entropy_seed(
@@ -171,6 +130,7 @@ func clock_at_previous_turn(
        value : felt
    ):
 end
+
 
 # Returns the user_id who is currently the drug lord in that location.
 @storage_var
@@ -469,28 +429,32 @@ func check_user_state{
         id19 : felt, location : felt):
     alloc_locals
     # Get the quantity held for each item.
-    let (local money) = user_has_item.read(user_id, 0)
-    let (local id1) = user_has_item.read(user_id, 1)
-    let (local id2) = user_has_item.read(user_id, 2)
-    let (local id3) = user_has_item.read(user_id, 3)
-    let (local id4) = user_has_item.read(user_id, 4)
-    let (local id5) = user_has_item.read(user_id, 5)
-    let (local id6) = user_has_item.read(user_id, 6)
-    let (local id7) = user_has_item.read(user_id, 7)
-    let (local id8) = user_has_item.read(user_id, 8)
-    let (local id9) = user_has_item.read(user_id, 9)
-    let (local id10) = user_has_item.read(user_id, 10)
-    let (local id11) = user_has_item.read(user_id, 11)
-    let (local id12) = user_has_item.read(user_id, 12)
-    let (local id13) = user_has_item.read(user_id, 13)
-    let (local id14) = user_has_item.read(user_id, 14)
-    let (local id15) = user_has_item.read(user_id, 15)
-    let (local id16) = user_has_item.read(user_id, 16)
-    let (local id17) = user_has_item.read(user_id, 17)
-    let (local id18) = user_has_item.read(user_id, 18)
-    let (local id19) = user_has_item.read(user_id, 19)
+    let (controller) = controller_address.read()
+    Iuser
+    let (user_owned) = IModuleController.address_of_module_id(
+        controller, 3)
+    let (local money) = IUserOwned.user_has_item_read(user_owned, user_id, 0)
+    let (local id1) = IUserOwned.user_has_item_read(user_owned, user_id, 1)
+    let (local id2) = IUserOwned.user_has_item_read(user_owned, user_id, 2)
+    let (local id3) = IUserOwned.user_has_item_read(user_owned, user_id, 3)
+    let (local id4) = IUserOwned.user_has_item_read(user_owned, user_id, 4)
+    let (local id5) = IUserOwned.user_has_item_read(user_owned, user_id, 5)
+    let (local id6) = IUserOwned.user_has_item_read(user_owned, user_id, 6)
+    let (local id7) = IUserOwned.user_has_item_read(user_owned, user_id, 7)
+    let (local id8) = IUserOwned.user_has_item_read(user_owned, user_id, 8)
+    let (local id9) = IUserOwned.user_has_item_read(user_owned, user_id, 9)
+    let (local id10) = IUserOwned.user_has_item_read(user_owned, user_id, 10)
+    let (local id11) = IUserOwned.user_has_item_read(user_owned, user_id, 11)
+    let (local id12) = IUserOwned.user_has_item_read(user_owned, user_id, 12)
+    let (local id13) = IUserOwned.user_has_item_read(user_owned, user_id, 13)
+    let (local id14) = IUserOwned.user_has_item_read(user_owned, user_id, 14)
+    let (local id15) = IUserOwned.user_has_item_read(user_owned, user_id, 15)
+    let (local id16) = IUserOwned.user_has_item_read(user_owned, user_id, 16)
+    let (local id17) = IUserOwned.user_has_item_read(user_owned, user_id, 17)
+    let (local id18) = IUserOwned.user_has_item_read(user_owned, user_id, 18)
+    let (local id19) = IUserOwned.user_has_item_read(user_owned, user_id, 19)
     # Get location
-    let (local location) = user_in_location.read(user_id)
+    let (local location) = IUserOwned.user_in_location_read(user_id)
     return (money, id1, id2, id3, id4, id5, id6, id7, id8, id9, id10,
         id11, id12, id13, id14, id15, id16, id17, id18, id19,
         location)
