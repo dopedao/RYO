@@ -3,7 +3,6 @@
 
 from starkware.cairo.common.cairo_builtins import (HashBuiltin,
     BitwiseBuiltin)
-from starkware.starknet.common.storage import Storage
 from starkware.cairo.common.math import (assert_nn_le,
     unsigned_div_rem, split_felt, assert_not_zero)
 from starkware.cairo.common.math_cmp import is_nn_le
@@ -264,7 +263,7 @@ end
 # Sets the address of the deployed MarketMaker.cairo contract.
 @external
 func set_market_maker_address{
-        storage_ptr : Storage*,
+        syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
@@ -278,7 +277,7 @@ end
 # Sets the address of the deployed UserRegistry.cairo contract.
 @external
 func set_user_registry_address{
-        storage_ptr : Storage*,
+        syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
@@ -291,7 +290,7 @@ end
 
 @external
 func set_combat_address{
-        storage_ptr : Storage*,
+        syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
@@ -306,7 +305,7 @@ end
 # Sets the initial market maker values for a given item_id.
 @external
 func admin_set_pairs{
-        storage_ptr : Storage*,
+        syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
@@ -347,7 +346,7 @@ end
 # Prevents modifying markets after initialization.
 @external
 func toggle_admin{
-        storage_ptr : Storage*,
+        syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
@@ -363,7 +362,6 @@ end
 @external
 func have_turn{
         syscall_ptr : felt*,
-        storage_ptr : Storage*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*
@@ -440,7 +438,7 @@ func have_turn{
         user_combat_stats_len, user_combat_stats,
         drug_lord_combat_stats_len, drug_lord_combat_stats)
 
-    local storage_ptr : Storage* = storage_ptr
+    local syscall_ptr : felt* = syscall_ptr
     # Drug lord takes a cut.
     let (local amount_to_give_post_cut) = take_cut(user_id,
             location_id, buy_or_sell, item_id,
@@ -551,7 +549,6 @@ end
 @view
 func check_user_state{
         syscall_ptr : felt*,
-        storage_ptr : Storage*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
@@ -596,7 +593,7 @@ end
 # A read-only function to inspect pair state of a particular market.
 @view
 func check_market_state{
-        storage_ptr : Storage*,
+        syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
@@ -621,7 +618,6 @@ end
 func execute_trade{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
-        storage_ptr : Storage*,
         bitwise_ptr : BitwiseBuiltin*,
         range_check_ptr
     }(
@@ -716,7 +712,6 @@ end
 func add_to_seed{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
-        storage_ptr : Storage*,
         bitwise_ptr : BitwiseBuiltin*,
         range_check_ptr
     }(
@@ -738,7 +733,7 @@ end
 # Has not been tested rigorously (e.g., for biasing).
 # @external # '@external' for testing only.
 func get_pseudorandom{
-        storage_ptr : Storage*,
+        syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }() -> (
@@ -762,7 +757,7 @@ end
 
 # Recursion to populate one market pair in all locations.
 func loop_over_items{
-        storage_ptr : Storage*,
+        syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
@@ -801,7 +796,7 @@ end
 
 # Recursion to populate one market pair in all locations.
 func loop_over_locations{
-        storage_ptr : Storage*,
+        syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
@@ -826,7 +821,6 @@ end
 # Evaluates all major events.
 func get_events{
         syscall_ptr : felt*,
-        storage_ptr : Storage*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*
@@ -975,7 +969,7 @@ end
 
 # Generic mapping from one range to another.
 func scale{
-        storage_ptr : Storage*,
+        syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*
@@ -999,7 +993,7 @@ end
 
 # Returns an effective probability based on an ability.
 func scale_ability{
-        storage_ptr : Storage*,
+        syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*
@@ -1032,7 +1026,7 @@ end
 
 # Determines if an event occurs, given a probabilitiy (basis points).
 func event_occured{
-        storage_ptr : Storage*,
+        syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*
@@ -1048,7 +1042,7 @@ func event_occured{
     let (_, event) = unsigned_div_rem(p_rand_num, 10000)
 
     # Save pointers here (otherwise revoked by is_nn_le).
-    local storage_ptr : Storage* = storage_ptr
+    local syscall_ptr : felt* = syscall_ptr
     local pedersen_ptr : HashBuiltin* = pedersen_ptr
     # Event occurs if number is below specified basis points.
     let (result) = is_nn_le(event, probability_bp)
@@ -1058,7 +1052,6 @@ end
 # Changes the supply of an item in the region around a location.
 func update_regional_items{
         syscall_ptr : felt*,
-        storage_ptr : Storage*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*
@@ -1106,7 +1099,6 @@ end
 # Checks the user has the correct credentials and returns game data.
 func check_user{
         syscall_ptr : felt*,
-        storage_ptr : Storage*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*
@@ -1127,11 +1119,11 @@ func check_user{
     let (already_initialized) = user_initialized.read(user_id)
     if already_initialized == 0:
         user_has_item.write(user_id, 0, STARTING_MONEY)
-        tempvar storage_ptr : Storage* = storage_ptr
+        tempvar syscall_ptr : felt* = syscall_ptr
         tempvar pedersen_ptr : HashBuiltin* = pedersen_ptr
         tempvar range_check_ptr = range_check_ptr
     else:
-        tempvar storage_ptr : Storage* = storage_ptr
+        tempvar syscall_ptr : felt* = syscall_ptr
         tempvar pedersen_ptr : HashBuiltin* = pedersen_ptr
         tempvar range_check_ptr = range_check_ptr
     end
@@ -1144,7 +1136,6 @@ end
 # Returns a struct of decoded user data from binary-encoded registry.
 func fetch_user_data{
         syscall_ptr : felt*,
-        storage_ptr : Storage*,
         pedersen_ptr : HashBuiltin*,
         bitwise_ptr: BitwiseBuiltin*,
         range_check_ptr
@@ -1180,7 +1171,6 @@ end
 # Fight the drug lord.
 func fight_lord{
         syscall_ptr : felt*,
-        storage_ptr : Storage*,
         pedersen_ptr : HashBuiltin*,
         bitwise_ptr: BitwiseBuiltin*,
         range_check_ptr
@@ -1198,14 +1188,14 @@ func fight_lord{
     ):
     alloc_locals
     # Check that the user provided the drug lord stats.
-    local storage_ptr : Storage* = storage_ptr
+    local syscall_ptr : felt* = syscall_ptr
     let (provided_lord_hash) = list_to_hash(drug_lord_combat_stats,
         drug_lord_combat_stats_len)
     let (current_lord_hash) = drug_lord_stat_hash.read(location_id)
 
     # If no current lord, save and 'win'.
     if current_lord_hash == 0:
-        local storage_ptr : Storage* = storage_ptr
+        local syscall_ptr : felt* = syscall_ptr
         let (user_combat_hash) = list_to_hash(user_combat_stats,
             user_combat_stats_len)
         drug_lord_stat_hash.write(location_id, user_combat_hash)
@@ -1236,7 +1226,7 @@ func fight_lord{
     end
 
     # Hash and store the user_id and combat stats as new lord.
-    local storage_ptr : Storage* = storage_ptr
+    local syscall_ptr : felt* = syscall_ptr
     let (user_combat_hash) = list_to_hash(user_combat_stats,
         user_combat_stats_len)
     drug_lord_stat_hash.write(location_id, user_combat_hash)
@@ -1265,7 +1255,6 @@ end
 # Gives the drug lord a cut of whatever the user is giving.
 func take_cut{
         syscall_ptr : felt*,
-        storage_ptr : Storage*,
         pedersen_ptr : HashBuiltin*,
         bitwise_ptr: BitwiseBuiltin*,
         range_check_ptr
