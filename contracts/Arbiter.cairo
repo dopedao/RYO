@@ -1,6 +1,8 @@
 %lang starknet
-%builtins range_check
+%builtins pedersen range_check
 
+from starkware.cairo.common.cairo_builtins import HashBuiltin
+from starkware.cairo.common.math import assert_not_zero
 ##### Arbiter #####
 #
 # Is the authority over the ModuleController.
@@ -11,7 +13,7 @@
 
 
 @storage_var
-func arbiter_owner() -> (owner : felt):
+func owner_of_arbiter() -> (owner : felt):
 end
 
 @storage_var
@@ -34,7 +36,7 @@ namespace IModuleController:
     end
 
     func set_write_access(
-        module_id_doing_writing : felt
+        module_id_doing_writing : felt,
         module_id_being_written_to : felt):
     end
 end
@@ -42,12 +44,12 @@ end
 
 # Locks the stored addresses.
 @external
-func lock{
+func lock_addresses{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }():
-    is_owner()
+    only_owner()
     lock.write(1)
     return()
 end
@@ -77,11 +79,15 @@ func replace_self{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        new_address : felt
+        new_arbiter_address : felt
     ):
     only_owner()
-    let (controller) = contract_address.read()
-
+    let (controller) = controller_address.read()
+    # The ModuleController has a fixed address. The Arbiter
+    # may be upgraded by calling the ModuleController and declaring
+    # the new Arbiter.
+    IModuleController.appoint_new_arbiter(
+        contract_address=controller, new_arbiter=new_arbiter_address)
     return ()
 end
 
@@ -92,7 +98,7 @@ func appoint_new_owner{
         range_check_ptr
     }():
     only_owner()
-    owner.write(new_address)
+    owner_of_arbiter.write(new_address)
     return ()
 end
 
@@ -117,14 +123,14 @@ func approve_module_to_module_write_access{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        module_id_doing_writing : felt
+        module_id_doing_writing : felt,
         module_id_being_written_to : felt
     ):
     only_owner()
     let (controller) = contract_address.read()
     IModuleController(contract_address=controller,
-        module_id_doing_writing=module_id_doing_writing
-        module_id_being_written_to=module_id_being_written_to):
+        module_id_doing_writing=module_id_doing_writing,
+        module_id_being_written_to=module_id_being_written_to)
     return()
 end
 
@@ -135,7 +141,7 @@ func only_owner{
         range_check_ptr
     }():
     let (caller) = get_caller_address()
-    let (owner) = arbiter_owner.read()
+    let (owner) = owner_of_arbiter.read()
     assert_equal(caller, owner)
     return ()
 end
