@@ -3,8 +3,8 @@
 %builtins pedersen range_check
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
-from starkware.starknet.common.syscalls import get_caller_address
 from starkware.cairo.common.math import assert_not_zero
+from starkware.starknet.common.syscalls import get_caller_address
 
 ##### Controller #####
 #
@@ -115,9 +115,14 @@ func set_address_for_module_id{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }():
+    }(
+        module_id : felt,
+        module_address : felt
+    ):
     only_arbiter()
-    let (caller) = get_caller_address()
+    module_id_of_address.write(module_id, module_address)
+    address_of_module_id.write(module_address, module_id)
+
     return ()
 end
 

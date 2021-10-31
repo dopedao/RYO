@@ -3,6 +3,8 @@
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.cairo.common.math import assert_not_zero
+from starkware.starknet.common.syscalls import get_caller_address
+
 ##### Arbiter #####
 #
 # Is the authority over the ModuleController.
@@ -27,12 +29,12 @@ end
 
 @contract_interface
 namespace IModuleController:
-    func appoint_new_arbiter(address : felt):
+    func appoint_new_arbiter(new_arbiter : felt):
     end
 
-    func enable_contract_for_purpose(
-        address : felt,
-        purpose : felt):
+    func set_address_for_module_id(
+        module_id : felt,
+        module_address : felt):
     end
 
     func set_write_access(
@@ -96,23 +98,31 @@ func appoint_new_owner{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }():
+    }(
+        new_owner_address : felt
+    ):
     only_owner()
-    owner_of_arbiter.write(new_address)
+    owner_of_arbiter.write(new_owner_address)
     return ()
 end
 
-# Called to approve a deployed module for a numerical purpose.
+# Called to approve a deployed module as identified by an ID.
 @external
-func appoint_contract_as_module(
-        contract_address : felt,
+func appoint_contract_as_module{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        module_address : felt,
         module_id : felt
     ):
     only_owner()
-    let (controller) = contract_address.read()
+    let (controller) = controller_address.read()
     # Call the ModuleController and enable the new address.
-    IModuleController.enable_contract_for_purpose(
-        contract_address=controller, amount=amount)
+    IModuleController.set_address_for_module_id(
+        contract_address=controller,
+        module_id=module_id,
+        module_address=module_address)
     return ()
 end
 
@@ -127,8 +137,8 @@ func approve_module_to_module_write_access{
         module_id_being_written_to : felt
     ):
     only_owner()
-    let (controller) = contract_address.read()
-    IModuleController(contract_address=controller,
+    let (controller) = controller_address.read()
+    IModuleController.set_write_access(contract_address=controller,
         module_id_doing_writing=module_id_doing_writing,
         module_id_being_written_to=module_id_being_written_to)
     return()
@@ -140,8 +150,9 @@ func only_owner{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }():
-    let (caller) = get_caller_address()
+    alloc_locals
+    let (local caller) = get_caller_address()
     let (owner) = owner_of_arbiter.read()
-    assert_equal(caller, owner)
+    assert caller = owner
     return ()
 end
