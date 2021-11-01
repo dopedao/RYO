@@ -4,6 +4,8 @@
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.starknet.common.syscalls import get_caller_address
 
+from contracts.utils.interfaces import IModuleController
+
 # Stores TODO
 @storage_var
 func TODO(
@@ -16,12 +18,6 @@ end
 func controller_address() -> (address : felt):
 end
 
-
-@contract_interface
-namespace IModuleController:
-    func has_write_access(address_attempting_to_write : felt):
-    end
-end
 
 
 # Called on deployment only.

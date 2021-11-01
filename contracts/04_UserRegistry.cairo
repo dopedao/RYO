@@ -7,6 +7,8 @@ from starkware.cairo.common.cairo_builtins import (HashBuiltin,
 from starkware.cairo.common.math import unsigned_div_rem
 from starkware.cairo.common.pow import pow
 
+from contracts.utils.interfaces import IModuleController
+
 ##### Encoding details #####
 # Zero-based bit index for data locations.
 # 0 weapon id.

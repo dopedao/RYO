@@ -5,6 +5,8 @@ from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.cairo.common.math import assert_not_zero
 from starkware.starknet.common.syscalls import get_caller_address
 
+from contracts.utils.interfaces import IModuleController
+
 ##### Arbiter #####
 #
 # Is the authority over the ModuleController.
@@ -25,24 +27,6 @@ end
 @storage_var
 func lock() -> (bool : felt):
 end
-
-
-@contract_interface
-namespace IModuleController:
-    func appoint_new_arbiter(new_arbiter : felt):
-    end
-
-    func set_address_for_module_id(
-        module_id : felt,
-        module_address : felt):
-    end
-
-    func set_write_access(
-        module_id_doing_writing : felt,
-        module_id_being_written_to : felt):
-    end
-end
-
 
 # Locks the stored addresses.
 @external

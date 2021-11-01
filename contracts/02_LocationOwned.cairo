@@ -3,6 +3,7 @@
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.starknet.common.syscalls import get_caller_address
+from contracts.utils.interfaces import IModuleController
 
 # Returns item count for item-money pair in location.
 # E.g., first location (location_id=0), first item (item_id=1)
@@ -19,8 +20,7 @@ end
 # E.g., first location (location_id=0), first item (item_id=1)
 @storage_var
 func location_has_money(
-        location_id : felt,
-        item_id : felt
+        location_id : felt
     ) -> (
         count : felt
     ):
@@ -28,13 +28,6 @@ end
 
 @storage_var
 func controller_address() -> (address : felt):
-end
-
-
-@contract_interface
-namespace IModuleController:
-    func has_write_access(address_attempting_to_write : felt):
-    end
 end
 
 
@@ -54,6 +47,7 @@ end
 
 
 # Called by another module to update a global variable.
+@external
 func update_value{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,

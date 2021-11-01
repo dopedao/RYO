@@ -4,6 +4,8 @@
 from starkware.cairo.common.math import assert_nn_le, unsigned_div_rem
 from starkware.cairo.common.math_cmp import is_nn_le
 
+from contracts.utils.interfaces import IModuleController
+
 ##### Intro #####
 #
 # StarkNet is very good at verifying computation cheaply.

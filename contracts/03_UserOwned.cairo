@@ -4,6 +4,8 @@
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.starknet.common.syscalls import get_caller_address
 
+from contracts.utils.interfaces import IModuleController
+
 # Specify user, item, return quantity.
 @storage_var
 func user_has_item(
@@ -25,13 +27,6 @@ end
 
 @storage_var
 func controller_address() -> (address : felt):
-end
-
-
-@contract_interface
-namespace IModuleController:
-    func has_write_access(address_attempting_to_write : felt):
-    end
 end
 
 
@@ -72,8 +67,8 @@ func user_has_item_read{
     }(
         user_id : felt,
         item_id : felt
-    ) ->
-        value
+    ) -> (
+        value : felt
     ):
     let (value) = user_has_item.read(user_id, item_id)
     return (value)
@@ -87,10 +82,10 @@ func user_in_location_write{
         range_check_ptr
     }(
         user_id : felt,
-        value : felt
+        location_id : felt
     ):
     only_approved()
-    user_has_item.write(user_id, value)
+    user_in_location.write(user_id, location_id)
     return ()
 end
 
@@ -100,11 +95,11 @@ func user_in_location_read{
         range_check_ptr
     }(
         user_id : felt
-    ) ->
-        value
+    ) -> (
+        location_id : felt
     ):
-    let (value) = user_in_location.read(user_id)
-    return (value)
+    let (location_id) = user_in_location.read(user_id)
+    return (location_id)
 end
 
 
