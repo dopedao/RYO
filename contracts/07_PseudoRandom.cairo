@@ -32,12 +32,45 @@ func constructor{
 end
 
 
-# Called by another module to update a global variable.
+
+# Gets hard-to-predict values. Player can draw multiple times.
+# Has not been tested rigorously (e.g., for biasing).
+# @external # '@external' for testing only.
 @external
-func update_value():
-    # TODO Customise.
+func get_pseudorandom{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }() -> (
+        num_to_use : felt
+    ):
     only_approved()
-    return ()
+    # Seed is fed to linear congruential generator.
+    # seed = (multiplier * seed + increment) % modulus.
+    # Params from GCC. (https://en.wikipedia.org/wiki/Linear_congruential_generator).
+    let (old_seed) = entropy_seed.read()
+    # Snip in half to a manageable size for unsigned_div_rem.
+    let (left, right) = split_felt(old_seed)
+    let (_, new_seed) = unsigned_div_rem(1103515245 * right + 1,
+        2**31)
+    # Number has form: 10**9 (xxxxxxxxxx).
+    entropy_seed.write(new_seed)
+    return (new_seed)
+end
+
+# This returns the stored number without running the generator.
+@view
+func read_current{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }() -> (
+        old_seed : felt
+    ):
+    let (old_seed) = entropy_seed.read()
+    # Number has form: 10**9 (xxxxxxxxxx).
+    entropy_seed.write(new_seed)
+    return (old_seed)
 end
 
 

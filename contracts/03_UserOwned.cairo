@@ -6,6 +6,13 @@ from starkware.starknet.common.syscalls import get_caller_address
 
 from contracts.utils.interfaces import IModuleController
 
+##### Module XX #####
+#
+# This module ...
+#
+#
+####################
+
 # Specify user, item, return quantity.
 @storage_var
 func user_has_item(

@@ -14,14 +14,22 @@ namespace IModuleController:
         address : felt
     ):
     end
-    func has_write_access(address_attempting_to_write : felt):
+
+    func has_write_access(
+        address_attempting_to_write : felt
+    ):
     end
-    func appoint_new_arbiter(new_arbiter : felt):
+
+    func appoint_new_arbiter(
+        new_arbiter : felt
+    ):
     end
+
     func set_address_for_module_id(
         module_id : felt,
         module_address : felt):
     end
+
     func set_write_access(
         module_id_doing_writing : felt,
         module_id_being_written_to : felt):
@@ -119,6 +127,31 @@ namespace I05_Combat:
         drug_lord_combat_stats : felt*
     ) -> (
         user_wins_bool : felt
+    ):
+    end
+end
+
+@contract_interface
+namespace I06_DrugLord:
+    func drug_lord_read(
+        location_id : felt
+    ) -> (
+        user_id : felt
+    ):
+    end
+    # Modify variable.
+    func drug_lord_write(
+        location_id : felt,
+        user_id : felt
+    ):
+    end
+end
+
+@contract_interface
+namespace I07_PseudoRandom:
+    func get_pseudorandom(
+    ) -> (
+        num_to_use : felt
     ):
     end
 end

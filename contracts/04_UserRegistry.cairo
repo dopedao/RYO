@@ -9,6 +9,13 @@ from starkware.cairo.common.pow import pow
 
 from contracts.utils.interfaces import IModuleController
 
+##### Module XX #####
+#
+# This module ...
+#
+#
+####################
+
 ##### Encoding details #####
 # Zero-based bit index for data locations.
 # 0 weapon id.

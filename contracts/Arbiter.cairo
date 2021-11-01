@@ -14,7 +14,8 @@ from contracts.utils.interfaces import IModuleController
 # Can be replaced by a vote-based module by calling the
 # appoint_new_arbiter() in the ModuleController.
 # Has an Owner, that may itself be a multisig account contract.
-
+#
+###################
 
 @storage_var
 func owner_of_arbiter() -> (owner : felt):
