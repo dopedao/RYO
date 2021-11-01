@@ -5,13 +5,25 @@ from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.starknet.common.syscalls import get_caller_address
 
 from contracts.utils.interfaces import IModuleController
+from contracts.utils.game_structs import UserData
 
-##### Module XX #####
+##### Module 06 #####
 #
-# This module ...
+# This module stores state for the Combat module.
 #
 #
 ####################
+
+
+# Returns the user_id who is currently the drug lord in that location.
+@storage_var
+func drug_lord(location_id : felt) -> (user_id : felt):
+end
+
+# Returns the hash of the stats of the drug lord in that location.
+@storage_var
+func drug_lord_stat_hash(location_id : felt) -> (stat_hash : felt):
+end
 
 @storage_var
 func controller_address() -> (address : felt):
@@ -32,14 +44,46 @@ func constructor{
 end
 
 
-# Called by another module to update a global variable.
-@external
-func update_value():
-    # TODO Customise.
+# Access variable.
+func drug_lord_read(
+        location_id : felt
+    ) -> (
+        user_id : felt
+    ):
+    let (user_id) = drug_lord.read(location_id)
+    return (user_id)
+end
+
+# Modify variable.
+func drug_lord_write(
+        location_id : felt,
+        user_id : felt
+    ):
     only_approved()
+    drug_lord.write(location_id, user_id)
     return ()
 end
 
+
+# Access variable.
+func drug_lord_stat_hash_read(
+        location_id : felt
+    ) -> (
+        stat_hash : felt
+    ):
+    let (stat_hash) = drug_lord.read(location_id)
+    return (stat_hash)
+end
+
+# Modify variable.
+func drug_lord_stat_hash_write(
+        location_id : felt,
+        stat_hash : felt
+    ):
+    only_approved()
+    drug_lord.write(location_id, stat_hash_)
+    return ()
+end
 
 # Checks write-permission of the calling contract.
 func only_approved{

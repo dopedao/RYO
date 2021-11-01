@@ -29,6 +29,14 @@ starknet-compile contracts/05_Combat.cairo \
     --output artifacts/compiled/05_Combat.json \
     --abi artifacts/abi/05_Combat_abi.json
 
+starknet-compile contracts/06_DrugLord.cairo \
+    --output artifacts/compiled/06_DrugLord.json \
+    --abi artifacts/abi/06_DrugLord_abi.json
+
+starknet-compile contracts/07_PseudoRandom.cairo \
+    --output artifacts/compiled/07_PseudoRandom.json \
+    --abi artifacts/abi/07_PseudoRandom_abi.json
+
 starknet-compile contracts/Account.cairo \
     --output artifacts/compiled/Account.json \
     --abi artifacts/abi/Account_abi.json

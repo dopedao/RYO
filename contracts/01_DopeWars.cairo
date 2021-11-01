@@ -22,9 +22,19 @@ from contracts.utils.game_constants import (DEALER_DASH_BP,
     WAREHOUSE_SEIZURE_IMPACT, MIN_EVENT_FRACTION, MIN_TURN_LOCKOUT, DRUG_LORD_PERCENTAGE, NUM_COMBAT_STATS,
     LOCATIONS, DISTRICTS, STARTING_MONEY)
 from contracts.utils.game_structs import UserData
-
+from contracts.utils.general import scale
+from contracts.utils.game_data_helpers import fetch_user_data
 from contracts.utils.interfaces import (IModuleController,
-    I02_LocationOwned, I03_UserOwned, I04_UserRegistry, I05_Combat)
+    I02_LocationOwned, I03_UserOwned, I04_UserRegistry, I05_Combat,
+    I06_DrugLord, I07_PseudoRandom)
+
+##### Module XX #####
+#
+# This module is the player entry point for the drug-wars style
+# calculator game of drug arbitrage. It accesses game states
+# mostly from modules 2, 3, 6 & 7.
+#
+####################
 
 
 ############ Game key ############
@@ -39,63 +49,27 @@ from contracts.utils.interfaces import (IModuleController,
 ############ Game state ############
 # Records if a user has been initialized (flips to 1 on first turn).
 @storage_var
-func user_initialized(
-        user_id : felt
-    ) -> (
-        bool : felt
-    ):
+func user_initialized(user_id : felt) -> (bool : felt):
 end
 
 # Seed (for pseudorandom) that players add to.
 @storage_var
-func entropy_seed(
-    ) -> (
-        value : felt
-    ):
+func entropy_seed() -> (value : felt):
 end
 
 # Admin lock (1 = yes locked out, 0 = can use)
 @storage_var
-func is_admin_locked(
-    ) -> (
-        value : felt
-    ):
+func is_admin_locked() -> (value : felt):
 end
 
 # Game clock for measuring total turns that have passed
 @storage_var
-func game_clock(
-   ) -> (
-       value : felt
-   ):
+func game_clock() -> (value : felt):
 end
 
 # Returns the game clock recorded during the previous turn of a user.
 @storage_var
-func clock_at_previous_turn(
-       user_id : felt,
-   ) -> (
-       value : felt
-   ):
-end
-
-
-# Returns the user_id who is currently the drug lord in that location.
-@storage_var
-func drug_lord(
-       location_id : felt,
-   ) -> (
-       user_id : felt
-   ):
-end
-
-# Returns the hash of the stats of the drug lord in that location.
-@storage_var
-func drug_lord_stat_hash(
-       location_id : felt,
-   ) -> (
-       stat_hash : felt
-   ):
+func clock_at_previous_turn(user_id : felt) -> (value : felt):
 end
 
 # Stores the address of the ModuleController.
@@ -115,60 +89,7 @@ func constructor{
     ):
     # Store the address of the only fixed contract in the system.
     controller_address.write(address_of_controller)
-    return ()
-end
-
-############ Game State Initialization ############
-# Sets the initial market maker values for a given item_id.
-@external
-func admin_set_pairs{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        item_list_len : felt,
-        item_list : felt*,
-        money_list_len : felt,
-        money_list : felt*,
-    ):
-    # Spawns the 1444 AMMs each with an item and money quantity.
-
-    # The game starts with 76 locations. [0, 75]
-    # 19 cities with 4 districts. Each with 19 item-money pairs.
-    # First locations, then item ids, then save value from each list.
-    # Location ids [0, 75]
-    #   Item ids [0, 19]
-    #       Save item val.
-    #       Save money val
-
-    # List len = 19 items x 4 districts x 19 drugs = 1444.
-    # Items: [bayou_dist_0_weed_val, bayou_dist_0_cocaine_val,
-    #   ..., buffalo_dist_3_adderall_val]
-    # Money: [bayou_dist_0_weed_money, ..., buffalo_dist_3_adderall_money]
-
-    # Check if allowed.
-    let (admin_locked : felt) = is_admin_locked.read()
-    assert admin_locked = 0
-
-    # Pass both lists and item number to iterate and save.
-    loop_over_locations(76, item_list, money_list)
-    # Start the game clock where everyone can play.
     game_clock.write(MIN_TURN_LOCKOUT)
-    return ()
-end
-
-
-# Prevents modifying markets after initialization.
-@external
-func toggle_admin{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        toggle : felt
-    ):
-    assert toggle * (1 - toggle) = 0
-    is_admin_locked.write(toggle)
     return ()
 end
 
@@ -185,11 +106,7 @@ func have_turn{
         location_id : felt,
         buy_or_sell : felt,
         item_id : felt,
-        amount_to_give : felt,
-        user_combat_stats_len : felt,
-        user_combat_stats : felt*,
-        drug_lord_combat_stats_len : felt,
-        drug_lord_combat_stats : felt*
+        amount_to_give : felt
     ) -> (
         trade_occurs_bool : felt,
         user_pre_trade_item : felt,
@@ -231,40 +148,31 @@ func have_turn{
     # E.g., Sell 300 units of item. amount_to_give = 300.
     # E.g., Buy using 120 units of money. amount_to_give = 120.
     # Record initial state for UI and QA.
-    let (controller) = controller_address.read()
-    let (local user_owned_addr) = IModuleController.get_module_address(
-        controller, 3)
+    let (local controller) = controller_address.read()
+
     let (local location_owned_addr) = IModuleController.get_module_address(
         controller, 2)
-    let (local user_pre_trade_item) = I03_UserOwned.user_has_item_read(
-        user_owned_addr, user_id, item_id)
-    let (local user_pre_trade_money) = I03_UserOwned.user_has_item_read(
-        user_owned_addr, user_id, 0)
     let (local market_pre_trade_item) = I02_LocationOwned.location_has_item_read(
         location_owned_addr, location_id, item_id)
     let (local market_pre_trade_money) = I02_LocationOwned.location_has_money_read(
         location_owned_addr, location_id)
 
-    # Get unique user data.
-    let (local user_data : UserData) = fetch_user_data(user_id)
-    let (local lord_user_id) = drug_lord.read(location_id)
-    let (local lord_user_data : UserData) = fetch_user_data(lord_user_id)
+    let (local user_owned_addr) = IModuleController.get_module_address(
+        controller, 3)
+    let (local user_pre_trade_item) = I03_UserOwned.user_has_item_read(
+        user_owned_addr, user_id, item_id)
+    let (local user_pre_trade_money) = I03_UserOwned.user_has_item_read(
+        user_owned_addr, user_id, 0)
+
+    let (local user_data : UserData) = fetch_user_data(controller, user_id)
     # TODO - Use unique user data to modify events:
     # E.g., use user_data.foot_speed to change change run_from_mugging
-
-    # Fight the drug lord. King-of-the-Hill style.
-    let (local win_bool : felt) = fight_lord(
-        location_id, user_id,
-        user_data, lord_user_data,
-        user_combat_stats_len, user_combat_stats,
-        drug_lord_combat_stats_len, drug_lord_combat_stats)
 
     local syscall_ptr : felt* = syscall_ptr
     # Drug lord takes a cut.
     let (local amount_to_give_post_cut) = take_cut(user_id,
-            location_id, buy_or_sell, item_id,
-            amount_to_give, win_bool)
-
+        location_id, buy_or_sell, item_id,
+        amount_to_give)
 
     # Affect pseudorandom seed at start of turn.
     # User can grind a favourable number by incrementing lots of 10.
@@ -292,7 +200,6 @@ func have_turn{
 
     # Apply trade and save results for market QA checks.
     # TODO: QA checks need to account for cut taken by drug_lord.
-    #    E.g. amount to give is reduced if player doesn't defeat drug lord.
     execute_trade(user_id, location_id, buy_or_sell, item_id,
             amount_to_give_post_cut, trade_occurs_bool)
 
@@ -514,8 +421,6 @@ func execute_trade{
         assert market_b_pre = market_b_pre_temp
     end
 
-
-
     # Execute trade by calling the market maker contract.
     let (market_a_post, market_b_post, user_gets_b) = trade(
         market_a_pre, market_b_pre, amount_to_give)
@@ -564,100 +469,6 @@ func add_to_seed{
     let (new_seed) = bitwise_xor(hash, old_seed)
     entropy_seed.write(new_seed)
     return (new_seed)
-end
-
-# Gets hard-to-predict values. Player can draw multiple times.
-# Has not been tested rigorously (e.g., for biasing).
-# @external # '@external' for testing only.
-func get_pseudorandom{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }() -> (
-        num_to_use : felt
-    ):
-    # Seed is fed to linear congruential generator.
-    # seed = (multiplier * seed + increment) % modulus.
-    # Params from GCC. (https://en.wikipedia.org/wiki/Linear_congruential_generator).
-    let (old_seed) = entropy_seed.read()
-    # Snip in half to a manageable size for unsigned_div_rem.
-    let (left, right) = split_felt(old_seed)
-    let (_, new_seed) = unsigned_div_rem(1103515245 * right + 1,
-        2**31)
-    # Number has form: 10**9 (xxxxxxxxxx).
-    # Should be okay to write multiple times to same variable
-    # without increasing storage costs of this transaction.
-    entropy_seed.write(new_seed)
-    return (new_seed)
-end
-
-
-# Recursion to populate one market pair in all locations.
-func loop_over_items{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        item_id : felt,
-        location_id : felt,
-        item_list : felt*,
-        money_list : felt*,
-    ) -> ():
-    # Location_id==Index
-    if item_id == 0:
-        # Triggers part 3.
-        return ()
-    end
-    # Call recursively until item_id=1, then a return is hit.
-    loop_over_items(item_id - 1, location_id, item_list, money_list)
-    # Part 3. Save the state.
-    # Upon first entry here item_id=1, on second item_id=2.
-
-    # Get the position of the element in the list.
-    # On first round, first entry, index = 0*19 + 1 - 1 = 0
-    # On first round , second entry, index = 0*19 + 2 - 1 = 1
-    # On second round, first entry, index = 1*19 + 1 - 1 = 20
-
-    # Get index of the element: Each location has 19 elements,
-    # followed by anFirst locat
-    let index = location_id * 19 + item_id - 1
-    # Locations are zero-based.
-    # Items are 1-based. (because for a user, item_id=0 is money).
-
-    let money_val = money_list[index]
-    let item_val = item_list[index]
-    let (controller) = controller_address.read()
-    let (location_owned_addr) = IModuleController.get_module_address(
-        controller, 2)
-    I02_LocationOwned.location_has_item_write(
-        location_owned_addr, location_id, item_id, item_val)
-    I02_LocationOwned.location_has_money_write(
-        location_owned_addr, location_id, money_val)
-    return ()
-end
-
-# Recursion to populate one market pair in all locations.
-func loop_over_locations{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        location_id : felt,
-        item_list : felt*,
-        money_list : felt*,
-    ) -> ():
-    # Location_id==Index
-    if location_id == 0:
-        # Triggers part 2.
-        return ()
-    end
-    # Call recursively until location=1, then a return is hit.
-    loop_over_locations(location_id - 1, item_list, money_list)
-    # Part 2. Loop the items in this location.
-    # Upon first entry here location_id=1, on second location_id=2.
-    # Go over the items starting with location_id=0.
-    loop_over_items(19, location_id - 1, item_list, money_list)
-    return ()
 end
 
 # Evaluates all major events.
@@ -809,30 +620,6 @@ func get_events{
 end
 
 
-# Generic mapping from one range to another.
-func scale{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr,
-        bitwise_ptr: BitwiseBuiltin*
-    } (
-        val_in : felt,
-        in_low : felt,
-        in_high : felt,
-        out_low : felt,
-        out_high : felt
-    ) -> (
-        val_out : felt
-    ):
-    # val_out = ((val_in - in_low) / (in_high - in_low))
-    #           * (out_high - out_low) + out_low
-    let a = (val_in - in_low) * (out_high - out_low)
-    let b = in_high - in_low
-    let (c, _) = unsigned_div_rem(a, b)
-    let val_out = c + out_low
-    return (val_out)
-end
-
 # Returns an effective probability based on an ability.
 func scale_ability{
         syscall_ptr : felt*,
@@ -880,7 +667,11 @@ func event_occured{
     # Returns 1 if the event occured, 0 otherwise.
     # Event evaluation = num modulo max_basis_points
     alloc_locals
-    let (p_rand_num) = get_pseudorandom()
+    let (controller) = controller_address.read()
+    let (pseudo_random_addr) = IModuleController.get_module_address(
+        controller, 7)
+    let (p_rand_num) = I07_PseudoRandom.get_pseudorandom(
+        pseudo_random_addr)
     let (_, event) = unsigned_div_rem(p_rand_num, 10000)
 
     # Save pointers here (otherwise revoked by is_nn_le).
@@ -989,128 +780,6 @@ func check_user{
     return (user_data)
 end
 
-# Returns a struct of decoded user data from binary-encoded registry.
-func fetch_user_data{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        bitwise_ptr: BitwiseBuiltin*,
-        range_check_ptr
-    }(
-        user_id : felt
-    ) -> (
-        user_stats : UserData
-    ):
-    alloc_locals
-    let (controller) = controller_address.read()
-    let (local registry) = IModuleController.get_module_address(
-        controller, 4)
-    # Indicies are defined in the UserRegistry contract.
-    # Call the UserRegsitry contract to get scores for given user.
-    let (local weapon) = I04_UserRegistry.unpack_score(registry, user_id, 6)
-    let (local vehicle) = I04_UserRegistry.unpack_score(registry, user_id, 26)
-    let (local foot) = I04_UserRegistry.unpack_score(registry, user_id, 46)
-    let (local necklace) = I04_UserRegistry.unpack_score(registry, user_id, 66)
-    let (local ring) = I04_UserRegistry.unpack_score(registry, user_id, 76)
-    let (local drug) = I04_UserRegistry.unpack_score(registry, user_id, 90)
-
-    # Populate struct.
-    let user_stats = UserData(
-        weapon_strength=weapon,
-        vehicle_speed=vehicle,
-        foot_speed=foot,
-        necklace_bribe=necklace,
-        ring_bribe=ring,
-        special_drug=drug
-    )
-    return (user_stats=user_stats)
-end
-
-
-# Fight the drug lord.
-func fight_lord{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        bitwise_ptr: BitwiseBuiltin*,
-        range_check_ptr
-    }(
-        location_id : felt,
-        user_id : felt,
-        user_data : UserData,
-        lord_user_data : UserData,
-        user_combat_stats_len : felt,
-        user_combat_stats : felt*,
-        drug_lord_combat_stats_len : felt,
-        drug_lord_combat_stats : felt*
-    ) -> (
-        win_bool : felt
-    ):
-    alloc_locals
-    # Check that the user provided the drug lord stats.
-    local syscall_ptr : felt* = syscall_ptr
-    let (provided_lord_hash) = list_to_hash(drug_lord_combat_stats,
-        drug_lord_combat_stats_len)
-    let (current_lord_hash) = drug_lord_stat_hash.read(location_id)
-
-    # If no current lord, save and 'win'.
-    if current_lord_hash == 0:
-        local syscall_ptr : felt* = syscall_ptr
-        let (user_combat_hash) = list_to_hash(user_combat_stats,
-            user_combat_stats_len)
-        drug_lord_stat_hash.write(location_id, user_combat_hash)
-        drug_lord.write(location_id, user_id)
-        return (win_bool=1)
-    end
-    # If you fail to provide the current lord stats, pay the tax.
-    if current_lord_hash != provided_lord_hash:
-        return (win_bool=0)
-    end
-
-    let (controller) = controller_address.read()
-    let (combat_addr) = IModuleController.get_module_address(
-        controller, 5)
-    local pedersen_ptr : HashBuiltin* = pedersen_ptr
-
-    # Execute combat.
-    let (local win_bool : felt) = I05_Combat.fight_1v1(
-        combat_addr,
-        user_data,
-        lord_user_data,
-        user_combat_stats_len,
-        user_combat_stats,
-        drug_lord_combat_stats_len,
-        drug_lord_combat_stats)
-    local syscall_ptr : felt* = syscall_ptr
-
-    if win_bool == 0:
-        return (win_bool=0)
-    end
-
-    # Hash and store the user_id and combat stats as new lord.
-    local syscall_ptr : felt* = syscall_ptr
-    let (user_combat_hash) = list_to_hash(user_combat_stats,
-        user_combat_stats_len)
-    drug_lord_stat_hash.write(location_id, user_combat_hash)
-    drug_lord.write(location_id, user_id)
-
-    return( win_bool=1)
-end
-
-
-# Computes the unique hash of a list of felts.
-func list_to_hash{
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        list : felt*,
-        list_len : felt
-    ) -> (
-        hash : felt
-    ):
-    let (list_hash : HashState*) = hash_init()
-    let (list_hash : HashState*) = hash_update{
-        hash_ptr=pedersen_ptr}(list_hash, list, list_len)
-    return (list_hash.current_hash)
-end
 
 # Gives the drug lord a cut of whatever the user is giving.
 func take_cut{
@@ -1123,21 +792,23 @@ func take_cut{
         location_id : felt,
         buy_or_sell : felt,
         item_id : felt,
-        amount_to_give : felt,
-        win_bool : felt
+        amount_to_give : felt
     ) -> (
         amount_to_give_post_cut : felt
     ):
     alloc_locals
-    if win_bool == 1:
-        # User becomes new lord.
-        drug_lord.write(location_id, user_id)
-        # Does not pay cut
+    let (controller) = controller_address.read()
+    let (local drug_lord_addr) = IModuleController.get_module_address(
+        controller, 6)
+    let (lord_user_id) = I06_DrugLord.drug_lord_read(drug_lord_addr,
+        location_id)
+
+    if user_id == lord_user_id:
+        # User is the current Drug Lord and does not pay.
         return (amount_to_give)
     end
 
     # Pay the drug lord their % cut before the trade.
-    let (lord_user_id) = drug_lord.read(location_id)
     # Calculate cut from amount the user is giving (money or drug).
     # E.g., amount to give 451. 1pc = 4.51 = 4.
     let (cut_1_PC, _) = unsigned_div_rem(amount_to_give, 100)
@@ -1145,7 +816,6 @@ func take_cut{
     # The drug lord is another user. Increase their money or drug.
     # id = 0 if buying.
     let giving_id = item_id * buy_or_sell
-    let (controller) = controller_address.read()
     let (user_owned_addr) = IModuleController.get_module_address(
         controller, 3)
     I03_UserOwned.user_has_item_write(user_owned_addr, lord_user_id, giving_id, lord_cut)
