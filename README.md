@@ -21,11 +21,23 @@ original experience, while also being expandable in other dimensions.
 
 At a high level, this means players:
 
-- Try to increase your inventory by swapping assets with NPC dealers.
+- Try to increase their inventory by swapping assets. By trading
+cleverly they can out-compete other players.
+    - Trades are against non-playable dealers in different locations.
     - 19 cities with 4 districts each.
+    - Dealers have 19 drugs in different inventories and administer trades
+    using automated market maker rules.
+    - The game is unstable, with hard-to-predict events creating
+    risk of personal loss and also trade opportunity.
+
+Additional elements may be added through a mechanism outlined below.
+One element being explored is auto-battler combat mechanism that
+is used to appoint a Drug Lord in each region.
+
 - Try to dethrone the local drug lord with a hand-crafted battler.
     - Each city has a drug lord who takes a cut from each trade.
     - Drug lords a appointed by battle (king of the hill).
+
 Some dynamics may evolve around:
     - The market is transparent and opportunities openly visible.
     - Probabalistic events cause chaos and shake up the market.
@@ -115,10 +127,6 @@ Run all github actions tests: `bin/test`
 Run individual tests
 ```
 bin/shell pytest -s testing/01_DopeWars_contract_test.py
-
-bin/shell pytest -s testing/MarketMaker_contract_test.py
-
-bin/shell pytest -s testing/UserRegistry_contract_test.py
 ```
 
 ### Deploy
