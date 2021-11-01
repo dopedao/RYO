@@ -21,63 +21,11 @@ from contracts.utils.game_constants import (DEALER_DASH_BP,
     LOCAL_SHIPMENT_IMPACT, WAREHOUSE_SEIZURE_BP,
     WAREHOUSE_SEIZURE_IMPACT, MIN_EVENT_FRACTION, MIN_TURN_LOCKOUT, DRUG_LORD_PERCENTAGE, NUM_COMBAT_STATS,
     LOCATIONS, DISTRICTS, STARTING_MONEY)
+from contracts.utils.game_structs import UserData
 
-# A struct that holds the unpacked DOPE NFT data for the user.
-struct UserData:
-    member weapon_strength : felt  # low to high, [0, 10]. 0=None.
-    member vehicle_speed : felt  # low to high, [0, 10]. 0=None.
-    member foot_speed : felt  # low to high, [0, 10]. 0=None.
-    member necklace_bribe : felt  # low to high, [0, 10]. 0=None.
-    member ring_bribe : felt  # low to high, [0, 10]. 0=None.
-    member special_drug : felt  # NFT drug item [0, 10]. 0=None.
-end
+from contracts.utils.interfaces import (IModuleController,
+    I02_LocationOwned, I03_UserOwned, I04_UserRegistry, I05_Combat)
 
-############ Other Contract Info ############
-# Interface for the ModuleController.
-@contract_interface
-namespace IModuleController:
-    func get_module_address(
-        module_id : felt
-    ) -> (
-        address : felt
-    ):
-    end
-end
-
-# Declare the interface with which to call the UserRegistry contract.
-@contract_interface
-namespace IUserRegistry:
-    func get_user_info(
-        user_id : felt,
-        starknet_pubkey : felt
-    ) -> (
-        user_data : felt
-    ):
-    end
-    func unpack_score(
-        user_id : felt,
-        index : felt
-    ) -> (
-        score : felt
-    ):
-    end
-end
-
-# Declare the interfacs with which to call the Combat contract.
-@contract_interface
-namespace ICombat:
-    func fight_1v1(
-        user_data : UserData,
-        lord_user_data : UserData,
-        user_combat_stats_len : felt,
-        user_combat_stats : felt*,
-        drug_lord_combat_stats_len : felt,
-        drug_lord_combat_stats : felt*
-    ) -> (
-        user_wins_bool : felt
-    ):
-    end
-end
 
 ############ Game key ############
 # Location and market are equivalent terms (one market per location)
@@ -283,13 +231,19 @@ func have_turn{
     # E.g., Sell 300 units of item. amount_to_give = 300.
     # E.g., Buy using 120 units of money. amount_to_give = 120.
     # Record initial state for UI and QA.
-    let (local user_pre_trade_item) = user_has_item.read(user_id,
-        item_id)
-    let (local user_pre_trade_money) = user_has_item.read(user_id, 0)
-    let (local market_pre_trade_item) = location_has_item.read(
-        location_id, item_id)
-    let (local market_pre_trade_money) = location_has_money.read(
-        location_id, item_id)
+    let (controller) = controller_address.read()
+    let (local user_owned_addr) = IModuleController.get_module_address(
+        controller, 3)
+    let (local location_owned_addr) = IModuleController.get_module_address(
+        controller, 2)
+    let (local user_pre_trade_item) = I03_UserOwned.user_has_item_read(
+        user_owned_addr, user_id, item_id)
+    let (local user_pre_trade_money) = I03_UserOwned.user_has_item_read(
+        user_owned_addr, user_id, 0)
+    let (local market_pre_trade_item) = I02_LocationOwned.location_has_item_read(
+        location_owned_addr, location_id, item_id)
+    let (local market_pre_trade_money) = I02_LocationOwned.location_has_money_read(
+        location_owned_addr, location_id)
 
     # Get unique user data.
     let (local user_data : UserData) = fetch_user_data(user_id)
@@ -343,33 +297,33 @@ func have_turn{
             amount_to_give_post_cut, trade_occurs_bool)
 
     # Save post-trade pre-event state.
-    let (local market_post_trade_pre_event_item) = location_has_item.read(
-        location_id, item_id)
-    let (local market_post_trade_pre_event_money) = location_has_money.read(
-        location_id, item_id)
+    let (local market_post_trade_pre_event_item) = I02_LocationOwned.location_has_item_read(
+        location_owned_addr, location_id, item_id)
+    let (local market_post_trade_pre_event_money) = I02_LocationOwned.location_has_money_read(
+        location_owned_addr, location_id)
 
     # Apply post-trade money using factors that arose from events.
-    let (local user_post_trade_pre_event_money) = user_has_item.read(
+    let (local user_post_trade_pre_event_money) = I03_UserOwned.user_has_item_read(user_owned_addr,
         user_id, 0)
     let (local user_post_trade_post_event_money, _) = unsigned_div_rem(
         user_post_trade_pre_event_money * money_reduction_factor, 100)
-    user_has_item.write(user_id, 0, user_post_trade_post_event_money)
+    I03_UserOwned.user_has_item_write(user_owned_addr, user_id, 0, user_post_trade_post_event_money)
     # Apply post-trade item using factors that arose from events.
-    let (local user_post_trade_pre_event_item) = user_has_item.read(
+    let (local user_post_trade_pre_event_item) = I03_UserOwned.user_has_item_read(user_owned_addr,
         user_id, item_id)
     let (local user_post_trade_post_event_item, _) = unsigned_div_rem(
         user_post_trade_pre_event_item * item_reduction_factor, 100)
-    user_has_item.write(user_id, item_id, user_post_trade_post_event_item)
+    I03_UserOwned.user_has_item_write(user_owned_addr, user_id, item_id, user_post_trade_post_event_item)
 
     # Change the supply in regional markets due to event occurences.
     update_regional_items(location_id, item_id,
         regional_item_reduction_factor)
 
     # Return the post-trade posmarket_post_trade_post_event_item-event values for UI and QA checks.
-    let (local market_post_trade_post_event_item) = location_has_item.read(
-        location_id, item_id)
-    let (local market_post_trade_post_event_money) = location_has_money.read(
-        location_id, item_id)
+    let (local market_post_trade_post_event_item) = I02_LocationOwned.location_has_item_read(
+        location_owned_addr, location_id, item_id)
+    let (local market_post_trade_post_event_money) = I02_LocationOwned.location_has_money_read(
+        location_owned_addr, location_id)
 
     # Check that turn for this player is sufficiently spaced.
     let (current_clock) = game_clock.read()
@@ -430,31 +384,30 @@ func check_user_state{
     alloc_locals
     # Get the quantity held for each item.
     let (controller) = controller_address.read()
-    Iuser
-    let (user_owned) = IModuleController.address_of_module_id(
+    let (user_owned_addr) = IModuleController.get_module_address(
         controller, 3)
-    let (local money) = IUserOwned.user_has_item_read(user_owned, user_id, 0)
-    let (local id1) = IUserOwned.user_has_item_read(user_owned, user_id, 1)
-    let (local id2) = IUserOwned.user_has_item_read(user_owned, user_id, 2)
-    let (local id3) = IUserOwned.user_has_item_read(user_owned, user_id, 3)
-    let (local id4) = IUserOwned.user_has_item_read(user_owned, user_id, 4)
-    let (local id5) = IUserOwned.user_has_item_read(user_owned, user_id, 5)
-    let (local id6) = IUserOwned.user_has_item_read(user_owned, user_id, 6)
-    let (local id7) = IUserOwned.user_has_item_read(user_owned, user_id, 7)
-    let (local id8) = IUserOwned.user_has_item_read(user_owned, user_id, 8)
-    let (local id9) = IUserOwned.user_has_item_read(user_owned, user_id, 9)
-    let (local id10) = IUserOwned.user_has_item_read(user_owned, user_id, 10)
-    let (local id11) = IUserOwned.user_has_item_read(user_owned, user_id, 11)
-    let (local id12) = IUserOwned.user_has_item_read(user_owned, user_id, 12)
-    let (local id13) = IUserOwned.user_has_item_read(user_owned, user_id, 13)
-    let (local id14) = IUserOwned.user_has_item_read(user_owned, user_id, 14)
-    let (local id15) = IUserOwned.user_has_item_read(user_owned, user_id, 15)
-    let (local id16) = IUserOwned.user_has_item_read(user_owned, user_id, 16)
-    let (local id17) = IUserOwned.user_has_item_read(user_owned, user_id, 17)
-    let (local id18) = IUserOwned.user_has_item_read(user_owned, user_id, 18)
-    let (local id19) = IUserOwned.user_has_item_read(user_owned, user_id, 19)
+    let (local money) = I03_UserOwned.user_has_item_read(user_owned_addr, user_id, 0)
+    let (local id1) = I03_UserOwned.user_has_item_read(user_owned_addr, user_id, 1)
+    let (local id2) = I03_UserOwned.user_has_item_read(user_owned_addr, user_id, 2)
+    let (local id3) = I03_UserOwned.user_has_item_read(user_owned_addr, user_id, 3)
+    let (local id4) = I03_UserOwned.user_has_item_read(user_owned_addr, user_id, 4)
+    let (local id5) = I03_UserOwned.user_has_item_read(user_owned_addr, user_id, 5)
+    let (local id6) = I03_UserOwned.user_has_item_read(user_owned_addr, user_id, 6)
+    let (local id7) = I03_UserOwned.user_has_item_read(user_owned_addr, user_id, 7)
+    let (local id8) = I03_UserOwned.user_has_item_read(user_owned_addr, user_id, 8)
+    let (local id9) = I03_UserOwned.user_has_item_read(user_owned_addr, user_id, 9)
+    let (local id10) = I03_UserOwned.user_has_item_read(user_owned_addr, user_id, 10)
+    let (local id11) = I03_UserOwned.user_has_item_read(user_owned_addr, user_id, 11)
+    let (local id12) = I03_UserOwned.user_has_item_read(user_owned_addr, user_id, 12)
+    let (local id13) = I03_UserOwned.user_has_item_read(user_owned_addr, user_id, 13)
+    let (local id14) = I03_UserOwned.user_has_item_read(user_owned_addr, user_id, 14)
+    let (local id15) = I03_UserOwned.user_has_item_read(user_owned_addr, user_id, 15)
+    let (local id16) = I03_UserOwned.user_has_item_read(user_owned_addr, user_id, 16)
+    let (local id17) = I03_UserOwned.user_has_item_read(user_owned_addr, user_id, 17)
+    let (local id18) = I03_UserOwned.user_has_item_read(user_owned_addr, user_id, 18)
+    let (local id19) = I03_UserOwned.user_has_item_read(user_owned_addr, user_id, 19)
     # Get location
-    let (local location) = IUserOwned.user_in_location_read(user_id)
+    let (local location) = I03_UserOwned.user_in_location_read(user_owned_addr, user_id)
     return (money, id1, id2, id3, id4, id5, id6, id7, id8, id9, id10,
         id11, id12, id13, id14, id15, id16, id17, id18, id19,
         location)
@@ -476,10 +429,13 @@ func check_market_state{
     ):
     alloc_locals
     # Get the quantity held for each item for item-money pair
-    let (local item_quantity) = location_has_item.read(location_id,
-        item_id)
-    let (local money_quantity) = location_has_money.read(location_id,
-        item_id)
+    let (controller) = controller_address.read()
+    let (local location_owned_addr) = IModuleController.get_module_address(
+        controller, 2)
+    let (local item_quantity) = I02_LocationOwned.location_has_item_read(
+        location_owned_addr, location_id, item_id)
+    let (local money_quantity) = I02_LocationOwned.location_has_money_read(
+        location_owned_addr, location_id)
     return (item_quantity, money_quantity)
 end
 
@@ -509,7 +465,13 @@ func execute_trade{
     # Only 0 or 1 valid.
     assert_nn_le(buy_or_sell, 1)
     # Move user
-    user_in_location.write(user_id, location_id)
+    let (controller) = controller_address.read()
+    let (location_owned_addr) = IModuleController.get_module_address(
+        controller, 2)
+    let (user_owned_addr) = IModuleController.get_module_address(
+        controller, 3)
+    I03_UserOwned.user_in_location_write(user_owned_addr,
+        user_id, location_id)
 
     # giving_id = 0 if buying, giving_id = item_id if selling.
     local giving_id = item_id * buy_or_sell
@@ -519,34 +481,40 @@ func execute_trade{
     # A is always being given by user. B is always received by user.
 
     # Pre-giving balance.
-    let (local user_a_pre) = user_has_item.read(user_id, giving_id)
+    let (local user_a_pre) = I03_UserOwned.user_has_item_read(user_owned_addr, user_id, giving_id)
     assert_nn_le(amount_to_give, user_a_pre)
     # Post-giving balance.
     local user_a_post = user_a_pre - amount_to_give
     # Save reduced balance to state.
-    user_has_item.write(user_id, giving_id, user_a_post)
+    I03_UserOwned.user_has_item_write(user_owned_addr, user_id, giving_id, user_a_post)
+
 
     # Pre-receiving balance.
-    let (local user_b_pre) = user_has_item.read(user_id, receiving_id)
+    let (local user_b_pre) = I03_UserOwned.user_has_item_read(user_owned_addr, user_id, receiving_id)
     # Post-receiving balance depends on MarketMaker.
 
     # Record pre-trade market balances.
+    local market_a_pre
+    local market_b_pre
     if buy_or_sell == 0:
         # Buying. A money, B item.
-        let (market_a_pre_temp) = location_has_money.read(
-            location_id, item_id)
-        let (market_b_pre_temp) = location_has_item.read(
-            location_id, item_id)
+        let (market_a_pre_temp) = I02_LocationOwned.location_has_money_read(
+            location_owned_addr, location_id)
+        let (market_b_pre_temp) = I02_LocationOwned.location_has_item_read(
+            location_owned_addr, location_id, item_id)
+        assert market_a_pre = market_a_pre_temp
+        assert market_b_pre = market_b_pre_temp
     else:
         # Selling. A item, B money.
-        let (market_a_pre_temp) = location_has_item.read(
-            location_id, item_id)
-        let (market_b_pre_temp) = location_has_money.read(
-            location_id, item_id)
+        let (market_a_pre_temp) = I02_LocationOwned.location_has_item_read(
+            location_owned_addr, location_id, item_id)
+        let (market_b_pre_temp) = I02_LocationOwned.location_has_money_read(
+            location_owned_addr, location_id)
+        assert market_a_pre = market_a_pre_temp
+        assert market_b_pre = market_b_pre_temp
     end
-    # Finalise values after IF-ELSE section (handles fp).
-    local market_a_pre = market_a_pre_temp
-    local market_b_pre = market_b_pre_temp
+
+
 
     # Execute trade by calling the market maker contract.
     let (market_a_post, market_b_post, user_gets_b) = trade(
@@ -555,19 +523,23 @@ func execute_trade{
     # Post-receiving balance depends on user_gets_b.
     let user_b_post = user_b_pre + user_gets_b
     # Save increased balance to state.
-    user_has_item.write(user_id, receiving_id, user_b_post)
+    I03_UserOwned.user_has_item_write(user_owned_addr, user_id, receiving_id, user_b_post)
 
     # Update post-trade states (market & user, items a & b).
     if buy_or_sell == 0:
         # User bought item. A is money.
-        location_has_money.write(location_id, item_id, market_a_post)
+        I02_LocationOwned.location_has_money_write(
+            location_owned_addr, location_id, market_a_post)
         # B is item.
-        location_has_item.write(location_id, item_id, market_b_post)
+        I02_LocationOwned.location_has_item_write(
+            location_owned_addr, location_id, item_id, market_b_post)
     else:
         # User sold item. A is item.
-        location_has_item.write(location_id, item_id, market_a_post)
+        I02_LocationOwned.location_has_item_write(
+            location_owned_addr, location_id, item_id, market_a_post)
         # B is money.
-        location_has_money.write(location_id, item_id, market_b_post)
+        I02_LocationOwned.location_has_money_write(
+            location_owned_addr, location_id, market_b_post)
     end
     return ()
 end
@@ -654,8 +626,13 @@ func loop_over_items{
 
     let money_val = money_list[index]
     let item_val = item_list[index]
-    location_has_item.write(location_id, item_id, item_val)
-    location_has_money.write(location_id, item_id, money_val)
+    let (controller) = controller_address.read()
+    let (location_owned_addr) = IModuleController.get_module_address(
+        controller, 2)
+    I02_LocationOwned.location_has_item_write(
+        location_owned_addr, location_id, item_id, item_val)
+    I02_LocationOwned.location_has_money_write(
+        location_owned_addr, location_id, money_val)
     return ()
 end
 
@@ -941,23 +918,34 @@ func update_regional_items{
     let city = city_index * DISTRICTS
 
     # new = old * factor.
+    let (controller) = controller_address.read()
+    let (location_owned_addr) = IModuleController.get_module_address(
+        controller, 2)
 
     # Get current count, apply factor, save.
-    let (val_0) = location_has_item.read(city, item_id)
+    let (val_0) = I02_LocationOwned.location_has_item_read(
+        location_owned_addr, city, item_id)
     let (val_0_new, _) = unsigned_div_rem(val_0 * factor, 100)
-    location_has_item.write(city, item_id, val_0_new)
+    I02_LocationOwned.location_has_item_write(
+        location_owned_addr, city, item_id, val_0_new)
 
-    let (val_1) = location_has_item.read(city + 1, item_id)
+    let (val_1) = I02_LocationOwned.location_has_item_read(
+        location_owned_addr, city + 1, item_id)
     let (val_1_new, _) = unsigned_div_rem(val_1 * factor, 100)
-    location_has_item.write(city + 1, item_id, val_1_new)
+    I02_LocationOwned.location_has_item_write(
+        location_owned_addr, city + 1, item_id, val_1_new)
 
-    let (val_2) = location_has_item.read(city + 2, item_id)
+    let (val_2) = I02_LocationOwned.location_has_item_read(
+        location_owned_addr, city + 2, item_id)
     let (val_2_new, _) = unsigned_div_rem(val_2 * factor, 100)
-    location_has_item.write(city + 2, item_id, val_2_new)
+    I02_LocationOwned.location_has_item_write(
+        location_owned_addr, city + 2, item_id, val_2_new)
 
-    let (val_3) = location_has_item.read(city + 3, item_id)
+    let (val_3) = I02_LocationOwned.location_has_item_read(
+        location_owned_addr, city + 3, item_id)
     let (val_3_new, _) = unsigned_div_rem(val_3 * factor, 100)
-    location_has_item.write(city + 3, item_id, val_3_new)
+    I02_LocationOwned.location_has_item_write(
+        location_owned_addr, city + 3, item_id, val_3_new)
     return ()
 end
 
@@ -976,14 +964,17 @@ func check_user{
     # The user_id is the account contract address of the user.
     # Calls UserRegistry and retrieves information stored there.
     # let (user_registry) = user_registry_address.read()
-    # let(local pub_key, player_data) = IUserRegistry.get_user_info()
+    # let(local pub_key, player_data) = I04_UserRegistry.get_user_info()
     # Assert message sender pubkey used here matches the one retrieved.
     # assert pub_key = user_id
 
     # Check that the user is initialized. If not, give money.
     let (already_initialized) = user_initialized.read(user_id)
+    let (controller) = controller_address.read()
+    let (user_owned_addr) = IModuleController.get_module_address(
+        controller, 3)
     if already_initialized == 0:
-        user_has_item.write(user_id, 0, STARTING_MONEY)
+        I03_UserOwned.user_has_item_write(user_owned_addr, user_id, 0, STARTING_MONEY)
         tempvar syscall_ptr : felt* = syscall_ptr
         tempvar pedersen_ptr : HashBuiltin* = pedersen_ptr
         tempvar range_check_ptr = range_check_ptr
@@ -1015,12 +1006,12 @@ func fetch_user_data{
         controller, 4)
     # Indicies are defined in the UserRegistry contract.
     # Call the UserRegsitry contract to get scores for given user.
-    let (local weapon) = IUserRegistry.unpack_score(registry, user_id, 6)
-    let (local vehicle) = IUserRegistry.unpack_score(registry, user_id, 26)
-    let (local foot) = IUserRegistry.unpack_score(registry, user_id, 46)
-    let (local necklace) = IUserRegistry.unpack_score(registry, user_id, 66)
-    let (local ring) = IUserRegistry.unpack_score(registry, user_id, 76)
-    let (local drug) = IUserRegistry.unpack_score(registry, user_id, 90)
+    let (local weapon) = I04_UserRegistry.unpack_score(registry, user_id, 6)
+    let (local vehicle) = I04_UserRegistry.unpack_score(registry, user_id, 26)
+    let (local foot) = I04_UserRegistry.unpack_score(registry, user_id, 46)
+    let (local necklace) = I04_UserRegistry.unpack_score(registry, user_id, 66)
+    let (local ring) = I04_UserRegistry.unpack_score(registry, user_id, 76)
+    let (local drug) = I04_UserRegistry.unpack_score(registry, user_id, 90)
 
     # Populate struct.
     let user_stats = UserData(
@@ -1080,7 +1071,7 @@ func fight_lord{
     local pedersen_ptr : HashBuiltin* = pedersen_ptr
 
     # Execute combat.
-    let (local win_bool : felt) = ICombat.fight_1v1(
+    let (local win_bool : felt) = I05_Combat.fight_1v1(
         combat_addr,
         user_data,
         lord_user_data,
@@ -1154,7 +1145,10 @@ func take_cut{
     # The drug lord is another user. Increase their money or drug.
     # id = 0 if buying.
     let giving_id = item_id * buy_or_sell
-    user_has_item.write(lord_user_id, giving_id, lord_cut)
+    let (controller) = controller_address.read()
+    let (user_owned_addr) = IModuleController.get_module_address(
+        controller, 3)
+    I03_UserOwned.user_has_item_write(user_owned_addr, lord_user_id, giving_id, lord_cut)
 
     return (amount_to_give - lord_cut)
 end
