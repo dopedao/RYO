@@ -1,0 +1,48 @@
+{
+  "contracts": {
+    "Arbiter": {
+      "address": "0x0284c1a075e1aa45e0e719c966043ff34f92722213a81a581a5a7713819ad5e3",
+      "transaction": "0x5d04a02f2ba118487152b9a51a15f3665d072cf8e5b23eea186a0ff4ecb31c1"
+    },
+    "ModuleController": {
+      "address": "0x06277a07c77637d16db468c2dcb87aa271025f97900f5a37cb6e755b09e9853e",
+      "transaction": "0x5c2bfccd098539585f5f98e5c15a441f1017b8670882a4e3e85ecc7d9d31924"
+    },
+    "01_DopeWars": {
+      "address": "0x05a8661d7eceacda91d7f5275ea600d2dada284d8820a14ca8f8ddbd6dee4907",
+      "transaction": "0x25a14b3fbe1dc617c777a151fd569225342bae271ec8a9d9b1f4c22b662e384"
+    },
+    "02_LocationOwned": {
+      "address": "0x056dfe2626fdc135250a7141501d6d5c79643100aa69c8ad76e99c0c9d2185c3",
+      "transaction": "0x759bbbc1010ef2891169a863b1d6b018b71281fb441a3cc7c6fb15a742497b"
+    },
+    "03_UserOwned": {
+      "address": "0x028adb7c435e01bc7690894f12c862923ea5f8764d0ad39a734f7624483ff8dc",
+      "transaction": "0x54281002cceeb30de22aa07088234847a6fce81fa38485303ae27d9bff3130a"
+    },
+    "04_UserRegistry": {
+      "address": "0x043465e1298e203bd0240431fd1bdd56b322d3f576f6568ae018c545eec65fbe",
+      "transaction": "0x17a4a558bbbfaadf43b24715ea4f86252c98052e899e86bd427d3ec67ab5e76"
+    },
+    "05_Combat": {
+      "address": "0x03b8f4f36f1158fdd67e44a302fcaf4996ce59ac45112c124e87dddbd5575c59",
+      "transaction": "0x558e934eb486af743aee601dd09aa5baf622eff39f262e7dc3e248af2f0b459"
+    },
+    "06_DrugLord": {
+      "address": "0x04fb33b5294d76794552b73061e3af5f390a20b77757b99294c7257d058dcef1",
+      "transaction": "0x1ab4d54aaaa5655f36aae9a15e04c825f068f4eb1b46f95293a36ea75cb711a"
+    },
+    "07_PseudoRandom": {
+      "address": "0x022faa916582444cdb027d2fe3a3c4ccc869ffe4c53873c73bebe1164d68b14d",
+      "transaction": "0x48168d80b9932e57aed2a1e1edea01ce08cae3d53fdada41d53448cb3eb2cdd"
+    },
+    "Account": {
+      "address": "0x07c101778dc35433b5f412ad75b912f0d906de73338df6b8b1350ff885168c05",
+      "transaction": "0xd996dd35c5a4a19d0ec3df9d362ecfce759714db84dede811a915b783e950"
+    },
+    "UserAccount00": {
+      "address": "0x079566788bbc17a70b36e0178ca29d6ac8481ee718963490806c7c949f8caffc",
+      "transaction": "0x5f810fa8d8f1f61929a1b56c6856ee7d4bea0ef46cc5f6cf41f708a2ef0216f"
+    }
+  }
+}
