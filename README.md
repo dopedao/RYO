@@ -57,13 +57,9 @@ to the Goerli Ethereum testnet. Learn more in the Cairo language and StarkNet
 docs [here](https://www.cairo-lang.org/docs/), which also has instructions for manual
 installation if you are not using docker.
 
-If using VS-code for writing code, install the extension for syntax highlighting:
+### Development workflow
 
-```
-curl -LO https://github.com/starkware-libs/cairo-lang/releases/download/v0.4.2/cairo-0.4.2.vsix
-code --install-extension cairo-0.4.2.vsix
-code .
-```
+If you are using VSCode, we provide a development container with all required dependencies. When opening VS Code, it should ask you to re-open the project in a container, if it finds the .devcontainer folder. If not, you can open the Command Palette (`cmd + shift + p`), and run “Remote-Containers: Rebuild and Reopen in Container”.
 
 ## Outline
 
