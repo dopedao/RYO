@@ -8,49 +8,99 @@ Arbiter=$(starknet deploy \
     --contract artifacts/compiled/Arbiter.json \
     --network=alpha)
 echo -e "\nArbiter: ${Arbiter}"
-ArbiterAddress=$(echo -e ${Arbiter} | grep -o '\b0x\w*' )
+ArbiterAddress=$(echo -e ${Arbiter} | grep -o -m 1 '\b0x\w*' )
 
 ModuleController=$(starknet deploy \
     --contract artifacts/compiled/ModuleController.json \
     --network=alpha)
 echo -e "\nModuleController: ${ModuleController}"
-ModuleControllerAddress=$(echo -e ${ModuleController} | grep -o '\b0x\w*' )
+ModuleControllerAddress=$(echo -e ${ModuleController} | grep -o -m 1 '\b0x\w*' )
 
 01_DopeWars=$(starknet deploy --contract artifacts/compiled/01_DopeWars.json \
     --network=alpha)
 echo -e "\n01_DopeWars: ${01_DopeWars}"
-01_DopeWarsAddress=$(echo -e ${01_DopeWars} | grep -o '\b0x\w*' )
+01_DopeWarsAddress=$(echo -e ${01_DopeWars} | grep -o -m 1 '\b0x\w*' )
 
 02_LocationOwned=$(starknet deploy \
     --contract artifacts/compiled/02_LocationOwned.json \
     --network=alpha)
 echo -e "\n02_LocationOwned: ${02_LocationOwned}"
-02_LocationOwnedAddress=$(echo -e ${02_LocationOwned} | grep -o '\b0x\w*' )
+02_LocationOwnedAddress=$(echo -e ${02_LocationOwned} | grep -o -m 1 '\b0x\w*' )
 
 03_UserOwned=$(starknet deploy \
     --contract artifacts/compiled/03_UserOwned.json \
     --network=alpha)
 echo -e "\n03_UserOwned: ${03_UserOwned}"
-03_UserOwnedAddress=$(echo -e ${03_UserOwned} | grep -o '\b0x\w*' )
+03_UserOwnedAddress=$(echo -e ${03_UserOwned} | grep -o -m 1 '\b0x\w*' )
 
 04_UserRegistry=$(starknet deploy \
     --contract artifacts/compiled/04_UserRegistry.json \
     --network=alpha)
 echo -e "\n04_UserRegistry: ${04_UserRegistry}"
-04_UserRegistryAddress=$(echo -e ${04_UserRegistry} | grep -o '\b0x\w*' )
+04_UserRegistryAddress=$(echo -e ${04_UserRegistry} | grep -o -m 1 '\b0x\w*' )
 
 05_Combat=$(starknet deploy \
     --contract artifacts/compiled/05_Combat.json \
     --network=alpha)
 echo -e "\n05_Combat: ${05_Combat}"
-05_CombatAddress=$(echo -e ${05_Combat} | grep -o '\b0x\w*' )
+05_CombatAddress=$(echo -e ${05_Combat} | grep -o -m 1 '\b0x\w*' )
 
+06_DrugLord=$(starknet deploy \
+    --contract artifacts/compiled/06_DrugLord.json \
+    --network=alpha)
+echo -e "\n06_DrugLord: ${06_DrugLord}"
+06_DrugLordAddress=$(echo -e ${06_DrugLord} | grep -o -m 1 '\b0x\w*' )
 
+07_PseudoRandom=$(starknet deploy \
+    --contract artifacts/compiled/07_PseudoRandom.json \
+    --network=alpha)
+echo -e "\n07_PseudoRandom: ${07_PseudoRandom}"
+07_PseudoRandomAddress=$(echo -e ${07_PseudoRandom} | grep -o -m 1 '\b0x\w*' )
 
 # Extra / Non-module contracts.
 
 Account=$(starknet deploy --contract artifacts/compiled/Account.json \
     --network=alpha)
 echo -e "\nAccount: ${Account}"
-AccountAddress=$(echo -e ${Account} | grep -o '\b0x\w*' )
+AccountAddress=$(echo -e ${Account} | grep -o -m 1 '\b0x\w*' )
 
+# Save deployments
+
+OUT=artifacts/deployed_addresses.txt
+
+echo "Deployments saved to ${OUT}"
+
+cat <<EOF >$OUT
+Contracts deployed:
+
+Arbiter
+${Arbiter}
+
+ModuleController
+${ModuleController}
+
+01_DopeWars
+${01_DopeWars}
+
+02_LocationOwned
+${02_LocationOwned}
+
+03_UserOwned
+${03_UserOwned}
+
+04_UserRegistry
+${04_UserRegistry}
+
+05_Combat
+${05_Combat}
+
+06_DrugLord
+${06_DrugLord}
+
+07_PseudoRandom
+${07_PseudoRandom}
+
+Account
+${Account}
+
+EOF
