@@ -29,6 +29,11 @@ end
 func lock() -> (bool : felt):
 end
 
+@constructor
+func constructor():
+    return()
+end
+
 # Locks the stored addresses.
 @external
 func lock_addresses{

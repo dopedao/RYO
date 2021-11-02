@@ -286,6 +286,7 @@ func check_user_state{
         id19 : felt, location : felt):
     alloc_locals
     # Get the quantity held for each item.
+    # TODO: Move this function to the contract where state is held.
     let (controller) = controller_address.read()
     let (user_owned_addr) = IModuleController.get_module_address(
         controller, 3)

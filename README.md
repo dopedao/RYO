@@ -48,12 +48,13 @@ Expansions may be integrated to build out different elements into
 complementary game play environments that read +/- write to the
 same game state.
 
-Join in and learn about:
+Join in:
 
-    - Cairo. A turing-complete language for programs that become proofs.
-    - StarkNet. An Ethereum L2 rollup with:
-        - L1 for data availability
-        - State transitions executed by validity proofs that the EVM checks.
+- Learn about Cairo. A turing-complete language for programs that become proofs.
+- Learn about StarkNet. An Ethereum L2 rollup with:
+    - L1 for data availability
+    - State transitions executed by validity proofs that the EVM checks.
+- Work on anything to do with the game/ecosystem that fits your skills and interest.
 
 ## System architecture
 
@@ -61,8 +62,20 @@ The game mechanics are separated from the game state variables.
 A controller system manages a mapping of modules to deployed addresses
 and a governance module may update the controller.
 
-- Arbiter (most power)
+It is also worth pointing out that StarkNet has account abstraction
+(see background notes [here](https://perama-v.github.io/cairo/examples/test_accounts/)). This means that transactions are actioned by sending a payload to a personal
+Account contract that holds your public key. The contract checks the payload
+and forwards it on to the destination.
+
+- Accounts
+    - A user who controls a Hustler (game character) in the system.
+    - An admin who controls the Arbiter. The admin may be a human or a
+    multisig governance contract activated by votes on L2.
+- Arbiter (most power in the system).
+    - Can update/add module mappings in ModuleController.
 - ModuleController (mapping of deployments to module_ids)
+    - Is the reference point for all modules. Modules call this
+    contract as the source of truth for the address of other modules.
 - Modules (open ended set)
     - Game mechanics (where a player would interact to play)
     - Storage modules (game variables)
@@ -136,12 +149,13 @@ bin/shell pytest -s testing/01_DopeWars_contract_test.py
 ### Deploy
 
 The deploy script deploys all the contracts and exports the addresses
-in the form `ContractNameAddress` to the current environment.
+in the form `ContractNameAddress` to the current environment. Make
+sure to include the dot or the addresses will not be exported.
 
 ```
 . bin/deploy
 ```
-See deployed addresses [here](deployed_addresses.md).
+See deployed addresses [here](artifacts/deployed_addresses.txt).
 
 ### Admin initialisation
 
