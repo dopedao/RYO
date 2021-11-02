@@ -4,12 +4,10 @@
 from starkware.cairo.common.cairo_builtins import (HashBuiltin,
     BitwiseBuiltin)
 from starkware.cairo.common.math import (assert_nn_le,
-    unsigned_div_rem, split_felt, assert_not_zero)
+    unsigned_div_rem, assert_not_zero)
 from starkware.cairo.common.math_cmp import is_nn_le
-from starkware.cairo.common.hash import hash2
 from starkware.cairo.common.hash_state import (hash_init,
     hash_update, HashState)
-from starkware.cairo.common.bitwise import bitwise_xor
 from starkware.cairo.common.alloc import alloc
 
 from contracts.utils.market_maker import trade
@@ -50,11 +48,6 @@ from contracts.utils.interfaces import (IModuleController,
 # Records if a user has been initialized (flips to 1 on first turn).
 @storage_var
 func user_initialized(user_id : felt) -> (bool : felt):
-end
-
-# Seed (for pseudorandom) that players add to.
-@storage_var
-func entropy_seed() -> (value : felt):
 end
 
 # Admin lock (1 = yes locked out, 0 = can use)
@@ -177,7 +170,10 @@ func have_turn{
     # Affect pseudorandom seed at start of turn.
     # User can grind a favourable number by incrementing lots of 10.
     let (low_precision_quant, _) = unsigned_div_rem(amount_to_give_post_cut, 10)
-    let (pseudorandom : felt) = add_to_seed(item_id, amount_to_give_post_cut)
+    let (pseudo_random_addr) = IModuleController.get_module_address(
+        controller, 7)
+    let (pseudorandom) = I07_PseudoRandom.add_to_seed(
+        pseudo_random_addr, item_id, amount_to_give_post_cut)
     # Get all events for this turn.
     # For UI, pass through values temporarily (in lieu of 'events').
     let (
@@ -450,26 +446,7 @@ func execute_trade{
 end
 
 
-# Add to seed.
-func add_to_seed{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        bitwise_ptr : BitwiseBuiltin*,
-        range_check_ptr
-    }(
-        val0 : felt,
-        val1 : felt
-    ) -> (
-        num_to_use : felt
-    ):
-    # Players add to the seed (seed = seed XOR hash(item, quantity)).
-    # You can game the hash by changing the item/quantity (not useful)
-    let (hash) = hash2{hash_ptr=pedersen_ptr}(val0, val1)
-    let (old_seed) = entropy_seed.read()
-    let (new_seed) = bitwise_xor(hash, old_seed)
-    entropy_seed.write(new_seed)
-    return (new_seed)
-end
+
 
 # Evaluates all major events.
 func get_events{
