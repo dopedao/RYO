@@ -1,11 +1,8 @@
 name: docker
 on:
   push:
-    branches:
-      - main
-  pull_request:
-    branches:
-      - main
+    paths:
+      - 'Dockerfile'
 jobs:
   docker:
     runs-on: ubuntu-latest
