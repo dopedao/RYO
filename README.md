@@ -153,6 +153,12 @@ sure to include the dot or the addresses will not be exported.
 ```
 See deployed addresses [here](artifacts/deployed_addresses.txt).
 
+The status of a transaction can be queried:
+
+```
+starknet get_transaction --network=alpha --hash TX_HASH
+```
+
 ### Admin initialisation
 
 Save deployment addresses into the game contract and
