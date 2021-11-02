@@ -79,17 +79,12 @@ func constructor{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        arbiter_address : felt,
-        module_1 : felt,
-        module_2 : felt
+        arbiter_address : felt
     ):
     arbiter.write(arbiter_address)
-    # Store the address of already deployed modules.
-    address_of_module_id.write(1, module_1)
-    module_id_of_address.write(module_1, 1)
 
-    address_of_module_id.write(2, module_2)
-    module_id_of_address.write(module_2, 2)
+    # TODO: add 'set_write_access' here for all the module
+    # write patterns known at deployment. E.g., 1->2, 1->3, 5->2.
     return ()
 end
 
@@ -122,6 +117,48 @@ func set_address_for_module_id{
     only_arbiter()
     module_id_of_address.write(module_id, module_address)
     address_of_module_id.write(module_address, module_id)
+
+    return ()
+end
+
+
+# Called by the Arbiter to batch set new address mappings on deployment.
+@external
+func set_initial_module_addresses{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        module_01_addr : felt,
+        module_02_addr : felt,
+        module_03_addr : felt,
+        module_04_addr : felt,
+        module_05_addr : felt,
+        module_06_addr : felt,
+        module_07_addr : felt
+    ):
+    only_arbiter()
+
+    module_id_of_address.write(1, module_01_addr)
+    address_of_module_id.write(module_01_addr, 1)
+
+    module_id_of_address.write(2, module_02_addr)
+    address_of_module_id.write(module_02_addr, 2)
+
+    module_id_of_address.write(3, module_03_addr)
+    address_of_module_id.write(module_03_addr, 3)
+
+    module_id_of_address.write(4, module_04_addr)
+    address_of_module_id.write(module_04_addr, 4)
+
+    module_id_of_address.write(5, module_05_addr)
+    address_of_module_id.write(module_05_addr, 5)
+
+    module_id_of_address.write(6, module_06_addr)
+    address_of_module_id.write(module_06_addr, 6)
+
+    module_id_of_address.write(7, module_07_addr)
+    address_of_module_id.write(module_07_addr, 7)
 
     return ()
 end
