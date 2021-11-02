@@ -145,11 +145,30 @@ namespace I06_DrugLord:
         user_id : felt
     ):
     end
+    func drug_lord_stat_hash_read(
+        location_id : felt
+    ) -> (
+        stat_hash : felt
+    ):
+    end
+    func drug_lord_stat_hash_write(
+        location_id : felt,
+        stat_hash : felt
+    ):
+    end
 end
+
 
 @contract_interface
 namespace I07_PseudoRandom:
     func get_pseudorandom(
+    ) -> (
+        num_to_use : felt
+    ):
+    end
+    func add_to_seed(
+        val0 : felt,
+        val1 : felt
     ) -> (
         num_to_use : felt
     ):

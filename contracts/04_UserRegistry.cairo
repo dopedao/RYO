@@ -68,6 +68,27 @@ func available_id(
     ):
 end
 
+
+@storage_var
+func controller_address() -> (address : felt):
+end
+
+
+# Called on deployment only.
+@constructor
+func constructor{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        address_of_controller : felt
+    ):
+    # Store the address of the only fixed contract in the system.
+    controller_address.write(address_of_controller)
+    return ()
+end
+
+
 ##### External Functions #####
 # Returns the L2 public key and game-related player data for a user.
 @external

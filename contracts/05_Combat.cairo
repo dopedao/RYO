@@ -1,16 +1,18 @@
 %lang starknet
-%builtins pedersen range_check
+%builtins pedersen range_check bitwise
 
 from starkware.cairo.common.cairo_builtins import (HashBuiltin,
     BitwiseBuiltin)
 from starkware.cairo.common.math import assert_nn_le, unsigned_div_rem
 from starkware.cairo.common.math_cmp import is_nn_le
+from starkware.starknet.common.syscalls import get_caller_address
 
 from contracts.utils.game_structs import UserData, Fighter
 from contracts.utils.general import list_to_hash
 from contracts.utils.game_data_helpers import fetch_user_data
 
-from contracts.utils.interfaces import IModuleController
+from contracts.utils.interfaces import (IModuleController,
+    I03_UserOwned, I06_DrugLord)
 
 ##### Module 05 #####
 #
@@ -31,6 +33,7 @@ from contracts.utils.interfaces import IModuleController
 func controller_address() -> (address : felt):
 end
 
+
 # Called on deployment only.
 @constructor
 func constructor{
@@ -38,14 +41,15 @@ func constructor{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        controller_address : felt
+        address_of_controller : felt
     ):
     # Store the address of the only fixed contract in the system.
-    controller_address.write(controller_address)
+    controller_address.write(address_of_controller)
     return ()
 end
 
 # Entry point for a player looking to challenge the current drug lord.
+@external
 func challenge_current_drug_lord{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
@@ -58,27 +62,37 @@ func challenge_current_drug_lord{
         drug_lord_combat_stats : felt*
     ):
     alloc_locals
-    let (local controller) = controller_address.read()
     # TODO
     ## [ ] Rate limit user (perhaps with DopeWars clock? Or new clock.)
     ## [ ] Fetch the user_id based on the caller address
     ## [ ] Check the location of the user.
     ## [ ] Fetch the current drug lord from module 06.
-    let (local user_data : UserData) = fetch_user_data(controller, user_id)
-    let (local lord_user_data : UserData) = fetch_user_data(controller, lord_user_id)
-    ## [ ] Call fight_lord()
-    let (win_bool) = fight_lord()
-
-    let (controller) = controller_address.read()
+    let (local controller) = controller_address.read()
+    let (local user_id) = get_caller_address()
     let (local drug_lord_addr) = IModuleController.get_module_address(
         controller, 6)
-    # Save the new Drug Lord.
-    I06_DrugLord.drug_lord_write(location_id, user_id)
+    let (local user_owned_addr) = IModuleController.get_module_address(
+        controller, 3)
+    let (local location_id) = I03_UserOwned.user_in_location_read(user_owned_addr, user_id)
+    let (lord_user_id) = I06_DrugLord.drug_lord_read(drug_lord_addr, location_id)
 
+    let (local user_data : UserData) = fetch_user_data(controller, user_id)
+    let (local lord_user_data : UserData) = fetch_user_data(controller, lord_user_id)
+
+    let (win_bool) = fight_lord(
+        controller,
+        location_id,
+        user_id,
+        user_data,
+        lord_user_data,
+        user_combat_stats_len,
+        user_combat_stats,
+        drug_lord_combat_stats_len,
+        drug_lord_combat_stats,)
+
+    ## [ ] Return win_bool and the events that took place for front end
     return ()
 end
-
-
 
 
 # Fight the drug lord.
@@ -88,6 +102,7 @@ func fight_lord{
         bitwise_ptr: BitwiseBuiltin*,
         range_check_ptr
     }(
+        controller : felt,
         location_id : felt,
         user_id : felt,
         user_data : UserData,
@@ -120,6 +135,8 @@ func fight_lord{
             location_id, user_combat_hash)
         I06_DrugLord.drug_lord_write(drug_lord_addr, location_id, user_id)
         return (win_bool=1)
+    else:
+        local syscall_ptr : felt* = syscall_ptr
     end
     # If you fail to provide the current lord stats, pay the tax.
     if current_lord_hash != provided_lord_hash:
