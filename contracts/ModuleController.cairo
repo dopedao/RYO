@@ -86,13 +86,13 @@ func constructor{
     # TODO: add 'set_write_access' here for all the module
     # write patterns known at deployment. E.g., 1->2, 1->3, 5->6.
     # Module 1 can modify quantities in locations.
-    can_write_to.write(1, 2)
+    can_write_to.write(1, 2, 1)
     # Module 1 can modify quantities a user holds.
-    can_write_to.write(1, 3)
+    can_write_to.write(1, 3, 1)
     # Module 1 can modify the random generator.
-    can_write_to.write(1, 7)
+    can_write_to.write(1, 7, 1)
     # Module 5 can modify teh drug lord.
-    can_write_to.write(5, 6)
+    can_write_to.write(5, 6, 1)
 
     return ()
 end
