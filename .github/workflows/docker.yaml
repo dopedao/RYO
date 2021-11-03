@@ -3,6 +3,7 @@ on:
   push:
     paths:
       - 'Dockerfile'
+      - 'requirements.txt'
 jobs:
   docker:
     runs-on: ubuntu-latest
