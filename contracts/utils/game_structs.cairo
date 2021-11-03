@@ -37,3 +37,44 @@ struct Fighter:
     member defeated : felt
     member temp_damage : felt
 end
+
+############ Turn Logs ############
+# Used in Module 01.
+# Turns are actioned through an @external function that modifies state.
+# The events that occur in a turn are packed and stored for later query.
+# The first few members are the turn inputs.
+# TODO: Compact these e.g., bools all in one felt. Struct of structs etc.
+struct TurnLog:
+    member user_id : felt
+    member location_id : felt
+    member buy_or_sell : felt
+    member item_id : felt
+    member amount_to_give : felt
+    member market_pre_trade_item : felt
+    member market_post_trade_pre_event_item : felt
+    member market_post_trade_post_event_item : felt
+    member market_pre_trade_money : felt
+    member market_post_trade_pre_event_money : felt
+    member market_post_trade_post_event_money : felt
+    member user_pre_trade_item : felt
+    member user_post_trade_pre_event_item : felt
+    member user_post_trade_post_event_item : felt
+    member user_pre_trade_money : felt
+    member user_post_trade_pre_event_money : felt
+    member user_post_trade_post_event_money : felt
+    member trade_occurs_bool : felt
+    member money_reduction_factor : felt
+    member item_reduction_factor : felt
+    member regional_item_reduction_factor : felt
+    member dealer_dash_bool : felt
+    member wrangle_dashed_dealer_bool : felt
+    member mugging_bool : felt
+    member run_from_mugging_bool : felt
+    member gang_war_bool : felt
+    member defend_gang_war_bool : felt
+    member cop_raid_bool : felt
+    member bribe_cops_bool : felt
+    member find_item_bool : felt
+    member local_shipment_bool : felt
+    member warehouse_seizure_bool : felt
+end

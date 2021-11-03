@@ -19,7 +19,7 @@ from contracts.utils.game_constants import (DEALER_DASH_BP,
     LOCAL_SHIPMENT_IMPACT, WAREHOUSE_SEIZURE_BP,
     WAREHOUSE_SEIZURE_IMPACT, MIN_EVENT_FRACTION, MIN_TURN_LOCKOUT, DRUG_LORD_PERCENTAGE, NUM_COMBAT_STATS,
     LOCATIONS, DISTRICTS, STARTING_MONEY)
-from contracts.utils.game_structs import UserData
+from contracts.utils.game_structs import UserData, TurnLog
 from contracts.utils.general import scale
 from contracts.utils.game_data_helpers import fetch_user_data
 from contracts.utils.interfaces import (IModuleController,
@@ -44,6 +44,7 @@ from contracts.utils.interfaces import (IModuleController,
 
 # E.g., first location (location_id=0), first item (item_id=1)
 
+
 ############ Game state ############
 # Records if a user has been initialized (flips to 1 on first turn).
 @storage_var
@@ -63,6 +64,11 @@ end
 # Returns the game clock recorded during the previous turn of a user.
 @storage_var
 func clock_at_previous_turn(user_id : felt) -> (value : felt):
+end
+
+# Stores the information about a turn that can be used for a frontend/testing.
+@storage_var
+func logs_at_given_clock(clock_value : felt) -> (turn_log : TurnLog):
 end
 
 # Stores the address of the ModuleController.
@@ -100,34 +106,6 @@ func have_turn{
         buy_or_sell : felt,
         item_id : felt,
         amount_to_give : felt
-    ) -> (
-        trade_occurs_bool : felt,
-        user_pre_trade_item : felt,
-        user_post_trade_pre_event_item : felt,
-        user_post_trade_post_event_item : felt,
-        user_pre_trade_money : felt,
-        user_post_trade_pre_event_money : felt,
-        user_post_trade_post_event_money : felt,
-        market_pre_trade_item : felt,
-        market_post_trade_pre_event_item : felt,
-        market_post_trade_post_event_item : felt,
-        market_pre_trade_money : felt,
-        market_post_trade_pre_event_money : felt,
-        market_post_trade_post_event_money : felt,
-        money_reduction_factor : felt,
-        item_reduction_factor : felt,
-        regional_item_reduction_factor : felt,
-        dealer_dash_bool : felt,
-        wrangle_dashed_dealer_bool : felt,
-        mugging_bool : felt,
-        run_from_mugging_bool : felt,
-        gang_war_bool : felt,
-        defend_gang_war_bool : felt,
-        cop_raid_bool : felt,
-        bribe_cops_bool : felt,
-        find_item_bool : felt,
-        local_shipment_bool : felt,
-        warehouse_seizure_bool : felt
     ):
     alloc_locals
     # Uncomment for pytest: Get address of UserRegistry.
@@ -232,43 +210,78 @@ func have_turn{
     let (current_clock) = game_clock.read()
     let (last_turn) = clock_at_previous_turn.read(user_id)
     assert_nn_le(MIN_TURN_LOCKOUT + last_turn, current_clock)
+    # The turn that is happening now is 'current_clock + 1'.
     game_clock.write(current_clock + 1)
     clock_at_previous_turn.write(user_id, current_clock + 1)
 
+    let (turn_log : TurnLog*) = alloc()
+    assert turn_log.user_id = user_id
+    assert turn_log.location_id = location_id
+    assert turn_log.buy_or_sell = buy_or_sell
+    assert turn_log.item_id = item_id
+    assert turn_log.amount_to_give = amount_to_give
+    assert turn_log.market_post_trade_pre_event_item = market_post_trade_pre_event_item
+    assert turn_log.market_post_trade_post_event_item = market_post_trade_post_event_item
+    assert turn_log.market_pre_trade_money = market_pre_trade_money
+    assert turn_log.market_post_trade_pre_event_money = market_post_trade_pre_event_money
+    assert turn_log.market_post_trade_post_event_money = market_post_trade_post_event_money
+    assert turn_log.user_pre_trade_item = user_pre_trade_item
+    assert turn_log.user_post_trade_pre_event_item = user_post_trade_pre_event_item
+    assert turn_log.user_post_trade_post_event_item = user_post_trade_post_event_item
+    assert turn_log.user_pre_trade_money = user_pre_trade_money
+    assert turn_log.user_post_trade_pre_event_money = user_post_trade_pre_event_money
+    assert turn_log.user_post_trade_post_event_money = user_post_trade_post_event_money
+    assert turn_log.trade_occurs_bool = trade_occurs_bool
+    assert turn_log.money_reduction_factor = money_reduction_factor
+    assert turn_log.item_reduction_factor = item_reduction_factor
+    assert turn_log.regional_item_reduction_factor = regional_item_reduction_factor
+    assert turn_log.dealer_dash_bool = dealer_dash_bool
+    assert turn_log.wrangle_dashed_dealer_bool = wrangle_dashed_dealer_bool
+    assert turn_log.mugging_bool = mugging_bool
+    assert turn_log.run_from_mugging_bool = run_from_mugging_bool
+    assert turn_log.gang_war_bool = gang_war_bool
+    assert turn_log.defend_gang_war_bool = defend_gang_war_bool
+    assert turn_log.cop_raid_bool = cop_raid_bool
+    assert turn_log.bribe_cops_bool = bribe_cops_bool
+    assert turn_log.find_item_bool = find_item_bool
+    assert turn_log.local_shipment_bool = local_shipment_bool
+    assert turn_log.warehouse_seizure_bool = warehouse_seizure_bool
 
-    return (
-        trade_occurs_bool,
-        user_pre_trade_item,
-        user_post_trade_pre_event_item,
-        user_post_trade_post_event_item,
-        user_pre_trade_money,
-        user_post_trade_pre_event_money,
-        user_post_trade_post_event_money,
-        market_pre_trade_item,
-        market_post_trade_pre_event_item,
-        market_post_trade_post_event_item,
-        market_pre_trade_money,
-        market_post_trade_pre_event_money,
-        market_post_trade_post_event_money,
-        money_reduction_factor,
-        item_reduction_factor,
-        regional_item_reduction_factor,
-        dealer_dash_bool,
-        wrangle_dashed_dealer_bool,
-        mugging_bool,
-        run_from_mugging_bool,
-        gang_war_bool,
-        defend_gang_war_bool,
-        cop_raid_bool,
-        bribe_cops_bool,
-        find_item_bool,
-        local_shipment_bool,
-        warehouse_seizure_bool
-    )
+    logs_at_given_clock.write(current_clock + 1, [turn_log])
+    return ()
 end
 
 
 ############ Read-Only Functions for Testing ############
+# Gets the current game clock. This represents a turn that has happened.
+@view
+func read_game_clock{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }() -> (
+        clock : felt
+    ):
+    # This turn is the most recent to have occurred.
+    let (clock) = game_clock.read()
+    return (clock)
+end
+
+# Returns values used for testing and for indexing events/frontend.
+@view
+func view_given_turn{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        game_clock_at_turn : felt
+    ) -> (
+        turn_log : TurnLog
+    ):
+    let (turn_log : TurnLog) = logs_at_given_clock.read(game_clock_at_turn)
+    return (turn_log)
+end
+
 # A read-only function to inspect user state.
 @view
 func check_user_state{
