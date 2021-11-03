@@ -12,7 +12,7 @@ add_controller_to_arbiter=$(starknet invoke \
     --inputs ${ModuleControllerAddress})
 echo -e "\nController address saved into Arbter: \n${add_controller_to_arbiter}"
 
-# Use the Arbiter to ssave module addresses into the ModuleController.
+# Use the Arbiter to save module addresses into the ModuleController.
 set_module_addr=$(starknet invoke \
     --network=alpha \
     --address $ModuleControllerAddress \
