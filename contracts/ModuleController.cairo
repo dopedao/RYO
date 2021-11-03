@@ -84,7 +84,16 @@ func constructor{
     arbiter.write(arbiter_address)
 
     # TODO: add 'set_write_access' here for all the module
-    # write patterns known at deployment. E.g., 1->2, 1->3, 5->2.
+    # write patterns known at deployment. E.g., 1->2, 1->3, 5->6.
+    # Module 1 can modify quantities in locations.
+    can_write_to.write(1, 2)
+    # Module 1 can modify quantities a user holds.
+    can_write_to.write(1, 3)
+    # Module 1 can modify the random generator.
+    can_write_to.write(1, 7)
+    # Module 5 can modify teh drug lord.
+    can_write_to.write(5, 6)
+
     return ()
 end
 
@@ -228,7 +237,7 @@ func has_write_access{
         module_id_attempting_to_write)
     assert active_address = address_attempting_to_write
 
-    # See if the address is
+    # See if the module has permission.
     let (bool) = can_write_to.read(
         module_id_attempting_to_write,
         module_id_being_written_to)
