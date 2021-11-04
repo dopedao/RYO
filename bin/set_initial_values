@@ -47,8 +47,8 @@ echo -e "\nModule addresses 1-7 set: \n${set_module_addr}"
 # If needed the markets can be exported directly with:
 # . ./testing/utils/export_markets
 
-market_money="${python3 ./testing/utils/markets_to_list.py 0}"
-market_items="${python3 ./testing/utils/markets_to_list.py 1}"
+market_money=$(python3 ./testing/utils/markets_to_list.py mappings/initial_markets_money.csv)
+market_items=$(python3 ./testing/utils/markets_to_list.py mappings/initial_markets_item.csv)
 
 # Use the deployed address from previously run bin/deploy
 # and pass the deployed contract the list of starting values.
@@ -56,7 +56,7 @@ market_items="${python3 ./testing/utils/markets_to_list.py 1}"
 # TODO Get this to accept the list of initial values.
 #echo $(starknet invoke \
 #    --network=alpha \
-#    --address ${02_LocationOwnedAddress} \
+#    --address $(get_address 02_LocationOwnedAddress) \
 #    --abi artifacts/abi/02_LocationOwned_abi.json \
 #    --function admin_set_pairs \
 #    --inputs 1444 ${market_items} 1444 ${market_money})
