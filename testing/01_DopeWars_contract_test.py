@@ -94,12 +94,24 @@ async def game_factory(account_factory):
     starknet, accounts = account_factory
 
     arbiter = await starknet.deploy("contracts/Arbiter.cairo")
-    controller = await starknet.deploy("contracts/ModuleController.cairo")
-    engine = await starknet.deploy("contracts/01_DopeWars.cairo")
-    location_owned = await starknet.deploy("contracts/02_LocationOwned.cairo")
-    user_owned = await starknet.deploy("contracts/03_UserOwned.cairo")
-    registry = await starknet.deploy("contracts/04_UserRegistry.cairo")
-    combat = await starknet.deploy("contracts/05_Combat.cairo")
+    controller = await starknet.deploy(
+        source="contracts/ModuleController.cairo",
+        constructor_calldata=[arbiter.contract_address])
+    engine = await starknet.deploy(
+        source="contracts/01_DopeWars.cairo",
+        constructor_calldata=[controller.contract_address])
+    location_owned = await starknet.deploy(
+        source="contracts/02_LocationOwned.cairo",
+        constructor_calldata=[controller.contract_address])
+    user_owned = await starknet.deploy(
+        source="contracts/03_UserOwned.cairo",
+        constructor_calldata=[controller.contract_address])
+    registry = await starknet.deploy(
+        source="contracts/04_UserRegistry.cairo",
+        constructor_calldata=[controller.contract_address])
+    combat = await starknet.deploy(
+        source="contracts/05_Combat.cairo",
+        constructor_calldata=[controller.contract_address])
 
     return starknet, accounts, arbiter, controller, engine, \
         location_owned, user_owned, registry, combat
@@ -145,7 +157,7 @@ async def populated_game(game_factory):
     assert len(money_list) == len(item_list) == list_length
 
     # The first element in the list is the list length.
-    await engine.admin_set_pairs(item_list, money_list).invoke()
+    await location_owned.admin_set_pairs(item_list, money_list).invoke()
 
     # This new account-based tx currently fails with:
     # E           An ASSERT_EQ instruction failed: 11:240 != 11:2888
@@ -215,8 +227,7 @@ async def test_playerlockout(populated_game, populated_registry):
         buy_or_sell = 0 # buy only since players start with all money and no items
         give_quantity = 2000
         turn = await engine.have_turn(user_id, location_id,
-            buy_or_sell, item_id, give_quantity,
-            USER_COMBAT_STATS, DRUG_LORD_STATS).invoke()
+            buy_or_sell, item_id, give_quantity).invoke()
         print(f"> [test_playerlockout] sub-test #2 #{i}-turn by user#{user_id} completed.")
 
     # back to the first user making its second turn after exactly MIN_TURN_LOCKOUT ticks
@@ -224,8 +235,7 @@ async def test_playerlockout(populated_game, populated_registry):
     location_id = 6
     item_id = 10
     turn = await engine.have_turn(user_id, location_id,
-        buy_or_sell, item_id, give_quantity,
-        USER_COMBAT_STATS, DRUG_LORD_STATS).invoke()
+        buy_or_sell, item_id, give_quantity).invoke()
     print(f"> [test_playerlockout] sub-test #2 #{MIN_TURN_LOCKOUT+1}-turn by user#{user_id} (its second turn) completed.")
 
     print("> [test_playerlockout] sub-test 2 passes")
@@ -277,8 +287,7 @@ async def test_single_turn_logic(populated_game, populated_registry):
     print('pre_trade_user', pre_trade_user)
     # Execute a game turn.
     turn = await engine.have_turn(user_id, location_id,
-        buy_or_sell, item_id, give_quantity,
-        USER_COMBAT_STATS, DRUG_LORD_STATS).invoke()
+        buy_or_sell, item_id, give_quantity).invoke()
 
 
     print("Turn events")

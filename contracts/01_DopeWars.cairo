@@ -345,7 +345,8 @@ func check_market_state{
         money_quantity : felt
     ):
     alloc_locals
-    # Get the quantity held for each item for item-money pair
+    # Get the quantity held for each item for item-money pair.
+    # Move this function to the module where the state is held.
     let (controller) = controller_address.read()
     let (local location_owned_addr) = IModuleController.get_module_address(
         controller, 2)

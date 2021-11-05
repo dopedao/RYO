@@ -45,12 +45,24 @@ async def game_factory(account_factory):
     starknet, accounts = account_factory
 
     arbiter = await starknet.deploy("contracts/Arbiter.cairo")
-    controller = await starknet.deploy("contracts/ModuleController.cairo")
-    engine = await starknet.deploy("contracts/01_DopeWars.cairo")
-    location_owned = await starknet.deploy("contracts/02_LocationOwned.cairo")
-    user_owned = await starknet.deploy("contracts/03_UserOwned.cairo")
-    registry = await starknet.deploy("contracts/04_UserRegistry.cairo")
-    combat = await starknet.deploy("contracts/05_Combat.cairo")
+    controller = await starknet.deploy(
+        source="contracts/ModuleController.cairo",
+        constructor_calldata=[arbiter.contract_address])
+    engine = await starknet.deploy(
+        source="contracts/01_DopeWars.cairo",
+        constructor_calldata=[controller.contract_address])
+    location_owned = await starknet.deploy(
+        source="contracts/02_LocationOwned.cairo",
+        constructor_calldata=[controller.contract_address])
+    user_owned = await starknet.deploy(
+        source="contracts/03_UserOwned.cairo",
+        constructor_calldata=[controller.contract_address])
+    registry = await starknet.deploy(
+        source="contracts/04_UserRegistry.cairo",
+        constructor_calldata=[controller.contract_address])
+    combat = await starknet.deploy(
+        source="contracts/05_Combat.cairo",
+        constructor_calldata=[controller.contract_address])
 
     return starknet, accounts, arbiter, controller, engine, \
         location_owned, user_owned, registry, combat
