@@ -1,5 +1,3 @@
-%lang starknet
-%builtins range_check
 
 from starkware.cairo.common.math import assert_nn_le, unsigned_div_rem
 
@@ -8,7 +6,6 @@ const BALANCE_UPPER_BOUND = 2 ** 64
 
 # Accepts an AMM state and an order, instantiates AMM, swaps, returns balances.
 # The market gains item `a` loses item `b`, the user loses item `a` gains item `b`.
-@external
 func trade{
         range_check_ptr
     }(

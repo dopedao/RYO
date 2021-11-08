@@ -1,23 +1,43 @@
 #!/bin/bash
 set -eu
 
+starknet-compile contracts/Arbiter.cairo \
+    --output artifacts/compiled/Arbiter.json \
+    --abi artifacts/abi/Arbiter_abi.json
 
-starknet-compile contracts/GameEngineV1.cairo \
-    --output artifacts/compiled/GameEngineV1.json \
-    --abi artifacts/abi/GameEngineV1_abi.json
+starknet-compile contracts/ModuleController.cairo \
+    --output artifacts/compiled/ModuleController.json \
+    --abi artifacts/abi/ModuleController_abi.json
 
-starknet-compile contracts/MarketMaker.cairo \
-    --output artifacts/compiled/MarketMaker.json \
-    --abi artifacts/abi/MarketMaker_abi.json
+starknet-compile contracts/01_DopeWars.cairo \
+    --output artifacts/compiled/01_DopeWars.json \
+    --abi artifacts/abi/01_DopeWars_abi.json
 
-starknet-compile contracts/UserRegistry.cairo \
-    --output artifacts/compiled/UserRegistry.json \
-    --abi artifacts/abi/UserRegistry_abi.json
+starknet-compile contracts/02_LocationOwned.cairo \
+    --output artifacts/compiled/02_LocationOwned.json \
+    --abi artifacts/abi/02_LocationOwned_abi.json
+
+starknet-compile contracts/03_UserOwned.cairo \
+    --output artifacts/compiled/03_UserOwned.json \
+    --abi artifacts/abi/03_UserOwned_abi.json
+
+starknet-compile contracts/04_UserRegistry.cairo \
+    --output artifacts/compiled/04_UserRegistry.json \
+    --abi artifacts/abi/04_UserRegistry_abi.json
+
+starknet-compile contracts/05_Combat.cairo \
+    --output artifacts/compiled/05_Combat.json \
+    --abi artifacts/abi/05_Combat_abi.json
+
+starknet-compile contracts/06_DrugLord.cairo \
+    --output artifacts/compiled/06_DrugLord.json \
+    --abi artifacts/abi/06_DrugLord_abi.json
+
+starknet-compile contracts/07_PseudoRandom.cairo \
+    --output artifacts/compiled/07_PseudoRandom.json \
+    --abi artifacts/abi/07_PseudoRandom_abi.json
 
 starknet-compile contracts/Account.cairo \
     --output artifacts/compiled/Account.json \
     --abi artifacts/abi/Account_abi.json
 
-starknet-compile contracts/Combat.cairo \
-    --output artifacts/compiled/Combat.json \
-    --abi artifacts/abi/Combat_abi.json

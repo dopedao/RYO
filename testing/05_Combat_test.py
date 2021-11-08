@@ -41,7 +41,7 @@ async def account_factory():
 @pytest.fixture(scope='module')
 async def combat_factory(account_factory):
     starknet, accounts = account_factory
-    combat = await starknet.deploy("contracts/Combat.cairo")
+    combat = await starknet.deploy("contracts/05_Combat.cairo")
     return starknet, accounts, combat
 
 

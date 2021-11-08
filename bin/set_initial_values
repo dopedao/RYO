@@ -1,31 +1,33 @@
 #!/bin/bash
 set -eu
 
-# Save the deployed contract addresses from bin/deploy.
-set_market_addr=$(starknet invoke \
-    --network=alpha \
-    --address $GameEngineV1Address \
-    --abi artifacts/abi/GameEngineV1_abi.json \
-    --function set_market_maker_address \
-    --inputs ${MarketMakerAddress})
-echo -e "\nMarket address set: \n${set_market_addr}"
+# Addresses come from running  '. bin/deploy'
 
-set_registry_addr=$(starknet invoke \
+# Save the ModuleController deployment address into the Arbiter.
+add_controller_to_arbiter=$(starknet invoke \
     --network=alpha \
-    --address $GameEngineV1Address \
-    --abi artifacts/abi/GameEngineV1_abi.json \
-    --function set_user_registry_address \
-    --inputs ${UserRegistryAddress})
-echo -e "\nRegistry address set: \n${set_registry_addr}"
+    --address $ArbiterAddress \
+    --abi artifacts/abi/Arbiter_abi.json \
+    --function set_address_of_controller \
+    --inputs ${ModuleControllerAddress})
+echo -e "\nController address saved into Arbter: \n${add_controller_to_arbiter}"
 
-set_combat_addr=$(starknet invoke \
+# Use the Arbiter to save module addresses into the ModuleController.
+set_module_addr=$(starknet invoke \
     --network=alpha \
-    --address $GameEngineV1Address \
-    --abi artifacts/abi/GameEngineV1_abi.json \
-    --function set_combat_address \
-    --inputs ${CombatAddress})
-echo -e "\nCombat address set: \n${set_combat_addr}"
+    --address $ModuleControllerAddress \
+    --abi artifacts/abi/ModuleController_abi.json \
+    --function set_initial_module_addresses \
+    --inputs ${module_01_DopeWars} ${module_02_LocationOwned} \
+    ${module_03_UserOwned} ${module_04_UserRegistry} \
+    ${module_05_Combat} ${module_06_DrugLord} ${module_07_PseudoRandom})
+echo -e "\nModule addresses 1-7 set: \n${set_module_addr}"
 
+
+#################################
+
+# TODO: Refine the below fuctions which initialize the LocationOwned
+# game states for prepopulated dealers at the start of the game.
 
 # Set up initial values for every market curve. Pass two lists,
 # one for market item quantities, the other for market money quantities,
@@ -50,8 +52,8 @@ market_items="${python3 ./testing/utils/markets_to_list.py 1}"
 # TODO Get this to accept the list of initial values.
 #echo $(starknet invoke \
 #    --network=alpha \
-#    --address ${GameEngineV1Address} \
-#    --abi artifacts/abi/GameEngineV1_abi.json \
+#    --address ${02_LocationOwnedAddress} \
+#    --abi artifacts/abi/02_LocationOwned_abi.json \
 #    --function admin_set_pairs \
 #    --inputs 1444 ${market_items} 1444 ${market_money})
 

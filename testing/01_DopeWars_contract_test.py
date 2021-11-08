@@ -2,7 +2,7 @@ import pytest
 import asyncio
 import random
 from starkware.starknet.testing.starknet import Starknet
-from utils.Account import Account
+from utils.Signer import Signer
 from utils.markets_to_list import populate_test_markets
 import sys
 
@@ -12,6 +12,7 @@ sys.setrecursionlimit(10000)
 # Create signers that use a private key to sign transaction objects.
 NUM_SIGNING_ACCOUNTS = 2
 DUMMY_PRIVATE = 123456789987654321
+signers = []
 # All accounts currently have the same L1 fallback address.
 L1_ADDRESS = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984
 
@@ -72,66 +73,74 @@ async def account_factory():
     accounts = []
     print(f'Deploying {NUM_SIGNING_ACCOUNTS} accounts...')
     for i in range(NUM_SIGNING_ACCOUNTS):
-        account = Account(DUMMY_PRIVATE + i, L1_ADDRESS)
-        await account.create(starknet)
+        signer = Signer(DUMMY_PRIVATE + i)
+        signers.append(signer)
+        account = await starknet.deploy(
+            "contracts/Account.cairo",
+            constructor_calldata=[signer.public_key]
+        )
+        await account.initialize(account.contract_address).invoke()
         accounts.append(account)
 
-        print(f'Account {i} is: {account}')
+        print(f'Account {i} is: {hex(account.contract_address)}')
 
     # Admin is usually accounts[0], user_1 = accounts[1].
     # To build a transaction to call func_xyz(arg_1, arg_2)
     # on a TargetContract:
 
-    # user_1 = accounts[1]
-    # await user_1.tx_with_nonce(
-    #     to=TargetContract,
-    #     selector_name='func_xyz',
-    #     calldata=[arg_1, arg_2])
+    # await Signer.send_transaction(
+    #   account=accounts[1],
+    #   to=TargetContract,
+    #   selector='func_xyz',
+    #   calldata=[arg_1, arg_2],
+    #   nonce=current_nonce).invoke()
+
+    # Note that nonce is an optional argument.
     return starknet, accounts
 
 @pytest.fixture(scope='module')
 async def game_factory(account_factory):
     starknet, accounts = account_factory
 
-    engine = await starknet.deploy("contracts/GameEngineV1.cairo")
-    market = await starknet.deploy("contracts/MarketMaker.cairo")
-    registry = await starknet.deploy("contracts/UserRegistry.cairo")
-    combat = await starknet.deploy("contracts/Combat.cairo")
+    arbiter = await starknet.deploy("contracts/Arbiter.cairo")
+    controller = await starknet.deploy(
+        source="contracts/ModuleController.cairo",
+        constructor_calldata=[arbiter.contract_address])
+    engine = await starknet.deploy(
+        source="contracts/01_DopeWars.cairo",
+        constructor_calldata=[controller.contract_address])
+    location_owned = await starknet.deploy(
+        source="contracts/02_LocationOwned.cairo",
+        constructor_calldata=[controller.contract_address])
+    user_owned = await starknet.deploy(
+        source="contracts/03_UserOwned.cairo",
+        constructor_calldata=[controller.contract_address])
+    registry = await starknet.deploy(
+        source="contracts/04_UserRegistry.cairo",
+        constructor_calldata=[controller.contract_address])
+    combat = await starknet.deploy(
+        source="contracts/05_Combat.cairo",
+        constructor_calldata=[controller.contract_address])
 
-    # Save the other contract address in the game contract.
-    await engine.set_market_maker_address(
-        address=market.contract_address).invoke()
-    await engine.set_user_registry_address(
-        address=registry.contract_address).invoke()
-    await engine.set_combat_address(
-        address=combat.contract_address).invoke()
-    return starknet, accounts, engine, market, registry, combat
+    return starknet, accounts, arbiter, controller, engine, \
+        location_owned, user_owned, registry, combat
 
 
 @pytest.mark.asyncio
 async def test_account_unique(game_factory):
-    _, accounts, _, _, _, _ = game_factory
-    admin = accounts[0].signer.public_key
-    user_1 = accounts[1].signer.public_key
-    assert admin != user_1
-
-
-@pytest.mark.asyncio
-async def test_market(game_factory):
-    _, _, _, market, _, _ = game_factory
-    market_a_pre = 300
-    market_b_pre = 500
-    user_a_pre = 40  # User gives 40.
-    res = await market.trade(market_a_pre, market_b_pre, user_a_pre).invoke()
-    (market_a_post, market_b_post, user_b_post, ) = res
-
-    assert market_a_post == market_a_pre + user_a_pre
-    assert market_b_post == market_b_pre - user_b_post
-
+    starknet, accounts, arbiter, controller, engine, \
+        location_owned, user_owned, registry, combat = game_factory
+    # Test the account deployments.
+    admin_pub = await accounts[0].get_public_key().call()
+    assert admin_pub.result == (signers[0].public_key,)
+    user_1_pub = await accounts[1].get_public_key().call()
+    assert user_1_pub.result == (signers[1].public_key,)
+    assert signers[0].public_key != signers[1].public_key
 
 @pytest.fixture(scope='module')
 async def populated_registry(game_factory):
-    _, accounts, _, _, registry, _ = game_factory
+    starknet, accounts, arbiter, controller, engine, \
+        location_owned, user_owned, registry, combat = game_factory
     admin = accounts[0]
     # Populate the registry with some data.
     sample_data = 84622096520155505419920978765481155
@@ -141,7 +150,8 @@ async def populated_registry(game_factory):
     # Indices from 10, 30, 50, 70, 90..., have values 1.
     # [00010000010011000011] * 6 == [1133] * 6
     # Populate the registry with homogeneous users (same data each).
-    await admin.tx_with_nonce(
+    await Signer.send_transaction(
+        account=admin,
         to=registry.contract_address,
         selector_name='admin_fill_registry',
         calldata=[USER_COUNT, sample_data])
@@ -150,7 +160,8 @@ async def populated_registry(game_factory):
 
 @pytest.fixture(scope='module')
 async def populated_game(game_factory):
-    _, accounts, engine, _, _, _ = game_factory
+    starknet, accounts, arbiter, controller, engine, \
+        location_owned, user_owned, registry, combat = game_factory
     admin = accounts[0]
     # Populate the item pair of interest across all locations.
 
@@ -159,35 +170,41 @@ async def populated_game(game_factory):
     assert len(money_list) == len(item_list) == list_length
 
     # The first element in the list is the list length.
-    await engine.admin_set_pairs(item_list, money_list).invoke()
+    await location_owned.admin_set_pairs(item_list, money_list).invoke()
 
+    await Signer.send_transaction(account=admin,
+        to=location_owned.contract_address,
+        selector='admin_set_pairs',
+        calldata=[item_list, money_list]).invoke()
     # This new account-based tx currently fails with:
     # E           An ASSERT_EQ instruction failed: 11:240 != 11:2888
     # E           assert [fp + (-4)] = __calldata_actual_size
-    '''
-    calldata_list = item_list + money_list
-    await admin.tx_with_nonce(
-        to=engine.contract_address,
-        selector_name='admin_set_pairs',
-        calldata=calldata_list)
-    '''
 
+    # Likely need to rework this function to have fewer inputs.
     return engine, item_list, money_list
 
 # Checks to make sure the markets were initialized properly.
 @pytest.mark.asyncio
-async def test_market_spawn(populated_game):
+async def test_market_spawn(populated_game, game_factory):
     engine, item_list, money_list = populated_game
+    starknet, accounts, arbiter, controller, _, \
+        location_owned, user_owned, registry, combat = game_factory
     # Recall that item_id=1 is the first item (money is id=0)
-    (spawn_item, spawn_money) = await engine.check_market_state(
-        location_id=0, item_id=1).invoke()
+    (spawn_item, spawn_money) = await Signer.send_transaction(
+        account=accounts[0],
+        to=engine.contract_address,
+        selector='check_market_state',
+        calldata=[0, 1]).invoke()
+
     assert spawn_item == item_list[0]
     assert spawn_money == money_list[0]
 
 
 @pytest.mark.asyncio
-async def test_playerlockout(populated_game, populated_registry):
+async def test_playerlockout(populated_game, game_factory):
     engine, _, _ = populated_game
+    starknet, accounts, arbiter, controller, _, \
+        location_owned, user_owned, registry, combat = game_factory
 
     # TODO: perhaps make MIN_TURN_LOCKOUT a storage variable in contract instead of constant
     #       so that we can set it to 0 for faster testing
@@ -210,14 +227,20 @@ async def test_playerlockout(populated_game, populated_registry):
     buy_or_sell = 0 # buy
     give_quantity = 2000
 
-    turn_1 = await engine.have_turn(user_id, location_id,
-        buy_or_sell, item_id, give_quantity,
-        USER_COMBAT_STATS, DRUG_LORD_STATS).invoke()
+    turn_1 = await Signer.send_transaction(
+        account=accounts[1],
+        to=engine.contract_address,
+        selector='have_turn',
+        calldata=[user_id, location_id,
+        buy_or_sell, item_id, give_quantity]).invoke()
 
     with pytest.raises(Exception) as e_info:
-        turn_2 = await engine.have_turn(user_id, location_id,
-            buy_or_sell, item_id, give_quantity,
-            USER_COMBAT_STATS, DRUG_LORD_STATS).invoke()
+        turn_2 = await Signer.send_transaction(
+            account=accounts[1],
+            to=engine.contract_address,
+            selector='have_turn',
+            calldata=[user_id, location_id,
+            buy_or_sell, item_id, give_quantity]).invoke()
     print(f"> [test_playerlockout] sub-test #1 raises exception: {e_info.value.args}")
     print( "> [test_playerlockout] sub-test #1 passes with exception raised correctly.")
 
@@ -228,18 +251,24 @@ async def test_playerlockout(populated_game, populated_registry):
         item_id = random.randint(1, 19)
         buy_or_sell = 0 # buy only since players start with all money and no items
         give_quantity = 2000
-        turn = await engine.have_turn(user_id, location_id,
-            buy_or_sell, item_id, give_quantity,
-            USER_COMBAT_STATS, DRUG_LORD_STATS).invoke()
+        turn = await Signer.send_transaction(
+            account=accounts[1],
+            to=engine.contract_address,
+            selector='have_turn',
+            calldata=[user_id, location_id,
+            buy_or_sell, item_id, give_quantity]).invoke()
         print(f"> [test_playerlockout] sub-test #2 #{i}-turn by user#{user_id} completed.")
 
     # back to the first user making its second turn after exactly MIN_TURN_LOCKOUT ticks
     user_id = 2
     location_id = 6
     item_id = 10
-    turn = await engine.have_turn(user_id, location_id,
-        buy_or_sell, item_id, give_quantity,
-        USER_COMBAT_STATS, DRUG_LORD_STATS).invoke()
+    turn = await Signer.send_transaction(
+        account=accounts[1],
+        to=engine.contract_address,
+        selector='have_turn',
+        calldata=[user_id, location_id,
+        buy_or_sell, item_id, give_quantity]).invoke()
     print(f"> [test_playerlockout] sub-test #2 #{MIN_TURN_LOCKOUT+1}-turn by user#{user_id} (its second turn) completed.")
 
     print("> [test_playerlockout] sub-test 2 passes")
@@ -254,8 +283,10 @@ def market_spawn_list_index(city_index, district_index, item_id):
     return prev_city_items + prev_dist_items + prev_items
 
 @pytest.mark.asyncio
-async def test_single_turn_logic(populated_game, populated_registry):
+async def test_single_turn_logic(populated_game, game_factory):
     engine, sample_item_count_list, sample_item_money_list = populated_game
+    starknet, accounts, arbiter, controller, _, \
+        location_owned, user_owned, registry, combat = game_factory
 
     user_id = 9 # avoid reusing user_id already used by test_playerlockout
     location_id = 34
@@ -290,9 +321,12 @@ async def test_single_turn_logic(populated_game, populated_registry):
     print('pre_trade_market', pre_trade_market)
     print('pre_trade_user', pre_trade_user)
     # Execute a game turn.
-    turn = await engine.have_turn(user_id, location_id,
-        buy_or_sell, item_id, give_quantity,
-        USER_COMBAT_STATS, DRUG_LORD_STATS).invoke()
+    turn = await Signer.send_transaction(
+        account=accounts[1],
+        to=engine.contract_address,
+        selector='have_turn',
+        calldata=[user_id, location_id,
+        buy_or_sell, item_id, give_quantity]).invoke()
 
 
     print("Turn events")

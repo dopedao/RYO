@@ -1,43 +1,88 @@
 # RYO
 
-Dope Wars game engine on StarkNet L2 roll-up.
+Roll Your Own - A Dope Wars open universe project.
+
+A modular game engine architecture for the StarkNet L2 roll-up.
 
 ## What
 
 TI-83 drug wars built as smart contract system.
 
-Background mechanism design notion [here](https://dope-wars.notion.site/dope-22fe2860c3e64b1687db9ba2d70b0bb5).
+History:
 
-Initial exploration / walkthrough viability testing blog [here](https://perama-v.github.io/cairo/game/world).
+- Background mechanism design notion [here](https://dope-wars.notion.site/dope-22fe2860c3e64b1687db9ba2d70b0bb5).
+- Initial exploration / walkthrough viability testing blog [here](https://perama-v.github.io/cairo/game/world).
+- Expansion for forward compatibility [here](https://perama-v.github.io/cairo/game/aggregated-architecture).
 
-Join in and learn about:
+The Dope Wars universe is a Loot-style project with many limbs. The
+game engine seeks build the classic calculator game in the blockchain
+environment. The game design seeks to enable gameplay similar to the
+original experience, while also being expandable in other dimensions.
 
-    - Cairo. A turing-complete language for programs that become proofs.
-    - StarkNet. An Ethereum L2 rollup with:
-        - L1 for data availability
-        - State transitions executed by validity proofs that the EVM checks.
+At a high level, this means players:
 
-Basics:
+- Try to increase their inventory by swapping assets. By trading
+cleverly they can out-compete other players.
+    - Trades are against non-playable dealers in different locations.
+    - 19 cities with 4 districts each.
+    - Dealers have 19 drugs in different inventories and administer trades
+    using automated market maker rules.
+    - The game is unstable, with hard-to-predict events creating
+    risk of personal loss and also trade opportunity.
 
-- Try to increase your inventory by swapping assets with NPC dealers.
-    - 19 cities with 4 districts each. Each district has a
+Additional elements may be added through a mechanism outlined below.
+One element being explored is auto-battler combat mechanism that
+is used to appoint a Drug Lord in each region.
+
 - Try to dethrone the local drug lord with a hand-crafted battler.
     - Each city has a drug lord who takes a cut from each trade.
     - Drug lords a appointed by battle (king of the hill).
 
-## Why
-
-For fun. The game state of this shared calculator game cannot be falsified,
-what dynamics does this produce?
-
-
 Some dynamics may evolve around:
+    - The market is transparent and opportunities openly visible.
+    - Probabalistic events cause chaos and shake up the market.
+    - Submitted drug lord battlers must take into account the current
+    drug lord stats, but also defend against future challengers.
 
-- The market is transparent and opportunities openly visible.
-- Probabalistic events cause chaos and shake up the market.
-- Submitted drug lord battlers must take into account the current
-drug lord stats, but also defend against future challengers.
+Expansions may be integrated to build out different elements into
+complementary game play environments that read +/- write to the
+same game state.
 
+Join in:
+
+- Learn about Cairo. A turing-complete language for programs that become proofs.
+- Learn about StarkNet. An Ethereum L2 rollup with:
+    - L1 for data availability
+    - State transitions executed by validity proofs that the EVM checks.
+- Work on anything to do with the game/ecosystem that fits your skills and interest.
+
+## System architecture
+
+The game mechanics are separated from the game state variables.
+A controller system manages a mapping of modules to deployed addresses
+and a governance module may update the controller.
+
+It is also worth pointing out that StarkNet has account abstraction
+(see background notes [here](https://perama-v.github.io/cairo/examples/test_accounts/)). This means that transactions are actioned by sending a payload to a personal
+Account contract that holds your public key. The contract checks the payload
+and forwards it on to the destination.
+
+- Accounts
+    - A user who controls a Hustler (game character) in the system.
+    - An admin who controls the Arbiter. The admin may be a human or a
+    multisig governance contract activated by votes on L2.
+- Arbiter (most power in the system).
+    - Can update/add module mappings in ModuleController.
+- ModuleController (mapping of deployments to module_ids)
+    - Is the reference point for all modules. Modules call this
+    contract as the source of truth for the address of other modules.
+- Modules (open ended set)
+    - Game mechanics (where a player would interact to play)
+    - Storage modules (game variables)
+    - L1 connectors (for integrating L1 state/ownership to L2)
+    - Other arbitrary contracts
+
+For more information see [system architecture](./system_architecture.md)
 
 ## Setup
 
@@ -83,9 +128,9 @@ bin/compile
 
 Compile an individual contract:
 ```
-starknet-compile contracts/GameEngineV1.cairo \
-    --output artifacts/compiled/GameEngineV1.json \
-    --abi artifacts/abi/GameEngineV1_abi.json
+starknet-compile contracts/01_DopeWars.cairo \
+    --output artifacts/compiled/01_DopeWars.json \
+    --abi artifacts/abi/01_DopeWars_abi.json
 ```
 
 ### Test
@@ -94,28 +139,25 @@ Run all github actions tests: `bin/test`
 
 Run individual tests
 ```
-bin/shell pytest -s testing/GameEngineV1_contract_test.py
-
-bin/shell pytest -s testing/MarketMaker_contract_test.py
-
-bin/shell pytest -s testing/UserRegistry_contract_test.py
+bin/shell pytest -s testing/01_DopeWars_contract_test.py
 ```
 
 ### Deploy
 
 The deploy script deploys all the contracts and exports the addresses
-in the form `ContractNameAddress` to the current environment.
+in the form `ContractNameAddress` to the current environment. Make
+sure to include the dot or the addresses will not be exported.
 
 ```
 . bin/deploy
 ```
-See deployed addresses [here](deployed_addresses.md)
+See deployed addresses [here](artifacts/deployed_addresses.txt).
 
-Check deployment status by passing in the transaction ID you receive:
+The status of a transaction can be queried:
+
 ```
-bin/shell starknet tx_status --network=alpha --id=TRANSACTION_ID
+starknet get_transaction --network=alpha --hash TX_HASH
 ```
-`PENDING` Means that the transaction passed the validation and is waiting to be sent on-chain.
 
 ### Admin initialisation
 
@@ -138,8 +180,8 @@ that purchases.
 ```
 bin/shell starknet invoke \
     --network=alpha \
-    --address $GameEngineV1Address \
-    --abi abi/GameEngineV1_contract_abi.json \
+    --address $01_DopeWarsAddress \
+    --abi abi/01_DopeWars_contract_abi.json \
     --function have_turn \
     --inputs 733 34 0 5 1000
 ```
@@ -149,8 +191,8 @@ exchanged for some quantity of money.
 ```
 bin/shell starknet call \
     --network=alpha \
-    --address $GameEngineV1Address \
-    --abi abi/GameEngineV1_contract_abi.json \
+    --address $01_DopeWarsAddress \
+    --abi abi/01_DopeWars_contract_abi.json \
     --function check_user_state \
     --inputs 733
 ```
@@ -240,7 +282,7 @@ market values as a list (rather than string).
 Coding tasks:
 
 - Refine both the likelihood (basis points per user turn) and impact (percentage
-change) that events have and treak the constant at the top of `contracts/GameEngineV1.cairo`.
+change) that events have and treak the constant at the top of `contracts/01_DopeWars.cairo`.
 E.g., how often should you get mugged, how much money would you lose.
 - Make the market initialisation function smaller (exceeded pedersen builtin, tx_id=302029). E.g., break it into 8 separate transactions.
 - User authentication. E.g., signature verification.
@@ -262,6 +304,7 @@ of system where places have different market dynamics. E.g.,:
     - Think about how to integrate the non-flexible combat
     atributes that come from the Hustler (1 item per slot). E.g., how
     should combate integrate the score that each item has.
+- Extract the global state variables i to separate modules.
 
 Design considerations/todo
 

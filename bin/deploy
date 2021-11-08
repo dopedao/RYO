@@ -1,30 +1,162 @@
 #!/bin/bash
 set -eu
 
-# For each contract compiled with bin/compile, deploy and record the
-# deployment address.
+# Remember to run this script as:
+# . bin/deploy
 
-GameEngineV1=$(starknet deploy --contract artifacts/compiled/GameEngineV1.json \
-    --network=alpha)
-echo -e "\nGameEngineV1: ${GameEngineV1}"
-GameEngineV1Address=$(echo -e ${GameEngineV1} | grep -o '\b0x\w*' )
 
-MarketMaker=$(starknet deploy --contract artifacts/compiled/MarketMaker.json \
-    --network=alpha)
-echo -e "\nMarketMaker: ${MarketMaker}"
-MarketMakerAddress=$(echo -e ${MarketMaker} | grep -o '\b0x\w*' )
+# Flow:
+## The Controller is the only unchangeable contract.
+## First deploy Arbiter.
+## Then send the Arbiter address during Controller deployment.
+## Then deploy Controller address during module deployments.
 
-UserRegistry=$(starknet deploy --contract artifacts/compiled/UserRegistry.json \
+
+Arbiter=$(starknet deploy \
+    --contract artifacts/compiled/Arbiter.json \
     --network=alpha)
-echo -e "\nUserRegistry: ${UserRegistry}"
-UserRegistryAddress=$(echo -e ${UserRegistry} | grep -o '\b0x\w*' )
+echo -e "\nArbiter: ${Arbiter}"
+ArbiterAddress=$(echo -e ${Arbiter} | grep -o -m 1 '\b0x\w*' | head -1)
+ArbiterTransaction=$(echo -e ${Arbiter} | grep -o -m 1 '\b0x\w*' | tail -1)
+
+ModuleController=$(starknet deploy \
+    --contract artifacts/compiled/ModuleController.json \
+    --network=alpha \
+    --inputs ${ArbiterAddress})
+echo -e "\nModuleController: ${ModuleController}"
+ModuleControllerAddress=$(echo -e ${ModuleController} | grep -o -m 1 '\b0x\w*' | head -1)
+ModuleControllerTransaction=$(echo -e ${ModuleController} | grep -o -m 1 '\b0x\w*' | tail -1)
+
+module_01_DopeWars=$(starknet deploy \
+    --contract artifacts/compiled/01_DopeWars.json \
+    --network=alpha \
+    --inputs ${ModuleControllerAddress})
+echo -e "\n01_DopeWars: ${module_01_DopeWars}"
+module_01_DopeWarsAddress=$(echo -e ${module_01_DopeWars} | grep -o -m 1 '\b0x\w*' | head -1)
+module_01_DopeWarsTransaction=$(echo -e ${module_01_DopeWars} | grep -o -m 1 '\b0x\w*' | tail -1)
+
+module_02_LocationOwned=$(starknet deploy \
+    --contract artifacts/compiled/02_LocationOwned.json \
+    --network=alpha \
+    --inputs ${ModuleControllerAddress})
+echo -e "\n02_LocationOwned: ${module_02_LocationOwned}"
+module_02_LocationOwnedAddress=$(echo -e ${module_02_LocationOwned} | grep -o -m 1 '\b0x\w*' | head -1)
+module_02_LocationOwnedTransaction=$(echo -e ${module_02_LocationOwned} | grep -o -m 1 '\b0x\w*' | tail -1)
+
+module_03_UserOwned=$(starknet deploy \
+    --contract artifacts/compiled/03_UserOwned.json \
+    --network=alpha \
+    --inputs ${ModuleControllerAddress})
+echo -e "\n03_UserOwned: ${module_03_UserOwned}"
+module_03_UserOwnedAddress=$(echo -e ${module_03_UserOwned} | grep -o -m 1 '\b0x\w*' | head -1)
+module_03_UserOwnedTransaction=$(echo -e ${module_03_UserOwned} | grep -o -m 1 '\b0x\w*' | tail -1)
+
+module_04_UserRegistry=$(starknet deploy \
+    --contract artifacts/compiled/04_UserRegistry.json \
+    --network=alpha \
+    --inputs ${ModuleControllerAddress})
+echo -e "\n04_UserRegistry: ${module_04_UserRegistry}"
+module_04_UserRegistryAddress=$(echo -e ${module_04_UserRegistry} | grep -o -m 1 '\b0x\w*' | head -1)
+module_04_UserRegistryTransaction=$(echo -e ${module_04_UserRegistry} | grep -o -m 1 '\b0x\w*' | tail -1)
+
+module_05_Combat=$(starknet deploy \
+    --contract artifacts/compiled/05_Combat.json \
+    --network=alpha \
+    --inputs ${ModuleControllerAddress})
+echo -e "\n05_Combat: ${module_05_Combat}"
+module_05_CombatAddress=$(echo -e ${module_05_Combat} | grep -o -m 1 '\b0x\w*' | head -1)
+module_05_CombatTransaction=$(echo -e ${module_05_Combat} | grep -o -m 1 '\b0x\w*' | tail -1)
+
+module_06_DrugLord=$(starknet deploy \
+    --contract artifacts/compiled/06_DrugLord.json \
+    --network=alpha \
+    --inputs ${ModuleControllerAddress})
+echo -e "\n06_DrugLord: ${module_06_DrugLord}"
+module_06_DrugLordAddress=$(echo -e ${module_06_DrugLord} | grep -o -m 1 '\b0x\w*' | head -1)
+module_06_DrugLordTransaction=$(echo -e ${module_06_DrugLord} | grep -o -m 1 '\b0x\w*' | tail -1)
+
+module_07_PseudoRandom=$(starknet deploy \
+    --contract artifacts/compiled/07_PseudoRandom.json \
+    --network=alpha \
+    --inputs ${ModuleControllerAddress})
+echo -e "\n07_PseudoRandom: ${module_07_PseudoRandom}"
+module_07_PseudoRandomAddress=$(echo -e ${module_07_PseudoRandom} | grep -o -m 1 '\b0x\w*' | head -1)
+module_07_PseudoRandomTransaction=$(echo -e ${module_07_PseudoRandom} | grep -o -m 1 '\b0x\w*' | tail -1)
+
+# Account (below). This (admin) account will control the Arbiter
+# and will be deployed with STARK-friendly ECDSA keypair(s). The
+# key(s) will then be used to sign messages that go to the Account.
+# The Account checks the signature(s) then passes the transaction data
+# to the Arbiter. The Arbiter may then do things like call the
+# ModuleController with information about a new module address.
 
 Account=$(starknet deploy --contract artifacts/compiled/Account.json \
     --network=alpha)
 echo -e "\nAccount: ${Account}"
-AccountAddress=$(echo -e ${Account} | grep -o '\b0x\w*' )
+AccountAddress=$(echo -e ${Account} | grep -o -m 1 '\b0x\w*' | head -1)
+AccountTransaction=$(echo -e ${Account} | grep -o -m 1 '\b0x\w*' | tail -1)
 
-Combat=$(starknet deploy --contract artifacts/compiled/Combat.json \
+# Each user will also have accounts
+UserAccount00=$(starknet deploy --contract artifacts/compiled/Account.json \
     --network=alpha)
-echo -e "\nCombat: ${Combat}"
-CombatAddress=$(echo -e ${Combat} | grep -o '\b0x\w*' )
+echo -e "\nUserAccount00: ${UserAccount00}"
+UserAccount00Address=$(echo -e ${UserAccount00} | grep -o -m 1 '\b0x\w*' | head -1)
+UserAccount00Transaction=$(echo -e ${UserAccount00} | grep -o -m 1 '\b0x\w*' | tail -1)
+
+##################
+# Save deployments
+
+OUT=artifacts/deployed_addresses.json
+
+echo "Deployments saved to ${OUT}"
+
+cat <<EOF | jq >$OUT
+{
+    "contracts": {
+        "Arbiter": {
+            "address": "$ArbiterAddress",
+            "transaction": "$ArbiterTransaction"
+        },
+        "ModuleController": {
+            "address": "$ModuleControllerAddress",
+            "transaction": "$ModuleControllerTransaction"
+        },
+        "01_DopeWars": {
+            "address": "$module_01_DopeWarsAddress",
+            "transaction": "$module_01_DopeWarsTransaction"
+        },
+        "02_LocationOwned": {
+            "address": "$module_02_LocationOwnedAddress",
+            "transaction": "$module_02_LocationOwnedTransaction"
+        },
+        "03_UserOwned": {
+            "address": "$module_03_UserOwnedAddress",
+            "transaction": "$module_03_UserOwnedTransaction"
+        },
+        "04_UserRegistry": {
+            "address": "$module_04_UserRegistryAddress",
+            "transaction": "$module_04_UserRegistryTransaction"
+        },
+        "05_Combat": {
+            "address": "$module_05_CombatAddress",
+            "transaction": "$module_05_CombatTransaction"
+        },
+        "06_DrugLord": {
+            "address": "$module_06_DrugLordAddress",
+            "transaction": "$module_06_DrugLordTransaction"
+        },
+        "07_PseudoRandom": {
+            "address": "$module_07_PseudoRandomAddress",
+            "transaction": "$module_07_PseudoRandomTransaction"
+        },
+        "Account": {
+            "address": "$AccountAddress",
+            "transaction": "$AccountTransaction"
+        },
+        "UserAccount00": {
+            "address": "$UserAccount00Address",
+            "transaction": "$UserAccount00Transaction"
+        }
+    }
+}
+EOF

@@ -6,7 +6,15 @@ from starkware.cairo.common.cairo_builtins import (HashBuiltin,
     BitwiseBuiltin)
 from starkware.cairo.common.math import unsigned_div_rem
 from starkware.cairo.common.pow import pow
-from starkware.starknet.common.storage import Storage
+
+from contracts.utils.interfaces import IModuleController
+
+##### Module XX #####
+#
+# This module ...
+#
+#
+####################
 
 ##### Encoding details #####
 # Zero-based bit index for data locations.
@@ -60,11 +68,32 @@ func available_id(
     ):
 end
 
+
+@storage_var
+func controller_address() -> (address : felt):
+end
+
+
+# Called on deployment only.
+@constructor
+func constructor{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        address_of_controller : felt
+    ):
+    # Store the address of the only fixed contract in the system.
+    controller_address.write(address_of_controller)
+    return ()
+end
+
+
 ##### External Functions #####
 # Returns the L2 public key and game-related player data for a user.
 @external
 func get_user_info{
-        storage_ptr : Storage*,
+        syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
@@ -85,7 +114,7 @@ end
 # User with specific token calls to save their details the game.
 @external
 func register_user{
-        storage_ptr : Storage*,
+        syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
@@ -118,7 +147,7 @@ end
 # Creates artificial users for testing.
 @external
 func admin_fill_registry{
-        storage_ptr : Storage*,
+        syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
@@ -135,7 +164,7 @@ end
 # Returns a 4-bit value at a particular index for item score.
 @external
 func unpack_score{
-        storage_ptr : Storage*,
+        syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         bitwise_ptr: BitwiseBuiltin*,
         range_check_ptr
@@ -149,7 +178,7 @@ func unpack_score{
     # User data is a binary encoded value with alternating
     # 6-bit id followed by a 4-bit score (see top of file).
     let (local data) = user_data.read(user_id)
-    local storage_ptr : Storage* = storage_ptr
+    local syscall_ptr : felt* = syscall_ptr
     local pedersen_ptr : HashBuiltin* = pedersen_ptr
     local bitwise_ptr: BitwiseBuiltin* = bitwise_ptr
     # 1. Create a 4-bit mask at and to the left of the index
@@ -171,7 +200,7 @@ end
 ##### Helper Functions #####
 # Recursion to populate registry storage.
 func loop_n_users{
-        storage_ptr : Storage*,
+        syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
@@ -187,3 +216,4 @@ func loop_n_users{
     register_user(num - 1 + 1000000, data)
     return ()
 end
+

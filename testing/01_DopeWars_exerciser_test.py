@@ -3,7 +3,7 @@ import asyncio
 import random
 import math
 from starkware.starknet.testing.starknet import Starknet
-from utils.Account import Account
+from utils.Signer import Signer
 
 # Game parameters
 MIN_TURN_LOCKOUT = 3 # MUST be consistent with MIN_TURN_LOCKOUT in contract
@@ -13,6 +13,7 @@ ITEM_COUNT = 19 # Number of items; item_id in [1,19]
 # Playtest parameters
 NUM_SIGNING_ACCOUNTS = MIN_TURN_LOCKOUT*5 # == total user count
 DUMMY_PRIVATE = 123456789987654321
+signers = []
 L1_ADDRESS = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984 # All accounts currently have the same L1 fallback address.
 N_TURN = 100
 
@@ -32,11 +33,16 @@ async def account_factory():
     accounts = []
     print(f'Deploying {NUM_SIGNING_ACCOUNTS} accounts...')
     for i in range(NUM_SIGNING_ACCOUNTS):
-        account = Account(DUMMY_PRIVATE + i, L1_ADDRESS)
-        await account.create(starknet)
+        signer = Signer(DUMMY_PRIVATE + i)
+        signers.append(signer)
+        account = await starknet.deploy(
+            "contracts/Account.cairo",
+            constructor_calldata=[signer.public_key]
+        )
+        await account.initialize(account.contract_address).invoke()
         accounts.append(account)
 
-        print(f'Account {i} is: {account}')
+        print(f'Account {i} is: {hex(account.contract_address)}')
 
     return starknet, accounts
 
@@ -44,20 +50,33 @@ async def account_factory():
 async def game_factory(account_factory):
     starknet, accounts = account_factory
 
-    engine = await starknet.deploy("contracts/GameEngineV1.cairo")
-    market = await starknet.deploy("contracts/MarketMaker.cairo")
-    registry = await starknet.deploy("contracts/UserRegistry.cairo")
+    arbiter = await starknet.deploy("contracts/Arbiter.cairo")
+    controller = await starknet.deploy(
+        source="contracts/ModuleController.cairo",
+        constructor_calldata=[arbiter.contract_address])
+    engine = await starknet.deploy(
+        source="contracts/01_DopeWars.cairo",
+        constructor_calldata=[controller.contract_address])
+    location_owned = await starknet.deploy(
+        source="contracts/02_LocationOwned.cairo",
+        constructor_calldata=[controller.contract_address])
+    user_owned = await starknet.deploy(
+        source="contracts/03_UserOwned.cairo",
+        constructor_calldata=[controller.contract_address])
+    registry = await starknet.deploy(
+        source="contracts/04_UserRegistry.cairo",
+        constructor_calldata=[controller.contract_address])
+    combat = await starknet.deploy(
+        source="contracts/05_Combat.cairo",
+        constructor_calldata=[controller.contract_address])
 
-    # Save the other contract address in the game contract.
-    await engine.set_market_maker_address(
-        address=market.contract_address).invoke()
-    await engine.set_user_registry_address(
-        address=registry.contract_address).invoke()
-    return starknet, accounts, engine, market, registry
+    return starknet, accounts, arbiter, controller, engine, \
+        location_owned, user_owned, registry, combat
 
 @pytest.fixture(scope='module')
 async def populated_registry(game_factory):
-    _, accounts, _, _, registry = game_factory
+    starknet, accounts, arbiter, controller, engine, \
+        location_owned, user_owned, registry, combat = game_factory
     admin = accounts[0]
     # Populate the registry with some data.
     sample_data = 84622096520155505419920978765481155
@@ -67,7 +86,8 @@ async def populated_registry(game_factory):
     # Indices from 10, 30, 50, 70, 90..., have values 1.
     # [00010000010011000011] * 6 == [1133] * 6
     # Populate the registry with homogeneous users (same data each).
-    await admin.tx_with_nonce(
+    await Signer.send_transaction(
+        account=admin,
         to=registry.contract_address,
         selector_name='admin_fill_registry',
         calldata=[NUM_SIGNING_ACCOUNTS, sample_data])
@@ -75,7 +95,8 @@ async def populated_registry(game_factory):
 
 @pytest.fixture(scope='module')
 async def populated_game(game_factory):
-    _, accounts, engine, _, _ = game_factory
+    starknet, accounts, arbiter, controller, engine, \
+        location_owned, user_owned, registry, combat = game_factory
     admin = accounts[0]
 
     # Populate the item pair of interest across all locations.
@@ -86,15 +107,10 @@ async def populated_game(game_factory):
     for item_id in range(1, 20):
         # raw-interact with engine to initialize market; using admin
         # TODO figure out how to pass list as argument to admin.tx_with_nonce()
-        await engine.admin_set_pairs_for_item(item_id,
-            sample_item_count_list, sample_item_money_list).invoke()
-
-    # Give the users money (id=0).
-    user_money_pre = 10000
-    await admin.tx_with_nonce(
-        to=engine.contract_address,
-        selector_name='admin_set_user_amount',
-        calldata=[NUM_SIGNING_ACCOUNTS, user_money_pre])
+        await Signer.send_transaction(account=admin,
+            to=location_owned.contract_address,
+            selector='admin_set_pairs',
+            calldata=[sample_item_count_list, sample_item_money_list]).invoke()
 
     return engine, accounts, sample_item_count_list, sample_item_money_list
 
@@ -190,8 +206,12 @@ async def test_exerciser(populated_game, populated_registry):
         # Step 4. P performs action a against E
         buy_or_sell = 0 if a['type']=='buy' else 1
         try:
-            turn_made = await engine.have_turn(player_id, loc_id,
-                buy_or_sell, a['item_id'], give_quantity).invoke()
+            turn_made = await Signer.send_transaction(
+                account=accounts[1],
+                to=engine.contract_address,
+                selector='have_turn',
+                calldata=[player_id, loc_id,
+                buy_or_sell, a['item_id'], give_quantity]).invoke()
         except Exception as e:
             print(f'\n*** Trade failed with exception raised:\n{e}\n')
 
