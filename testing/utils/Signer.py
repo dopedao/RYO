@@ -1,3 +1,5 @@
+# OpenZepellin commit hash: ffa208c
+
 from starkware.crypto.signature.signature import pedersen_hash, private_to_stark_key, sign
 from starkware.starknet.public.abi import get_selector_from_name
 
@@ -10,15 +12,22 @@ class Signer():
     def sign(self, message_hash):
         return sign(msg_hash=message_hash, priv_key=self.private_key)
 
-    def build_transaction(self, account, to, selector_name, calldata, nonce):
+    async def send_transaction(self, account, to, selector_name, calldata, nonce=None):
+        if nonce is None:
+            execution_info = await account.get_nonce().call()
+            nonce, = execution_info.result
+
         selector = get_selector_from_name(selector_name)
-        message_hash = hash_message(to, selector, calldata, nonce)
-        (sig_r, sig_s) = self.sign(message_hash)
-        return account.execute(to, selector, calldata, nonce, sig_r, sig_s)
+        message_hash = hash_message(
+            account.contract_address, to, selector, calldata, nonce)
+        sig_r, sig_s = self.sign(message_hash)
+
+        return await account.execute(to, selector, calldata).invoke(signature=[sig_r, sig_s])
 
 
-def hash_message(to, selector, calldata, nonce):
-    res = pedersen_hash(to, selector)
+def hash_message(sender, to, selector, calldata, nonce):
+    res = pedersen_hash(sender, to)
+    res = pedersen_hash(res, selector)
     res_calldata = hash_calldata(calldata)
     res = pedersen_hash(res, res_calldata)
     return pedersen_hash(res, nonce)
