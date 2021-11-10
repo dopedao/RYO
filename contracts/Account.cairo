@@ -1,11 +1,3 @@
-# Source: https://github.com/OpenZeppelin/cairo-contracts/blob/main/contracts/Account.cairo
-# Version: a3c5a5b
-# License: MIT
-
-# Modifications:
-# Remove storage_ptr : Storage* -> replace with syscall_ptr : felt*
-# Add a constructor.
-
 %lang starknet
 %builtins pedersen range_check ecdsa
 
@@ -13,7 +5,7 @@ from starkware.cairo.common.hash import hash2
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.signature import verify_ecdsa_signature
 from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
-from starkware.starknet.common.syscalls import call_contract, get_caller_address
+from starkware.starknet.common.syscalls import call_contract, get_caller_address, get_tx_signature
 
 #
 # Structs
@@ -49,22 +41,13 @@ func address() -> (res: felt):
 end
 
 #
-# Constructor
-#
-@constructor
-func constructor():
-    # TODO Move the pubkey aspect of the Initialize() function here.
-    return()
-end
-
-#
 # Guards
 #
 
 @view
 func assert_only_self{
-        syscall_ptr: felt*,
-        pedersen_ptr: HashBuiltin*,
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }():
     let (self) = address.read()
@@ -75,8 +58,8 @@ end
 
 @view
 func assert_initialized{
-        syscall_ptr: felt*,
-        pedersen_ptr: HashBuiltin*,
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }():
     let (_initialized) = initialized.read()
@@ -89,19 +72,31 @@ end
 #
 
 @view
-func get_public_key{ syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr }() -> (res: felt):
+func get_public_key{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }() -> (res: felt):
     let (res) = public_key.read()
     return (res=res)
 end
 
 @view
-func get_address{ syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr }() -> (res: felt):
+func get_address{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }() -> (res: felt):
     let (res) = address.read()
     return (res=res)
 end
 
 @view
-func get_nonce{ syscall_ptr: felt*, pedersen_ptr: HashBuiltin*, range_check_ptr }() -> (res: felt):
+func get_nonce{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }() -> (res: felt):
     let (res) = current_nonce.read()
     return (res=res)
 end
@@ -112,8 +107,8 @@ end
 
 @external
 func set_public_key{
-        syscall_ptr: felt*,
-        pedersen_ptr: HashBuiltin*,
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(new_public_key: felt):
     assert_only_self()
@@ -122,19 +117,33 @@ func set_public_key{
 end
 
 #
-# Initializer
+# Constructor
 #
+
+@constructor
+func constructor{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(_public_key: felt):
+    public_key.write(_public_key)
+    return()
+end
+
+#
+# Initializer (will remove once this.address is available for the constructor)
+#
+
 
 @external
 func initialize{
-        syscall_ptr: felt*,
-        pedersen_ptr: HashBuiltin*,
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    } (_public_key: felt, _address: felt):
+    }(_address: felt):
     let (_initialized) = initialized.read()
     assert _initialized = 0
     initialized.write(1)
-    public_key.write(_public_key)
     address.write(_address)
     return ()
 end
@@ -145,17 +154,23 @@ end
 
 @view
 func is_valid_signature{
-        pedersen_ptr: HashBuiltin*,
-        ecdsa_ptr: SignatureBuiltin*,
-        syscall_ptr: felt*,
-        range_check_ptr
-    } (
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        ecdsa_ptr: SignatureBuiltin*
+    }(
         hash: felt,
         signature_len: felt,
         signature: felt*
     ) -> ():
     assert_initialized()
     let (_public_key) = public_key.read()
+    # This interface expects a signature pointer and length to make
+    # no assumption about signature validation schemes.
+    # But this implementation does, and it expects a (sig_r, sig_s) pair.
+    let sig_r = signature[0]
+    let sig_s = signature[1]
+
     # This interface expects a signature pointer and length to make
     # no assumption about signature validation schemes.
     # But this implementation does, and it expects a (sig_r, sig_s) pair.
@@ -173,17 +188,15 @@ end
 
 @external
 func execute{
-        pedersen_ptr: HashBuiltin*,
-        ecdsa_ptr: SignatureBuiltin*,
-        syscall_ptr: felt*,
-        range_check_ptr
-    } (
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        ecdsa_ptr: SignatureBuiltin*
+    }(
         to: felt,
         selector: felt,
         calldata_len: felt,
         calldata: felt*,
-        signature_len: felt,
-        signature: felt*
     ) -> (response : felt):
     alloc_locals
     assert_initialized()
@@ -192,7 +205,7 @@ func execute{
     let (_address) = address.read()
     let (_current_nonce) = current_nonce.read()
 
-    local syscall_ptr: felt* = syscall_ptr
+    local syscall_ptr : felt* = syscall_ptr
     local range_check_ptr = range_check_ptr
     local _current_nonce = _current_nonce
 
@@ -207,6 +220,7 @@ func execute{
 
     # validate transaction
     let (hash) = hash_message(&message)
+    let (signature_len, signature) = get_tx_signature()
     is_valid_signature(hash, signature_len, signature)
 
     # bump nonce
