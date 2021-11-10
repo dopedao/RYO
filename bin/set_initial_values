@@ -3,24 +3,28 @@ set -eu
 
 # Addresses come from running  '. bin/deploy'
 
+get_address() {
+    echo $(cat artifacts/deployed_addresses.json | jq -r --arg contract "$1" '.contracts[$contract].address')
+}
+
 # Save the ModuleController deployment address into the Arbiter.
 add_controller_to_arbiter=$(starknet invoke \
     --network=alpha \
-    --address $ArbiterAddress \
+    --address $(get_address Arbiter) \
     --abi artifacts/abi/Arbiter_abi.json \
     --function set_address_of_controller \
-    --inputs ${ModuleControllerAddress})
+    --inputs $(get_address ModuleController))
 echo -e "\nController address saved into Arbter: \n${add_controller_to_arbiter}"
 
 # Use the Arbiter to save module addresses into the ModuleController.
 set_module_addr=$(starknet invoke \
     --network=alpha \
-    --address $ModuleControllerAddress \
+    --address $(get_address ModuleController) \
     --abi artifacts/abi/ModuleController_abi.json \
     --function set_initial_module_addresses \
-    --inputs ${module_01_DopeWars} ${module_02_LocationOwned} \
-    ${module_03_UserOwned} ${module_04_UserRegistry} \
-    ${module_05_Combat} ${module_06_DrugLord} ${module_07_PseudoRandom})
+    --inputs $(get_address 01_DopeWars) $(get_address 02_LocationOwned) \
+    $(get_address 03_UserOwned) $(get_address 04_UserRegistry) \
+    $(get_address 05_Combat) $(get_address 06_DrugLord) $(get_address 07_PseudoRandom))
 echo -e "\nModule addresses 1-7 set: \n${set_module_addr}"
 
 
@@ -43,8 +47,8 @@ echo -e "\nModule addresses 1-7 set: \n${set_module_addr}"
 # If needed the markets can be exported directly with:
 # . ./testing/utils/export_markets
 
-market_money="${python3 ./testing/utils/markets_to_list.py 0}"
-market_items="${python3 ./testing/utils/markets_to_list.py 1}"
+market_money=$(python3 ./testing/utils/markets_to_list.py mappings/initial_markets_money.csv)
+market_items=$(python3 ./testing/utils/markets_to_list.py mappings/initial_markets_item.csv)
 
 # Use the deployed address from previously run bin/deploy
 # and pass the deployed contract the list of starting values.
@@ -52,7 +56,7 @@ market_items="${python3 ./testing/utils/markets_to_list.py 1}"
 # TODO Get this to accept the list of initial values.
 #echo $(starknet invoke \
 #    --network=alpha \
-#    --address ${02_LocationOwnedAddress} \
+#    --address $(get_address 02_LocationOwnedAddress) \
 #    --abi artifacts/abi/02_LocationOwned_abi.json \
 #    --function admin_set_pairs \
 #    --inputs 1444 ${market_items} 1444 ${market_money})

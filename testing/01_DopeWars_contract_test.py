@@ -166,7 +166,7 @@ async def populated_game(game_factory):
     # Populate the item pair of interest across all locations.
 
     list_length = CITIES * DISTRICTS_PER_CITY * ITEM_TYPES
-    money_list, item_list = populate_test_markets()
+    money_list, item_list = populate_test_markets('mappings/initial_markets_item.csv', 'mappings/initial_markets_money.csv')
     assert len(money_list) == len(item_list) == list_length
 
     # The first element in the list is the list length.

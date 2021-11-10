@@ -165,6 +165,11 @@ func is_valid_signature{
     ) -> ():
     assert_initialized()
     let (_public_key) = public_key.read()
+    # This interface expects a signature pointer and length to make
+    # no assumption about signature validation schemes.
+    # But this implementation does, and it expects a (sig_r, sig_s) pair.
+    let sig_r = signature[0]
+    let sig_s = signature[1]
 
     # This interface expects a signature pointer and length to make
     # no assumption about signature validation schemes.
