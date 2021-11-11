@@ -34,6 +34,16 @@ namespace IModuleController:
         module_id_doing_writing : felt,
         module_id_being_written_to : felt):
     end
+
+    func set_initial_module_addresses(
+        module_01_addr : felt,
+        module_02_addr : felt,
+        module_03_addr : felt,
+        module_04_addr : felt,
+        module_05_addr : felt,
+        module_06_addr : felt,
+        module_07_addr : felt):
+    end
 end
 
 

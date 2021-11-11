@@ -3,7 +3,6 @@ import asyncio
 import random
 from starkware.starknet.testing.starknet import Starknet
 from utils.Signer import Signer
-from utils.markets_to_list import populate_test_markets
 import sys
 
 # Increase limit to enable initializing the market.
@@ -121,7 +120,29 @@ async def game_factory(account_factory):
     combat = await starknet.deploy(
         source="contracts/05_Combat.cairo",
         constructor_calldata=[controller.contract_address])
+    drug_lord = await starknet.deploy(
+        source="contracts/06_DrugLord.cairo",
+        constructor_calldata=[controller.contract_address])
+    pseudorandom = await starknet.deploy(
+        source="contracts/07_PseudoRandom.cairo",
+        constructor_calldata=[controller.contract_address])
 
+    # The admin key controls the arbiter. Use it to have the arbiter
+    # set the module deployment addresses in the controller.
+    admin_key = signers[0]
+    admin_account = accounts[0]
+    await admin_key.send_transaction(
+        account=admin_account,
+        to=arbiter.contract_address,
+        selector_name='batch_set_controller_addresses',
+        calldata=[
+            engine.contract_address,
+            location_owned.contract_address,
+            user_owned.contract_address,
+            registry.contract_address,
+            combat.contract_address,
+            drug_lord.contract_address,
+            pseudorandom.contract_address])
     return starknet, accounts, arbiter, controller, engine, \
         location_owned, user_owned, registry, combat
 
@@ -171,9 +192,8 @@ async def test_market_spawn(game_factory):
 
 
 @pytest.mark.asyncio
-async def test_playerlockout(populated_game, game_factory):
-    engine, _, _ = populated_game
-    starknet, accounts, arbiter, controller, _, \
+async def test_playerlockout(game_factory):
+    starknet, accounts, arbiter, controller, engine, \
         location_owned, user_owned, registry, combat = game_factory
     user_signer = signers[1]
     # TODO: perhaps make MIN_TURN_LOCKOUT a storage variable in contract instead of constant

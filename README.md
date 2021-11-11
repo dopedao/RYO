@@ -159,16 +159,6 @@ The status of a transaction can be queried:
 starknet get_transaction --network=alpha --hash TX_HASH
 ```
 
-### Admin initialisation
-
-Save deployment addresses into the game contract and
-then save the initial market state, pulling values from the
-`mappings/inital_markets_*.csv`
-```
-TODO: Complete/fix this script.
-bin/set_initial_values
-```
-
 ### Have turn
 
 Users will be defined by their Account contract address later.
@@ -219,11 +209,6 @@ user_1 ->
             give user money if first turn.
             get wearables from registry.
             check if user allowed using game clock.
-            fight current drug lord
-                use combo of NFT + custom_fighter traits
-                user also provides list of current winner traits
-                autobattle happens, drug lord appointed
-                drug lord gets a cut of trades
             add to random seed.
             modify event probabilites based on wearables.
             user location update.
@@ -250,6 +235,12 @@ user_1 ->
                 warehouse seizure (x %).
                     decrease item counts in suburb curves.
             save next allowed turn as game_clock + n.
+user_1 -> (separate transaction, separate game module)
+        fight current drug lord
+            use combo of NFT + custom_fighter traits
+            user also provides list of current winner traits.
+            autobattle happens, drug lord appointed.
+            drug lord gets a cut of trades in trading module.
 user2 -> (same as user_1)
 ```
 
@@ -260,7 +251,6 @@ for anyone wanting to try out Cairo.
 
 Non-coding tasks:
 
-- Assign different places 'cost to travel' in `mappings/location_travel.csv`. Doesn't have to be pure geographical.
 - Review the names of the 'districts' in `mappings/location_travel.csv`. Add interesting
 ones and remove ones that aren't as fun. The regions names are fixed.
 - Revise/sssign scores to all the DOPE wearables/itmes in `mappings/thingxyz_score.csv`.
@@ -272,12 +262,10 @@ armor, name suffixes, etc.).
 
 Quick-coding tasks:
 
-- Add a check for when a user has first turn, gives them money (e.g., 20k).
-This allows for open number of players. Remove `admin_set_user_amount` and `loop_users`.
 - Game end criterion based on global clock.
-- Potentially separate out tests into different files to reduce the time required for tests.
-- Make the bash script `bin/set_initial_values` pass the initial
-market values as a list (rather than string).
+- Potentially separate out tests into different files to reduce the time required for tests. Reuse the deployment module across different tests.
+- Outline a rule that can be applied for location travel costs. This
+can be a simple function that uses a dictionary-based lookup table such as the one in module 02. This will replace `mappings/location_travel.csv`.
 
 Coding tasks:
 
@@ -288,22 +276,14 @@ E.g., how often should you get mugged, how much money would you lose.
 - User authentication. E.g., signature verification.
 - More testing of held-item binary encoding implementation in `UserRegistry`
 - More testing of effect of wearables on event occurences.
-- Write a script that populates `mappings/initial_markets_item.csv`
-and `mappings/initial_markets_money.csv` in a way that is interesting. The
-values are currently randomised in [50, 150]. The script could incorporate
-factors such as a normal value for the drug. It ideally implements some sort
-of system where places have different market dynamics. E.g.,:
-    - A city (all four districts) can have low drug quantity, or high drug quantity, or have
-    a few drugs that is has a high quantity of.
-    - A city can have a high amount of money but low quantity of drugs.
-    - Low quantity of all drugs, low prices.
-    - High quantity of some drugs, high prices.
 - Think about the mechanics of the battles in `Combat.cairo`.
     - How many variables,what they are, how to create a system that
     forces users to be creative and make tradeoffs in the design of their combat submissions. (e.g., the values they submit during their turn).
     - Think about how to integrate the non-flexible combat
     atributes that come from the Hustler (1 item per slot). E.g., how
     should combate integrate the score that each item has.
+    - Whether a player could have a tree-like decision matrix that
+    they populate with "I would block if punched, and then kick to counter"
 - Extract the global state variables i to separate modules.
 
 Design considerations/todo

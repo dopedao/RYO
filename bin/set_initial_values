@@ -26,39 +26,3 @@ set_module_addr=$(starknet invoke \
     $(get_address 03_UserOwned) $(get_address 04_UserRegistry) \
     $(get_address 05_Combat) $(get_address 06_DrugLord) $(get_address 07_PseudoRandom))
 echo -e "\nModule addresses 1-7 set: \n${set_module_addr}"
-
-
-#################################
-
-# TODO: Refine the below fuctions which initialize the LocationOwned
-# game states for prepopulated dealers at the start of the game.
-
-# Set up initial values for every market curve. Pass two lists,
-# one for market item quantities, the other for market money quantities,
-# Ordred first by location_id, then by item_id.
-
-# First, collect the market values from the `mappings/` directory.
-# This script saves them to environment variables `$market_items` and
-# `$market_money` in a format that the StarkNet CLI will use.
-
-# Collect the market values from mappings/xyz.csv using
-# using the python helper utility.
-
-# If needed the markets can be exported directly with:
-# . ./testing/utils/export_markets
-
-market_money=$(python3 ./testing/utils/markets_to_list.py mappings/initial_markets_money.csv)
-market_items=$(python3 ./testing/utils/markets_to_list.py mappings/initial_markets_item.csv)
-
-# Use the deployed address from previously run bin/deploy
-# and pass the deployed contract the list of starting values.
-
-# TODO Get this to accept the list of initial values.
-#echo $(starknet invoke \
-#    --network=alpha \
-#    --address $(get_address 02_LocationOwnedAddress) \
-#    --abi artifacts/abi/02_LocationOwned_abi.json \
-#    --function admin_set_pairs \
-#    --inputs 1444 ${market_items} 1444 ${market_money})
-
-

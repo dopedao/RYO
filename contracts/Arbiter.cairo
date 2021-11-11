@@ -134,6 +134,35 @@ func approve_module_to_module_write_access{
     return()
 end
 
+
+@external
+func batch_set_controller_addresses{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        module_01_addr : felt,
+        module_02_addr : felt,
+        module_03_addr : felt,
+        module_04_addr : felt,
+        module_05_addr : felt,
+        module_06_addr : felt,
+        module_07_addr : felt
+    ):
+    only_owner()
+    let (controller) = controller_address.read()
+    IModuleController.set_initial_module_addresses(
+        controller,
+        module_01_addr,
+        module_02_addr,
+        module_03_addr,
+        module_04_addr,
+        module_05_addr,
+        module_06_addr,
+        module_07_addr)
+    return ()
+end
+
 # Assert that the person calling has authority.
 func only_owner{
         syscall_ptr : felt*,
