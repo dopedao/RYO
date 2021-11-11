@@ -25,6 +25,7 @@ end
 func controller_address() -> (address : felt):
 end
 
+# 1=locked.
 @storage_var
 func lock() -> (bool : felt):
 end
@@ -52,6 +53,7 @@ func set_address_of_controller{
         contract_address : felt
     ):
     let (locked) = lock.read()
+    # Locked starts as zero
     assert_not_zero(1 - locked)
     lock.write(1)
     only_owner()
