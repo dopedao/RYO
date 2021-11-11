@@ -54,12 +54,14 @@ namespace I02_LocationOwned:
     end
     func location_has_money_read(
         location_id : felt,
+        item_id : felt
     ) -> (
         count : felt
     ):
     end
     func location_has_money_write(
         location_id : felt,
+        item_id : felt,
         count : felt
     ):
     end

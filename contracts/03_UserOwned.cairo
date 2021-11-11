@@ -53,6 +53,7 @@ end
 
 
 # Called by another module to update a global variable.
+@external
 func user_has_item_write{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
@@ -67,6 +68,7 @@ func user_has_item_write{
     return ()
 end
 
+@external
 func user_has_item_read{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
@@ -83,6 +85,7 @@ end
 
 
 # Called by another module to update a global variable.
+@external
 func user_in_location_write{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
@@ -96,6 +99,7 @@ func user_in_location_write{
     return ()
 end
 
+@external
 func user_in_location_read{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,

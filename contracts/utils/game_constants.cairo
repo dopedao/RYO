@@ -37,11 +37,21 @@ const DRUG_LORD_PERCENTAGE = 2
 # Number of stats that a player specifies for combat.
 const NUM_COMBAT_STATS = 30
 
-# Number of locations (defined by DOPE NFT).
-const LOCATIONS = 19
+# Number of DOPE-defined cities
+const CITIES = 19
 
-# Number of districts per location.
+# Number of districts per DOPE-defined locations.
 const DISTRICTS = 4
+
+# Number of locations total (CITIES * DISTRICTS)
+const LOCATIONS = 76
 
 # Amount of money a user starts with.
 const STARTING_MONEY = 20000
+
+# Initial market pairs:
+# Amount that a 'normal' market pair money-side and item-side has.
+# 100000 money and 1000 item = each item is worth 10 money.
+const DEFAULT_MARKET_MONEY = 10000
+const DEFAULT_MARKET_ITEM = 1000
+
