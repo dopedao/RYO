@@ -1,8 +1,0 @@
-#!/bin/sh
-echo "Exported markets to variables MARKET_MONEY and MARKET_ITEMS"
-market_money=$(python3 ./testing/utils/markets_to_list.py 0)
-market_items=$(python3 ./testing/utils/markets_to_list.py 1)
-
-# Export to environment.
-echo $market_money
-echo $market_items

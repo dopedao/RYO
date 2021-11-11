@@ -25,29 +25,25 @@ end
 func controller_address() -> (address : felt):
 end
 
+# 1=locked.
 @storage_var
 func lock() -> (bool : felt):
 end
 
 @constructor
-func constructor():
-    return()
-end
-
-# Locks the stored addresses.
-@external
-func lock_addresses{
+func constructor{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }():
-    only_owner()
-    lock.write(1)
+    }(
+        address_of_owner : felt
+    ):
+    # Whoever deploys the arbiter sets the only owner.
+    owner_of_arbiter.write(address_of_owner)
     return()
 end
 
-
-# Called to approve a deployed module for a numerical purpose.
+# Called to save the address of the ModuleController.
 @external
 func set_address_of_controller{
         syscall_ptr : felt*,
@@ -57,7 +53,9 @@ func set_address_of_controller{
         contract_address : felt
     ):
     let (locked) = lock.read()
-    assert_not_zero(locked)
+    # Locked starts as zero
+    assert_not_zero(1 - locked)
+    lock.write(1)
     only_owner()
 
     controller_address.write(contract_address)
@@ -132,6 +130,35 @@ func approve_module_to_module_write_access{
         module_id_doing_writing=module_id_doing_writing,
         module_id_being_written_to=module_id_being_written_to)
     return()
+end
+
+
+@external
+func batch_set_controller_addresses{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        module_01_addr : felt,
+        module_02_addr : felt,
+        module_03_addr : felt,
+        module_04_addr : felt,
+        module_05_addr : felt,
+        module_06_addr : felt,
+        module_07_addr : felt
+    ):
+    only_owner()
+    let (controller) = controller_address.read()
+    IModuleController.set_initial_module_addresses(
+        controller,
+        module_01_addr,
+        module_02_addr,
+        module_03_addr,
+        module_04_addr,
+        module_05_addr,
+        module_06_addr,
+        module_07_addr)
+    return ()
 end
 
 # Assert that the person calling has authority.

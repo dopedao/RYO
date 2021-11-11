@@ -70,6 +70,7 @@ async def game_factory(account_factory):
         source="contracts/05_Combat.cairo",
         constructor_calldata=[controller.contract_address])
 
+
     return starknet, accounts, arbiter, controller, engine, \
         location_owned, user_owned, registry, combat
 
@@ -109,8 +110,8 @@ async def populated_game(game_factory):
         # TODO figure out how to pass list as argument to admin.tx_with_nonce()
         await Signer.send_transaction(account=admin,
             to=location_owned.contract_address,
-            selector='admin_set_pairs',
-            calldata=[sample_item_count_list, sample_item_money_list]).invoke()
+            selector_name='admin_set_pairs',
+            calldata=[sample_item_count_list, sample_item_money_list])
 
     return engine, accounts, sample_item_count_list, sample_item_money_list
 
@@ -209,7 +210,7 @@ async def test_exerciser(populated_game, populated_registry):
             turn_made = await Signer.send_transaction(
                 account=accounts[1],
                 to=engine.contract_address,
-                selector='have_turn',
+                selector_name='have_turn',
                 calldata=[player_id, loc_id,
                 buy_or_sell, a['item_id'], give_quantity]).invoke()
         except Exception as e:

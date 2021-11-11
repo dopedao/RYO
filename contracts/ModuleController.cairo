@@ -34,7 +34,8 @@ from starkware.starknet.common.syscalls import get_caller_address
 # 3 User-owned (Hustler) item/money values.
 # 4 Hustler L1 trait registry.
 # 5 Combat mechanics.
-# 6 [available]
+# 6 DrugLord storage (king of the hill)
+# 7 PseudoRandom
 
 #######################
 # To be compliant with this system, a new module containint variables

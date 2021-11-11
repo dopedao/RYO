@@ -126,7 +126,7 @@ func have_turn{
     let (local market_pre_trade_item) = I02_LocationOwned.location_has_item_read(
         location_owned_addr, location_id, item_id)
     let (local market_pre_trade_money) = I02_LocationOwned.location_has_money_read(
-        location_owned_addr, location_id)
+        location_owned_addr, location_id, item_id)
 
     let (local user_owned_addr) = IModuleController.get_module_address(
         controller, 3)
@@ -140,11 +140,12 @@ func have_turn{
     # E.g., use user_data.foot_speed to change change run_from_mugging
 
     local syscall_ptr : felt* = syscall_ptr
+    let a = 3
     # Drug lord takes a cut.
     let (local amount_to_give_post_cut) = take_cut(user_id,
         location_id, buy_or_sell, item_id,
         amount_to_give)
-
+    let b = a
     # Affect pseudorandom seed at start of turn.
     # User can grind a favourable number by incrementing lots of 10.
     let (low_precision_quant, _) = unsigned_div_rem(amount_to_give_post_cut, 10)
@@ -181,7 +182,7 @@ func have_turn{
     let (local market_post_trade_pre_event_item) = I02_LocationOwned.location_has_item_read(
         location_owned_addr, location_id, item_id)
     let (local market_post_trade_pre_event_money) = I02_LocationOwned.location_has_money_read(
-        location_owned_addr, location_id)
+        location_owned_addr, location_id, item_id)
 
     # Apply post-trade money using factors that arose from events.
     let (local user_post_trade_pre_event_money) = I03_UserOwned.user_has_item_read(user_owned_addr,
@@ -204,7 +205,7 @@ func have_turn{
     let (local market_post_trade_post_event_item) = I02_LocationOwned.location_has_item_read(
         location_owned_addr, location_id, item_id)
     let (local market_post_trade_post_event_money) = I02_LocationOwned.location_has_money_read(
-        location_owned_addr, location_id)
+        location_owned_addr, location_id, item_id)
 
     # Check that turn for this player is sufficiently spaced.
     let (current_clock) = game_clock.read()
@@ -353,7 +354,7 @@ func check_market_state{
     let (local item_quantity) = I02_LocationOwned.location_has_item_read(
         location_owned_addr, location_id, item_id)
     let (local money_quantity) = I02_LocationOwned.location_has_money_read(
-        location_owned_addr, location_id)
+        location_owned_addr, location_id, item_id)
     return (item_quantity, money_quantity)
 end
 
@@ -417,7 +418,7 @@ func execute_trade{
     if buy_or_sell == 0:
         # Buying. A money, B item.
         let (market_a_pre_temp) = I02_LocationOwned.location_has_money_read(
-            location_owned_addr, location_id)
+            location_owned_addr, location_id, item_id)
         let (market_b_pre_temp) = I02_LocationOwned.location_has_item_read(
             location_owned_addr, location_id, item_id)
         assert market_a_pre = market_a_pre_temp
@@ -427,7 +428,7 @@ func execute_trade{
         let (market_a_pre_temp) = I02_LocationOwned.location_has_item_read(
             location_owned_addr, location_id, item_id)
         let (market_b_pre_temp) = I02_LocationOwned.location_has_money_read(
-            location_owned_addr, location_id)
+            location_owned_addr, location_id, item_id)
         assert market_a_pre = market_a_pre_temp
         assert market_b_pre = market_b_pre_temp
     end
@@ -445,7 +446,7 @@ func execute_trade{
     if buy_or_sell == 0:
         # User bought item. A is money.
         I02_LocationOwned.location_has_money_write(
-            location_owned_addr, location_id, market_a_post)
+            location_owned_addr, location_id, item_id, market_a_post)
         # B is item.
         I02_LocationOwned.location_has_item_write(
             location_owned_addr, location_id, item_id, market_b_post)
@@ -455,7 +456,7 @@ func execute_trade{
             location_owned_addr, location_id, item_id, market_a_post)
         # B is money.
         I02_LocationOwned.location_has_money_write(
-            location_owned_addr, location_id, market_b_post)
+            location_owned_addr, location_id, item_id, market_b_post)
     end
     return ()
 end
