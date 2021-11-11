@@ -30,24 +30,19 @@ func lock() -> (bool : felt):
 end
 
 @constructor
-func constructor():
-    return()
-end
-
-# Locks the stored addresses.
-@external
-func lock_addresses{
+func constructor{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }():
-    only_owner()
-    lock.write(1)
+    }(
+        address_of_owner : felt
+    ):
+    # Whoever deploys the arbiter sets the only owner.
+    owner_of_arbiter.write(address_of_owner)
     return()
 end
 
-
-# Called to approve a deployed module for a numerical purpose.
+# Called to save the address of the ModuleController.
 @external
 func set_address_of_controller{
         syscall_ptr : felt*,
@@ -57,7 +52,8 @@ func set_address_of_controller{
         contract_address : felt
     ):
     let (locked) = lock.read()
-    assert_not_zero(locked)
+    assert_not_zero(1 - locked)
+    lock.write(1)
     only_owner()
 
     controller_address.write(contract_address)

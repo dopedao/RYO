@@ -70,6 +70,7 @@ async def game_factory(account_factory):
         source="contracts/05_Combat.cairo",
         constructor_calldata=[controller.contract_address])
 
+
     return starknet, accounts, arbiter, controller, engine, \
         location_owned, user_owned, registry, combat
 
