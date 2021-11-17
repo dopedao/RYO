@@ -1,8 +1,13 @@
 #!/bin/bash
 set -eu
 
-# Addresses come from running  '. bin/deploy'
+# TODO Update the get address function
+# Consider the ability to do this with the local node.
+get_address() {
+    echo $(cat mainnet.deployments.txt | TODO ')
+}
 
+# Deprecated with Nile.
 get_address() {
     echo $(cat artifacts/deployed_addresses.json | jq -r --arg contract "$1" '.contracts[$contract].address')
 }

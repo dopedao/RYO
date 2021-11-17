@@ -1,0 +1,1 @@
+0x077205f7f7e65dfee94e9184dc1e83b7ccb46d4b4b31cbf238321ed66c866b75:artifacts/abis/Account.json:AdminAccount
