@@ -1,6 +1,6 @@
 # StarkNet / Cairo
-artifacts/abi/*.json
-artifacts/compiled/*.json
+artifacts/abis/*.json
+artifacts/*.json
 
 /.vscode
 

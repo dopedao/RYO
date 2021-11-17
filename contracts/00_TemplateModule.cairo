@@ -48,7 +48,11 @@ end
 
 # Called by another module to update a global variable.
 @external
-func update_value():
+func update_value{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }():
     # TODO Customise.
     only_approved()
     return ()

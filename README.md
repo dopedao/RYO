@@ -14,39 +14,6 @@ History:
 - Initial exploration / walkthrough viability testing blog [here](https://perama-v.github.io/cairo/game/world).
 - Expansion for forward compatibility [here](https://perama-v.github.io/cairo/game/aggregated-architecture).
 
-The Dope Wars universe is a Loot-style project with many limbs. The
-game engine seeks build the classic calculator game in the blockchain
-environment. The game design seeks to enable gameplay similar to the
-original experience, while also being expandable in other dimensions.
-
-At a high level, this means players:
-
-- Try to increase their inventory by swapping assets. By trading
-cleverly they can out-compete other players.
-    - Trades are against non-playable dealers in different locations.
-    - 19 cities with 4 districts each.
-    - Dealers have 19 drugs in different inventories and administer trades
-    using automated market maker rules.
-    - The game is unstable, with hard-to-predict events creating
-    risk of personal loss and also trade opportunity.
-
-Additional elements may be added through a mechanism outlined below.
-One element being explored is auto-battler combat mechanism that
-is used to appoint a Drug Lord in each region.
-
-- Try to dethrone the local drug lord with a hand-crafted battler.
-    - Each city has a drug lord who takes a cut from each trade.
-    - Drug lords a appointed by battle (king of the hill).
-
-Some dynamics may evolve around:
-    - The market is transparent and opportunities openly visible.
-    - Probabalistic events cause chaos and shake up the market.
-    - Submitted drug lord battlers must take into account the current
-    drug lord stats, but also defend against future challengers.
-
-Expansions may be integrated to build out different elements into
-complementary game play environments that read +/- write to the
-same game state.
 
 Join in:
 
@@ -63,7 +30,8 @@ A controller system manages a mapping of modules to deployed addresses
 and a governance module may update the controller.
 
 It is also worth pointing out that StarkNet has account abstraction
-(see background notes [here](https://perama-v.github.io/cairo/examples/test_accounts/)). This means that transactions are actioned by sending a payload to a personal
+(see background notes [here](https://perama-v.github.io/cairo/examples/test_accounts/)).
+This means that transactions are actioned by sending a payload to a personal
 Account contract that holds your public key. The contract checks the payload
 and forwards it on to the destination.
 
@@ -104,7 +72,10 @@ installation if you are not using docker.
 
 ### Development workflow
 
-If you are using VSCode, we provide a development container with all required dependencies. When opening VS Code, it should ask you to re-open the project in a container, if it finds the .devcontainer folder. If not, you can open the Command Palette (`cmd + shift + p`), and run “Remote-Containers: Rebuild and Reopen in Container”.
+If you are using VSCode, we provide a development container with all required dependencies.
+When opening VS Code, it should ask you to re-open the project in a container, if it finds
+the .devcontainer folder. If not, you can open the Command Palette (`cmd + shift + p`),
+and run “Remote-Containers: Rebuild and Reopen in Container”.
 
 ## Outline
 
@@ -123,14 +94,12 @@ It will also produce an ABI, which is a mapping of the contract functions
 
 Compile all contracts:
 ```
-bin/compile
+nile compile
 ```
 
 Compile an individual contract:
 ```
-starknet-compile contracts/01_DopeWars.cairo \
-    --output artifacts/compiled/01_DopeWars.json \
-    --abi artifacts/abi/01_DopeWars_abi.json
+nile compile contracts/01_DopeWars.cairo
 ```
 
 ### Test
@@ -144,104 +113,15 @@ bin/shell pytest -s testing/01_DopeWars_contract_test.py
 
 ### Deploy
 
-The deploy script deploys all the contracts and exports the addresses
-in the form `ContractNameAddress` to the current environment. Make
-sure to include the dot or the addresses will not be exported.
-
+Start up a local StarkNet devnet with:
 ```
-. bin/deploy
+nile node
 ```
-See deployed addresses [here](artifacts/deployed_addresses.txt).
-
-The status of a transaction can be queried:
-
+Then run the deployment of all the contracts. This uses nile
+and handles passing addresses between the modules to create a
+permissions system.
 ```
-starknet get_transaction --network=alpha --hash TX_HASH
-```
-
-### Have turn
-
-Users will be defined by their Account contract address later.
-For now, manually declare the `user_id`.
-
-User `733` goes to location `34` to buy (sell is `1`,
-buy is `0`) item `5`, giving `1000` units (of money), receiving whatever
-that purchases.
-```
-bin/shell starknet invoke \
-    --network=alpha \
-    --address $01_DopeWarsAddress \
-    --abi abi/01_DopeWars_contract_abi.json \
-    --function have_turn \
-    --inputs 733 34 0 5 1000
-```
-Calling the `check_user_state()` function again reveals that the `100` units were
-exchanged for some quantity of money.
-
-```
-bin/shell starknet call \
-    --network=alpha \
-    --address $01_DopeWarsAddress \
-    --abi abi/01_DopeWars_contract_abi.json \
-    --function check_user_state \
-    --inputs 733
-```
-Alternatively, see and do all of the above with the Voyager browser
-[here](https://voyager.online/contract/ADDRESS).
-
-## Game flow
-
-```
-admin ->
-        create L1 snapshot, build Merkle tree, save to L2.
-        initialise L2 state variables.
-        lock admin power.
-
-Once-off registrarion:
-user_1 ->
-        register_for_game(my_L1_address, my_chosen_DOPE_ID)
-
-Routine play:
-user_1 ->
-        have_turn(got_to_loc, trade_x_for_y, custom_fighter)
-            check if game finished.
-            check user authentification.
-            give user money if first turn.
-            get wearables from registry.
-            check if user allowed using game clock.
-            add to random seed.
-            modify event probabilites based on wearables.
-            user location update.
-                decrease money count if new city.
-            check for dealer dash (x %).
-                check for chase dealer (x %).
-                    item lost, no money gained.
-            trade with market curve for location.
-                decrease money/item, increase the other.
-            check for any of:
-                mugging (x %).
-                    check for run (x %).
-                        lose a percentage of money.
-                gang war (x %).
-                    check for fight (x %).
-                        lose a percentage of money.
-                cop raid (x %).
-                    check for bribe (x %).
-                        lose percentage of money & items held.
-                find item (x %).
-                    increase item balance.
-                local shipment (x %).
-                    increase item counts in suburb curves.
-                warehouse seizure (x %).
-                    decrease item counts in suburb curves.
-            save next allowed turn as game_clock + n.
-user_1 -> (separate transaction, separate game module)
-        fight current drug lord
-            use combo of NFT + custom_fighter traits
-            user also provides list of current winner traits.
-            autobattle happens, drug lord appointed.
-            drug lord gets a cut of trades in trading module.
-user2 -> (same as user_1)
+bin/deploy
 ```
 
 ## Next steps
@@ -263,22 +143,26 @@ armor, name suffixes, etc.).
 Quick-coding tasks:
 
 - Game end criterion based on global clock.
-- Potentially separate out tests into different files to reduce the time required for tests. Reuse the deployment module across different tests.
+- Potentially separate out tests into different files to reduce the time required for tests.
+Reuse the deployment module across different tests.
 - Outline a rule that can be applied for location travel costs. This
-can be a simple function that uses a dictionary-based lookup table such as the one in module 02. This will replace `mappings/location_travel.csv`.
+can be a simple function that uses a dictionary-based lookup table such as the one in module 02.
+This will replace `mappings/location_travel.csv`.
 
 Coding tasks:
 
 - Refine both the likelihood (basis points per user turn) and impact (percentage
 change) that events have and treak the constant at the top of `contracts/01_DopeWars.cairo`.
 E.g., how often should you get mugged, how much money would you lose.
-- Make the market initialisation function smaller (exceeded pedersen builtin, tx_id=302029). E.g., break it into 8 separate transactions.
+- Make the market initialisation function smaller (exceeded pedersen builtin, tx_id=302029).
+E.g., break it into 8 separate transactions.
 - User authentication. E.g., signature verification.
 - More testing of held-item binary encoding implementation in `UserRegistry`
 - More testing of effect of wearables on event occurences.
 - Think about the mechanics of the battles in `Combat.cairo`.
     - How many variables,what they are, how to create a system that
-    forces users to be creative and make tradeoffs in the design of their combat submissions. (e.g., the values they submit during their turn).
+    forces users to be creative and make tradeoffs in the design of their combat submissions.
+    (e.g., the values they submit during their turn).
     - Think about how to integrate the non-flexible combat
     atributes that come from the Hustler (1 item per slot). E.g., how
     should combate integrate the score that each item has.
