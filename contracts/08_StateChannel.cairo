@@ -28,14 +28,18 @@ from contracts.utils.interfaces import IModuleController
 
 # Number of time-units (e.g., blocks or some other measure) a channel persists for.
 const DURATION = 20
+const CHALLENGE_TIMEOUT = 5
 
-
-# Stores the details of a channel
+# Stores the details of a channel tuples are: (user_a, user_b)
 struct Channel:
     member index : felt
-    member user_a_address : felt
-    member user_b_address : felt
     member opened_at_block : felt
+    member last_challenged_at_block : felt
+    member addresses : (felt, felt)
+    member game_pub_key : (felt, felt)
+    member balance : (felt, felt)
+    member initial_channel_data : felt
+    member initial_state_hash : felt
 end
 
 # The address of the ModuleController.
