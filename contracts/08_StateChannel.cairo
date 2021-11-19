@@ -119,7 +119,7 @@ func manual_state_update{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }
+    }():
     # Channels progress state, but if one player disappears, the remaining
     # player can update the game state.
 
