@@ -35,6 +35,7 @@ struct Channel:
     member index : felt
     member opened_at_block : felt
     member last_challenged_at_block : felt
+    member latest_state_update_index : felt
     member addresses : (felt, felt)
     member game_pub_key : (felt, felt)
     member balance : (felt, felt)
@@ -112,6 +113,21 @@ func signal_available{
 end
 
 
+# Called by a user whose opponent has disappeared
+@external
+func manual_state_update{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }
+    # Channels progress state, but if one player disappears, the remaining
+    # player can update the game state.
+
+    execute_final_outcome()
+
+    return ()
+end
+
 # Called by a channel participant to close.
 @external
 func close_channel{
@@ -119,7 +135,6 @@ func close_channel{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }
-    # Channels
 
     execute_final_outcome()
 
@@ -172,8 +187,23 @@ func execute_final_outcome{
     return ()
 end
 
+# Actions a state update.
+func save_state_transition{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }():
+    # Called when the game is progressed for some reason.
+
+    # Increment 'Channel.latest_state_update_index'
+
+    # Save new state
+
+    return ()
+end
+
 # Ensures a signed message contains the necessary authority.
-only_channel_participant{
+func only_channel_participant{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr

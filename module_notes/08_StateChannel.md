@@ -51,7 +51,7 @@ rules. For instance, this could be movement, defence & attack instructions.
 7. The channel is closed by either player sending an L2 channel, and the final state
 of the game (e.g., health) is updated and stored on L2.
 
-## Considerations
+# Considerations
 
 All the usual state channel attack scenarios need to be considered. E.g.,
 griefing etc. Because the games are short-lived and cheap, it may be reasonable
@@ -59,3 +59,30 @@ to implement simple rules to encourage participation. The channel-based fights e
 changing state within the broader modular game system, and so a player who repeatedly
 engages in successful/unsuccessful channels can be rewarded/penalised easily.
 
+Good reading can be found:
+
+- Concise summary and example contract [here](https://programtheblockchain.com/posts/2018/05/11/state-channels-for-two-player-games/)
+- A end-to-end state channel dice game setup [here](https://medium.com/ethereum-developers/how-to-create-scalable-dapps-and-smart-contracts-in-ethereum-with-state-channels-step-by-step-48e12481fb)
+- FunFair's overview of main considerations [here](https://funfair.io/a-reference-implementation-of-state-channel-contracts/)
+
+
+## One player disappears
+
+If a player doesn't like the way a game is going they can stop sending messages
+and go offline. The remaining player can update the state of the game
+by making and L2 transaction.
+
+## Stale state submission
+
+If a player likes an older game state and tries to submit that to L2, the
+state is updated but a window period allows the other player to receive
+an alert. The other player then submits a fresher state and the window
+period extends.
+
+# Messaging architecture
+
+Messages are signed and passed offline, but can also be sent to L2.
+
+Background work:
+
+- Magmo [commitment.sol](https://github.com/magmo/force-move-protocol/blob/master/packages/fmg-core/contracts/Commitment.sol)
