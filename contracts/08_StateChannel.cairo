@@ -1,10 +1,12 @@
 %lang starknet
-%builtins pedersen range_check
+%builtins pedersen range_check ecdsa_ptr
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.starknet.common.syscalls import get_caller_address
+from starkware.cairo.common.signature import verify_ecdsa_signature
 
 from contracts.utils.interfaces import IModuleController
+from contracts.utils.general import list_to_hash
 
 ##### Module 08 #####
 #
@@ -30,12 +32,21 @@ from contracts.utils.interfaces import IModuleController
 const DURATION = 20
 const CHALLENGE_TIMEOUT = 5
 
+# An transaction to update the L2 state contains a 'move'.
+struct Move:
+    member target_id : felt
+    member message_hash : felt
+    member sig_r : felt
+    member sig_s : felt
+    member a : felt
+end
+
 # Stores the details of a channel tuples are: (user_a, user_b)
 struct Channel:
     member index : felt
     member opened_at_block : felt
     member last_challenged_at_block : felt
-    member latest_state_update_index : felt
+    member latest_state_index : felt
     member addresses : (felt, felt)
     member game_pub_key : (felt, felt)
     member balance : (felt, felt)
@@ -96,7 +107,8 @@ func signal_available{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        duration : felt
+        duration : felt,
+        pub_key : felt
     ):
     # If a player signals availability but then is not available,
     # their opponent will win.
@@ -107,22 +119,45 @@ func signal_available{
     # Check conditions of compatibility
     # E.g., players must be in same area or have some similar trait.
     # Currently left as anyone-is-compatible.
+
+    check_for_match()
+
+
+
     open_channel()
 
     return ()
 end
 
 
-# Called by a user whose opponent has disappeared
+# Called by a user who intends to secure state on-chain.
 @external
 func manual_state_update{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }():
+    }(
+        channel_index : felt,
+        state_index : felt,
+        sig_r : felt,
+        sig_s : felt,
+        message_len : felt,
+        message* felt
+    ):
     # Channels progress state, but if one player disappears, the remaining
-    # player can update the game state.
+    # player can update the game state using this function.
+    # State_index is the unique (incrementing) state identifier.
+    let (c : Channel) = channel_from_index.read(channel_index)
+    # Check channel
+    assert c.index = channel_index
+    # Check state is not stale (latest state < provided state).
+    assert_nn_le(c.latest_state_index + 1, state_index)
+    # The players are stored as a tuple. Fetch which index the caller is.
+    let (player_index) = get_player_index(c)
+    # Signature check.
+    is_valid_submission(c, player_index, message, message_len)
 
+    # Update the state.
     execute_final_outcome()
 
     return ()
@@ -134,7 +169,7 @@ func close_channel{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }
+    }():
 
     execute_final_outcome()
 
@@ -149,6 +184,12 @@ func open_channel{
         range_check_ptr
     }():
 
+    # Create channel
+
+    # Remove channel participant matched from the waiting list
+
+    # Update the waiting list
+    update_active_signals()
     return ()
 end
 
@@ -158,11 +199,53 @@ func update_active_signals{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }():
-
+    alloc_locals
     # Look at time measure (e.g., block height)
 
     # Iterate over all the active queued participants and assess if they
     # are still valid offers.
+    index = highest_queue_index.read()
+    # Build up a queue by checking if players have been erased.
+    local queue : felt*
+    let (length) = append_queue_array(index, queue, 0)
+    iterate_queue(index)
+
+    return ()
+end
+
+# Walks from the start to the end of the queue. If
+func append_queue_array{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        n : felt,
+        queue : felt*,
+        free_index : felt
+    ) -> (
+        length : felt
+    ):
+
+    if n = 0:
+        return (length)
+    end
+    length = append_queue_array(n - 1)
+    # On first entry, n=1.
+    let index = 0
+
+    # TODO: Fetch the offer. Read the block number, determine
+    # if the offer is valid. If the player is 0, also skip (they
+    # are the one matched and have been removed).
+    let (player) = player_from_queue_index.read(index)
+    local exists
+    local expired
+    if player = 0:
+        return (length + 1)
+
+    # If the player.offer is expired, skip them.
+    if expired = 1:
+        return (length + 1)
+
 
     return ()
 end
@@ -202,6 +285,54 @@ func save_state_transition{
     return ()
 end
 
+# Checks that
+func is_valid_submission{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        ecdsa_ptr: SignatureBuiltin*
+    }(
+        c : Channel*,
+        player_index : felt,
+        message_len : felt,
+        message : felt*,
+        sig_r : felt,
+        sig_s : felt
+    )
+    # Get the stored pubkey of the player.
+    let (public_key) = c.public_key[player_index]
+    # Hash the message they signed.
+    let (hash) = list_to_hash(message, message_len)
+    # Verify the hash was signed by the pubk registered by the player.
+    verify_ecdsa_signature(
+        message=hash,
+        public_key=public_key,
+        signature_r=sig_r,
+        signature_s=sig_s)
+    return ()
+end
+
+func get_player_index{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        c : Channel*
+    ) -> (
+        index : felt
+    ):
+    let (player) = get_caller_address()
+    # Players are stored by index, use their address to get the index.
+    local player_index
+    if c.address[0] = player:
+        assert player_index = 0
+    end
+    if c.address[1] = player:
+        player_index = 1
+    end
+    return (index)
+end
+
 # Ensures a signed message contains the necessary authority.
 func only_channel_participant{
         syscall_ptr : felt*,
@@ -230,3 +361,4 @@ func only_approved{
         address_attempting_to_write=caller)
     return ()
 end
+
