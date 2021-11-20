@@ -86,3 +86,105 @@ Messages are signed and passed offline, but can also be sent to L2.
 Background work:
 
 - Magmo [commitment.sol](https://github.com/magmo/force-move-protocol/blob/master/packages/fmg-core/contracts/Commitment.sol)
+
+# Game implementations
+
+Ideas for how a state channel can be used to create meaningful play
+
+## Streetfighter
+
+Well known concept. Channels uniquely enable moves to be handled peer-to-peer.
+Hustlers have sprites in n different positions representing different move actions:
+
+Sprites:
+
+- Jump
+- Punch
+- Duck
+- Special (unique weapon)
+- Walk
+
+Game play is defined by a position (x axis) and a move. Moves can be capped
+at +/- 3 tiles.
+
+- Player A is in x=3
+- Player B is in x=5
+
+Sequence example, with messages corresponding to alternating
+signed messages where AJ-1 is player jump back one tile
+
+AJ-1 BW2 AP BP AD BW-2 ...
+
+## Gear hunter
+
+Players are walking around a game map looking for items. The channel
+has the capacity to mint n (e.g., n=3) unique artifacts. The players must
+pass each other movements to find the items first.
+
+When the channel is created each player submits a seed that is combined to initialise
+the locations of the items. Players explore the map and become the
+owner of any item contained within that map tile.
+
+The treasure is a game item that is useful elsewhere in current or future modules:
+
+- Drugs/money submitted by participants
+- Artifacts as funginble/semifunginble/nonfungible tokens. (e.g., health
+pack, notoriety cool-offs, stats upgrades, wearables)
+
+The map is defined as a discrete x-y grid (x=100, y=100). Players take turns to move
+to each tile. The tile transition rules can include proximity (not allowed near another player)
+or trails (cannot cross an opponents trail). So a player could cut another player off
+from reachable areas in the map, giving them a higher chance of finding the gear.
+
+Sequence example with messages corresponding to alternating
+signed messages where AX2Y-3 is player A moving right 2 and down 3.
+
+AX3Y-1 BX2Y2 AX2Y-1 BX2Y1 ...
+
+The game could be constructed with either:
+
+- Visible gear
+    - Players can immediately see the locations of the items
+- Invisible gear
+    - Players note see the gear, they try to gain as much territory
+    as possible to increase the chance of it containing an item.
+- Partially visible gear
+    - Some are visible, some not
+
+## Drug Deal
+
+**TRADE OFFER DOT JPG**
+
+"I receive 100 COKE"   "You receive 1 KROKODIL and 3 MONEY"
+
+Players engage in a real time heated swap of assets like a barter
+in a bazaar. The players make offers for an exchange that the other
+can accept. The clock is ticking - if the deal takes too long,
+both players are busted.
+
+The players can create bundles and combinations in creative ways
+and can update their offers based on the sort of offers they are
+receiving.
+
+When a deal is agreed upon, the channel can be closed. Players both benefit
+from engaging in a Drug Deal because it
+earns them some resource (E.g., skill points, artifacts). The outcome of
+the trade however may be good or bad, depending on what can be agreed
+upon.
+
+Anything in a players inventory can be traded, and there may be some
+limit (e.g., 10% inventory max).
+
+Example offers might be:
+
+- Give 4 XANAX receive 10 MONEY
+- Give 4 XANAX and 13 LSD receive 5 PCP and 9 FENTANYL
+
+The players make repeated offers that replace old offers. If an offer
+is accepted, it is used to close the channel. If no deal is submitted
+on-chain, the players both receive a small penalty.
+
+In this way, the game is one of coordination and compromise.
+
+
+
