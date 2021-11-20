@@ -1,8 +1,9 @@
 # Introduction
 
 State channels allow very large quantities of messages to be passed
-between two users who are online. This might be some move-by-move
-interaction in a game.
+between two users who are online. These messages can represent
+some move-by-move interaction in a game. The outcome of the interaction
+plugs in to the broader stateful game module system.
 
 ## History
 
