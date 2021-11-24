@@ -125,8 +125,8 @@ func set_address_for_module_id{
         module_address : felt
     ):
     only_arbiter()
-    module_id_of_address.write(module_id, module_address)
-    address_of_module_id.write(module_address, module_id)
+    module_id_of_address.write(module_address, module_id)
+    address_of_module_id.write(module_id, module_address)
 
     return ()
 end
@@ -149,26 +149,26 @@ func set_initial_module_addresses{
     ):
     only_arbiter()
 
-    module_id_of_address.write(1, module_01_addr)
-    address_of_module_id.write(module_01_addr, 1)
+    address_of_module_id.write(1, module_01_addr)
+    module_id_of_address.write(module_01_addr, 1)
 
-    module_id_of_address.write(2, module_02_addr)
-    address_of_module_id.write(module_02_addr, 2)
+    address_of_module_id.write(2, module_02_addr)
+    module_id_of_address.write(module_02_addr, 2)
 
-    module_id_of_address.write(3, module_03_addr)
-    address_of_module_id.write(module_03_addr, 3)
+    address_of_module_id.write(3, module_03_addr)
+    module_id_of_address.write(module_03_addr, 3)
 
-    module_id_of_address.write(4, module_04_addr)
-    address_of_module_id.write(module_04_addr, 4)
+    address_of_module_id.write(4, module_04_addr)
+    module_id_of_address.write(module_04_addr, 4)
 
-    module_id_of_address.write(5, module_05_addr)
-    address_of_module_id.write(module_05_addr, 5)
+    address_of_module_id.write(5, module_05_addr)
+    module_id_of_address.write(module_05_addr, 5)
 
-    module_id_of_address.write(6, module_06_addr)
-    address_of_module_id.write(module_06_addr, 6)
+    address_of_module_id.write(6, module_06_addr)
+    module_id_of_address.write(module_06_addr, 6)
 
-    module_id_of_address.write(7, module_07_addr)
-    address_of_module_id.write(module_07_addr, 7)
+    address_of_module_id.write(7, module_07_addr)
+    module_id_of_address.write(module_07_addr, 7)
 
     return ()
 end
