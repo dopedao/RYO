@@ -46,6 +46,7 @@ end
 
 
 # Access variable.
+@view
 func drug_lord_read{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
@@ -60,6 +61,7 @@ func drug_lord_read{
 end
 
 # Modify variable.
+@external
 func drug_lord_write{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
@@ -75,6 +77,7 @@ end
 
 
 # Access variable.
+@view
 func drug_lord_stat_hash_read{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
@@ -89,6 +92,7 @@ func drug_lord_stat_hash_read{
 end
 
 # Modify variable.
+@external
 func drug_lord_stat_hash_write{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
