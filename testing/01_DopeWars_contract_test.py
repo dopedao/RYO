@@ -161,17 +161,6 @@ async def populated_registry(game_factory):
     return registry
 
 
-# Checks to make sure the markets were initialized properly.
-@pytest.mark.asyncio
-async def test_market_spawn(game_factory):
-    starknet, accounts, arbiter, controller, engine, \
-        location_owned, user_owned, registry, combat = game_factory
-    # Recall that item_id=1 is the first item (money is id=0)
-    market  = await engine.check_market_state(0, 1).call()
-    assert market.result.item_quantity != 0
-    assert market.result.money_quantity != 0
-
-
 @pytest.mark.asyncio
 async def test_playerlockout(game_factory):
     starknet, accounts, arbiter, controller, engine, \
@@ -280,10 +269,10 @@ async def test_single_turn_logic(game_factory):
     # If selling, it is "give 50 item". If buying, it is "give 50 money".
     give_quantity = 2000
 
-    pre_trade_user = await engine.check_user_state(user_id).invoke()
+    pre_trade_user = await user_owned.check_user_state(user_id).call()
 
-    pre_trade_market = await engine.check_market_state(
-        location_id, item_id).invoke()
+    pre_trade_market = await location_owned.check_market_state(
+        location_id, item_id).call()
 
     print('pre_trade_market', pre_trade_market.result)
     print('pre_trade_user', pre_trade_user.result)
@@ -375,32 +364,35 @@ async def test_single_turn_logic(game_factory):
 
     # Make a separate contract call to assert persistence of state.
     # Inspect post-trade state
-    post_trade_user = await engine.check_user_state(
-        user_id).invoke()
-    assert post_trade_user[0] == t.user_post_trade_post_event_money
-    assert post_trade_user[item_id] == t.user_post_trade_post_event_item
+    response = await user_owned.check_user_state(
+        user_id).call()
+    post_trade_user = response.result
+    assert post_trade_user.items[0] == t.user_post_trade_post_event_money
+    assert post_trade_user.items[item_id] == t.user_post_trade_post_event_item
     print('post_trade_user', post_trade_user)
 
-    post_trade_market = await engine.check_market_state(
-        location_id, item_id).invoke()
-    assert post_trade_market[0] == t.market_post_trade_post_event_item
-    assert post_trade_market[1] == t.market_post_trade_post_event_money
+    response = await location_owned.check_market_state(
+        location_id, item_id).call()
+    post_trade_market = response.result
+    assert post_trade_market.item_quantity == t.market_post_trade_post_event_item
+    assert post_trade_market.money_quantity == t.market_post_trade_post_event_money
+
     print('post_trade_market', post_trade_market)
 
     # Check location is set
-    assert post_trade_user[20] == location_id
+    assert post_trade_user.location == location_id
 
     # Check that another location has been set.
-    (random_market_item, random_market_money) = \
-        await engine.check_market_state(
-        random_location, item_id).invoke()
-    assert random_market_item != 0 and random_market_money != 0
+    response = await location_owned.check_market_state(
+        random_location, item_id).call()
+    random = response.result
+    assert random.item_quantity != 0 and random.money_quantity != 0
     # Check that if there was a regional event, it was applied.
     # TODO.
     #assert random_market_item == random_market_pre_turn_item * \
     #    regional_item_reduction_factor // 100
 
-    random_initialized_user = await engine.check_user_state(
-        user_id - 1).invoke()
-    print('rand user', random_initialized_user)
+    random_initialized_user = await user_owned.check_user_state(
+        user_id - 1).call()
+    print('rand user', random_initialized_user.result)
 
