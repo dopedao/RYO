@@ -376,6 +376,7 @@ async def test_single_turn_logic(game_factory):
     post_trade_market = response.result
     assert post_trade_market.item_quantity == t.market_post_trade_post_event_item
     assert post_trade_market.money_quantity == t.market_post_trade_post_event_money
+
     print('post_trade_market', post_trade_market)
 
     # Check location is set
