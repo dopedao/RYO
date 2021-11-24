@@ -158,6 +158,29 @@ func location_has_money_write{
     return ()
 end
 
+
+# A read-only function to inspect pair state of a particular market.
+@view
+func check_market_state{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        location_id : felt,
+        item_id : felt
+    ) -> (
+        item_quantity : felt,
+        money_quantity : felt
+    ):
+    alloc_locals
+    # Get the quantity held for each item for item-money pair.
+    let (item_quantity) = location_has_item.read(location_id, item_id)
+    let (money_quantity) = location_has_money.read(location_id, item_id)
+    return (item_quantity, money_quantity)
+end
+
+
+
 ##### Initial value generation #####
 #
 # For each location, initial quantities are set based on a rule
