@@ -215,7 +215,7 @@ func have_turn{
     game_clock.write(current_clock + 1)
     clock_at_previous_turn.write(user_id, current_clock + 1)
 
-    #let (turn_log : TurnLog) = alloc()
+
     local turn_log : TurnLog
     assert turn_log = TurnLog(user_id=user_id,
         location_id=location_id,
