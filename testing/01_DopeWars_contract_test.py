@@ -30,37 +30,6 @@ ITEM_TYPES = 19
 # Number of ticks a player is locked out before its next turn is allowed; MUST be consistent with MIN_TURN_LOCKOUT in contract
 MIN_TURN_LOCKOUT = 3
 
-# event name copied from game engine contract
-EVENT_NAME = [
-        "trade_occurs_bool",
-        "user_pre_trade_item",
-        "user_post_trade_pre_event_item",
-        "user_post_trade_post_event_item",
-        "user_pre_trade_money",
-        "user_post_trade_pre_event_money",
-        "user_post_trade_post_event_money",
-        "market_pre_trade_item",
-        "market_post_trade_pre_event_item",
-        "market_post_trade_post_event_item",
-        "market_pre_trade_money",
-        "market_post_trade_pre_event_money",
-        "market_post_trade_post_event_money",
-        "money_reduction_factor",
-        "item_reduction_factor",
-        "regional_item_reduction_factor",
-        "dealer_dash_bool",
-        "wrangle_dashed_dealer_bool",
-        "mugging_bool",
-        "run_from_mugging_bool",
-        "gang_war_bool",
-        "defend_gang_war_bool",
-        "cop_raid_bool",
-        "bribe_cops_bool",
-        "find_item_bool",
-        "local_shipment_bool",
-        "warehouse_seizure_bool"
-    ]
-
 @pytest.fixture(scope='module')
 def event_loop():
     return asyncio.new_event_loop()
@@ -319,135 +288,103 @@ async def test_single_turn_logic(game_factory):
     print('pre_trade_market', pre_trade_market.result)
     print('pre_trade_user', pre_trade_user.result)
     # Execute a game turn.
-    turn = await user_signer.send_transaction(
+    await user_signer.send_transaction(
         account=accounts[1],
         to=engine.contract_address,
         selector_name='have_turn',
         calldata=[user_id, location_id,
         buy_or_sell, item_id, give_quantity])
 
+    response = await engine.read_game_clock().call()
+    turn = await engine.view_given_turn(response.result.clock).call()
+    t = turn.result.turn_log
 
-    print("Turn events")
-    [
-        print(f"Result: {turn[index]}\t{EVENT_NAME[index]}")
-        for index in range(len(EVENT_NAME))
-    ]
-    (
-        trade_occurs_bool,
-        user_pre_trade_item,
-        user_post_trade_pre_event_item,
-        user_post_trade_post_event_item,
-        user_pre_trade_money,
-        user_post_trade_pre_event_money,
-        user_post_trade_post_event_money,
-        market_pre_trade_item,
-        market_post_trade_pre_event_item,
-        market_post_trade_post_event_item,
-        market_pre_trade_money,
-        market_post_trade_pre_event_money,
-        market_post_trade_post_event_money,
-        money_reduction_factor,
-        item_reduction_factor,
-        regional_item_reduction_factor,
-        dealer_dash_bool,
-        wrangle_dashed_dealer_bool,
-        mugging_bool,
-        run_from_mugging_bool,
-        gang_war_bool,
-        defend_gang_war_bool,
-        cop_raid_bool,
-        bribe_cops_bool,
-        find_item_bool,
-        local_shipment_bool,
-        warehouse_seizure_bool
-    ) = turn
-
-    if dealer_dash_bool == 1 and wrangle_dashed_dealer_bool == 0:
-        assert trade_occurs_bool == 0
+    if t.dealer_dash_bool == 1 and t.wrangle_dashed_dealer_bool == 0:
+        assert t.trade_occurs_bool == 0
     else:
-        trade_occurs_bool == 1
+        t.trade_occurs_bool == 1
 
     # Check market operation
-    if trade_occurs_bool:
+    if t.trade_occurs_bool:
         if buy_or_sell == 1:  # Selling (give item, get money).
-            assert user_pre_trade_item > user_post_trade_pre_event_item
-            assert user_pre_trade_money < user_post_trade_pre_event_money
-            assert market_pre_trade_item < market_post_trade_pre_event_item
-            assert market_pre_trade_money > market_post_trade_pre_event_money
+            assert t.user_pre_trade_item > t.user_post_trade_pre_event_item
+            assert t.user_pre_trade_money < t.user_post_trade_pre_event_money
+            assert t.market_pre_trade_item < t.market_post_trade_pre_event_item
+            assert t.market_pre_trade_money > t.market_post_trade_pre_event_money
         if buy_or_sell == 0:  # Buying (give money, get item).
-            assert user_pre_trade_item < user_post_trade_pre_event_item
-            assert user_pre_trade_money > user_post_trade_pre_event_money
-            assert market_pre_trade_item > market_post_trade_pre_event_item
-            assert market_pre_trade_money < market_post_trade_pre_event_money
+            assert t.user_pre_trade_item < t.user_post_trade_pre_event_item
+            assert t.user_pre_trade_money > t.user_post_trade_pre_event_money
+            assert t.market_pre_trade_item > t.market_post_trade_pre_event_item
+            assert t.market_pre_trade_money < t.market_post_trade_pre_event_money
     else:
         if buy_or_sell == 1:
-            assert user_pre_trade_item == user_post_trade_pre_event_item
-            assert user_pre_trade_money == user_post_trade_pre_event_money
-            assert market_pre_trade_item == market_post_trade_pre_event_item
-            assert market_pre_trade_money == market_post_trade_pre_event_money
+            assert t.user_pre_trade_item == t.user_post_trade_pre_event_item
+            assert t.user_pre_trade_money == t.user_post_trade_pre_event_money
+            assert t.market_pre_trade_item == t.market_post_trade_pre_event_item
+            assert t.market_pre_trade_money == t.market_post_trade_pre_event_money
         if buy_or_sell == 0:
-            assert user_pre_trade_item == user_post_trade_pre_event_item
-            assert user_pre_trade_money == user_post_trade_pre_event_money
-            assert market_pre_trade_item == market_post_trade_pre_event_item
-            assert market_pre_trade_money == market_post_trade_pre_event_money
+            assert t.user_pre_trade_item == t.user_post_trade_pre_event_item
+            assert t.user_pre_trade_money == t.user_post_trade_pre_event_money
+            assert t.market_pre_trade_item == t.market_post_trade_pre_event_item
+            assert t.market_pre_trade_money == t.market_post_trade_pre_event_money
 
 
     # Check no item was minted in the market maker step.
-    assert user_pre_trade_item + market_pre_trade_item == \
-        user_post_trade_pre_event_item + \
-        market_post_trade_pre_event_item
+    assert t.user_pre_trade_item + t.market_pre_trade_item == \
+        t.user_post_trade_pre_event_item + \
+        t.market_post_trade_pre_event_item
 
     # Check no money was minted in the market maker step.
-    assert user_pre_trade_money + market_pre_trade_money == \
-        user_post_trade_pre_event_money + \
-        market_post_trade_pre_event_money
+    assert t.user_pre_trade_money + t.market_pre_trade_money == \
+        t.user_post_trade_pre_event_money + \
+        t.market_post_trade_pre_event_money
 
     # Determine final event occurrence
-    cop_hit = cop_raid_bool * (1 - bribe_cops_bool)
-    gang_hit = gang_war_bool * (1 - defend_gang_war_bool)
-    mug_hit = mugging_bool * (1 - run_from_mugging_bool)
+    cop_hit = t.cop_raid_bool * (1 - t.bribe_cops_bool)
+    gang_hit = t.gang_war_bool * (1 - t.defend_gang_war_bool)
+    mug_hit = t.mugging_bool * (1 - t.run_from_mugging_bool)
 
     # Check event factor logic.
-    if (gang_hit == 1 or cop_hit == 1) and find_item_bool == 0:
-        assert item_reduction_factor < 100
-    if gang_hit == 0 and cop_hit == 0 and find_item_bool == 1:
-        assert item_reduction_factor > 100
+    if (gang_hit == 1 or cop_hit == 1) and t.find_item_bool == 0:
+        assert t.item_reduction_factor < 100
+    if gang_hit == 0 and cop_hit == 0 and t.find_item_bool == 1:
+        assert t.item_reduction_factor > 100
     if mug_hit == 1 or cop_hit == 1:
-        assert money_reduction_factor < 100
-    if local_shipment_bool == 1 and warehouse_seizure_bool == 0:
-        assert regional_item_reduction_factor > 100
-    if local_shipment_bool == 0 and warehouse_seizure_bool == 1:
-        assert regional_item_reduction_factor < 100
+        assert t.money_reduction_factor < 100
+    if t.local_shipment_bool == 1 and t.warehouse_seizure_bool == 0:
+        assert t.regional_item_reduction_factor > 100
+    if t.local_shipment_bool == 0 and t.warehouse_seizure_bool == 1:
+        assert t.regional_item_reduction_factor < 100
 
     # Check event factors appliied.
     # Check regional event item effect.
-    assert market_post_trade_post_event_item == \
-        regional_item_reduction_factor * \
-        market_post_trade_pre_event_item // 100
+    assert t.market_post_trade_post_event_item == \
+        t.regional_item_reduction_factor * \
+        t.market_post_trade_pre_event_item // 100
     # Check regional market money unaffected by events.
-    assert market_post_trade_pre_event_money == (
-        market_post_trade_post_event_money)
+    assert t.market_post_trade_pre_event_money == (
+        t.market_post_trade_post_event_money)
     # Check user money event effect.
-    assert user_post_trade_post_event_money == \
-        money_reduction_factor * \
-        user_post_trade_pre_event_money // 100
+    assert t.user_post_trade_post_event_money == \
+        t.money_reduction_factor * \
+        t.user_post_trade_pre_event_money // 100
     # Check user item event effect.
-    assert user_post_trade_post_event_item == \
-        item_reduction_factor * user_post_trade_pre_event_item // 100
+    assert t.user_post_trade_post_event_item == \
+        t.item_reduction_factor * t.user_post_trade_pre_event_item // 100
 
 
     # Make a separate contract call to assert persistence of state.
     # Inspect post-trade state
     post_trade_user = await engine.check_user_state(
         user_id).invoke()
-    assert post_trade_user[0] == user_post_trade_post_event_money
-    assert post_trade_user[item_id] == user_post_trade_post_event_item
+    assert post_trade_user[0] == t.user_post_trade_post_event_money
+    assert post_trade_user[item_id] == t.user_post_trade_post_event_item
     print('post_trade_user', post_trade_user)
 
     post_trade_market = await engine.check_market_state(
         location_id, item_id).invoke()
-    assert post_trade_market[0] == market_post_trade_post_event_item
-    assert post_trade_market[1] == market_post_trade_post_event_money
+    assert post_trade_market[0] == t.market_post_trade_post_event_item
+    assert post_trade_market[1] == t.market_post_trade_post_event_money
     print('post_trade_market', post_trade_market)
 
     # Check location is set
