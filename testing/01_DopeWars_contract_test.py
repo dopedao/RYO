@@ -161,17 +161,6 @@ async def populated_registry(game_factory):
     return registry
 
 
-# Checks to make sure the markets were initialized properly.
-@pytest.mark.asyncio
-async def test_market_spawn(game_factory):
-    starknet, accounts, arbiter, controller, engine, \
-        location_owned, user_owned, registry, combat = game_factory
-    # Recall that item_id=1 is the first item (money is id=0)
-    market  = await location_owned.check_market_state(0, 1).call()
-    assert market.result.item_quantity != 0
-    assert market.result.money_quantity != 0
-
-
 @pytest.mark.asyncio
 async def test_playerlockout(game_factory):
     starknet, accounts, arbiter, controller, engine, \
