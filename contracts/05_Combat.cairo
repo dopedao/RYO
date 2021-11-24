@@ -115,7 +115,7 @@ func view_combat{}(
     ):
     alloc_locals
 
-    local  : AutoCombat
+    local combat : AutoCombat
 
     # TODO
     # Store each combat as a packed felt(s) that can be queried for the
