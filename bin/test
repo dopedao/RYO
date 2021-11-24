@@ -1,8 +1,4 @@
 #!/bin/bash
 set -eu
 
-pytest testing/01_DopeWars_contract_test.py
-
-pytest testing/Account_contract_test.py
-
-pytest testing/UserRegistry_contract_test.py
+find ./testing -type f -name '*_test.py' -exec pytest {} \;

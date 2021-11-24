@@ -1,17 +1,13 @@
 import pytest
 import asyncio
 import random
-from starkware.starknet.testing.starknet import Starknet
-from utils.Signer import Signer
 import sys
+from fixtures.account import account_factory
 
 # Increase limit to enable initializing the market.
 sys.setrecursionlimit(10000)
 
-# Create signers that use a private key to sign transaction objects.
 NUM_SIGNING_ACCOUNTS = 2
-DUMMY_PRIVATE = 123456789987654321
-signers = []
 # All accounts currently have the same L1 fallback address.
 L1_ADDRESS = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984
 
@@ -35,40 +31,8 @@ def event_loop():
     return asyncio.new_event_loop()
 
 @pytest.fixture(scope='module')
-async def account_factory():
-    # Initialize network
-    starknet = await Starknet.empty()
-    accounts = []
-    print(f'Deploying {NUM_SIGNING_ACCOUNTS} accounts...')
-    for i in range(NUM_SIGNING_ACCOUNTS):
-        signer = Signer(DUMMY_PRIVATE + i)
-        signers.append(signer)
-        account = await starknet.deploy(
-            "contracts/Account.cairo",
-            constructor_calldata=[signer.public_key]
-        )
-        await account.initialize(account.contract_address).invoke()
-        accounts.append(account)
-
-        print(f'Account {i} is: {hex(account.contract_address)}')
-
-    # Admin is usually accounts[0], user_1 = accounts[1].
-    # To build a transaction to call func_xyz(arg_1, arg_2)
-    # on a TargetContract:
-
-    # await Signer.send_transaction(
-    #   account=accounts[1],
-    #   to=TargetContract,
-    #   selector_name='func_xyz',
-    #   calldata=[arg_1, arg_2],
-    #   nonce=current_nonce)
-
-    # Note that nonce is an optional argument.
-    return starknet, accounts
-
-@pytest.fixture(scope='module')
 async def game_factory(account_factory):
-    starknet, accounts = account_factory
+    (starknet, accounts, signers) = account_factory
     admin_key = signers[0]
     admin_account = accounts[0]
 
@@ -125,13 +89,13 @@ async def game_factory(account_factory):
             combat.contract_address,
             drug_lord.contract_address,
             pseudorandom.contract_address])
-    return starknet, accounts, arbiter, controller, engine, \
+    return starknet, accounts, signers, arbiter, controller, engine, \
         location_owned, user_owned, registry, combat
 
-
 @pytest.mark.asyncio
+@pytest.mark.parametrize('account_factory', [dict(num_signers=NUM_SIGNING_ACCOUNTS)], indirect=True)
 async def test_account_unique(game_factory):
-    starknet, accounts, arbiter, controller, engine, \
+    starknet, accounts, signers, arbiter, controller, engine, \
         location_owned, user_owned, registry, combat = game_factory
     # Test the account deployments.
     admin_pub = await accounts[0].get_public_key().call()
@@ -142,7 +106,7 @@ async def test_account_unique(game_factory):
 
 @pytest.fixture(scope='module')
 async def populated_registry(game_factory):
-    starknet, accounts, arbiter, controller, engine, \
+    starknet, accounts, signers, arbiter, controller, engine, \
         location_owned, user_owned, registry, combat = game_factory
     admin = accounts[0]
     # Populate the registry with some data.
@@ -162,8 +126,9 @@ async def populated_registry(game_factory):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('account_factory', [dict(num_signers=NUM_SIGNING_ACCOUNTS)], indirect=True)
 async def test_playerlockout(game_factory):
-    starknet, accounts, arbiter, controller, engine, \
+    starknet, accounts, signers, arbiter, controller, engine, \
         location_owned, user_owned, registry, combat = game_factory
     user_signer = signers[1]
     # TODO: perhaps make MIN_TURN_LOCKOUT a storage variable in contract instead of constant
@@ -243,8 +208,9 @@ def market_spawn_list_index(city_index, district_index, item_id):
     return prev_city_items + prev_dist_items + prev_items
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('account_factory', [dict(num_signers=NUM_SIGNING_ACCOUNTS)], indirect=True)
 async def test_single_turn_logic(game_factory):
-    starknet, accounts, arbiter, controller, engine, \
+    starknet, accounts, signers, arbiter, controller, engine, \
         location_owned, user_owned, registry, combat = game_factory
     user_signer = signers[1]
     user_id = 9 # avoid reusing user_id already used by test_playerlockout

@@ -4,6 +4,7 @@ import random
 import math
 from starkware.starknet.testing.starknet import Starknet
 from utils.Signer import Signer
+from fixtures.account import account_factory
 
 # Game parameters
 MIN_TURN_LOCKOUT = 3 # MUST be consistent with MIN_TURN_LOCKOUT in contract
@@ -13,7 +14,6 @@ ITEM_COUNT = 19 # Number of items; item_id in [1,19]
 # Playtest parameters
 NUM_SIGNING_ACCOUNTS = MIN_TURN_LOCKOUT*5 # == total user count
 DUMMY_PRIVATE = 123456789987654321
-signers = []
 L1_ADDRESS = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984 # All accounts currently have the same L1 fallback address.
 N_TURN = 100
 
@@ -27,28 +27,8 @@ def event_loop():
     return asyncio.new_event_loop()
 
 @pytest.fixture(scope='module')
-async def account_factory():
-    # Initialize network
-    starknet = await Starknet.empty()
-    accounts = []
-    print(f'Deploying {NUM_SIGNING_ACCOUNTS} accounts...')
-    for i in range(NUM_SIGNING_ACCOUNTS):
-        signer = Signer(DUMMY_PRIVATE + i)
-        signers.append(signer)
-        account = await starknet.deploy(
-            "contracts/Account.cairo",
-            constructor_calldata=[signer.public_key]
-        )
-        await account.initialize(account.contract_address).invoke()
-        accounts.append(account)
-
-        print(f'Account {i} is: {hex(account.contract_address)}')
-
-    return starknet, accounts
-
-@pytest.fixture(scope='module')
 async def game_factory(account_factory):
-    starknet, accounts = account_factory
+    starknet, accounts, signers = account_factory
 
     arbiter = await starknet.deploy("contracts/Arbiter.cairo")
     controller = await starknet.deploy(
@@ -71,12 +51,12 @@ async def game_factory(account_factory):
         constructor_calldata=[controller.contract_address])
 
 
-    return starknet, accounts, arbiter, controller, engine, \
+    return starknet, accounts, signers, arbiter, controller, engine, \
         location_owned, user_owned, registry, combat
 
 @pytest.fixture(scope='module')
 async def populated_registry(game_factory):
-    starknet, accounts, arbiter, controller, engine, \
+    starknet, accounts, signers, arbiter, controller, engine, \
         location_owned, user_owned, registry, combat = game_factory
     admin = accounts[0]
     # Populate the registry with some data.
@@ -91,12 +71,12 @@ async def populated_registry(game_factory):
         account=admin,
         to=registry.contract_address,
         selector_name='admin_fill_registry',
-        calldata=[NUM_SIGNING_ACCOUNTS, sample_data])
+        calldata=[len(signers), sample_data])
     return registry
 
 @pytest.fixture(scope='module')
 async def populated_game(game_factory):
-    starknet, accounts, arbiter, controller, engine, \
+    starknet, accounts, signers, arbiter, controller, engine, \
         location_owned, user_owned, registry, combat = game_factory
     admin = accounts[0]
 
@@ -116,6 +96,7 @@ async def populated_game(game_factory):
     return engine, accounts, sample_item_count_list, sample_item_money_list
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('account_factory', [dict(num_signers=NUM_SIGNING_ACCOUNTS)], indirect=True)
 async def test_exerciser(populated_game, populated_registry):
     '''
     test_exerciser blasts random stimulus at turn-based PvE game,
@@ -163,9 +144,9 @@ async def test_exerciser(populated_game, populated_registry):
         # Step 2. Player builds action space == [actions]
         #         where each action is {type: buy/sell, item_id: item_id, quantity: quantity}
         p = await engine.check_user_state(player_id).invoke()
-        player_items = [ p.money,
-            p.id1, p.id2, p.id3, p.id4, p.id5, p.id6, p.id7, p.id8, p.id9, p.id10,
-            p.id11, p.id12, p.id13, p.id14, p.id15, p.id16, p.id17, p.id18, p.id19 ]
+        player_items = [ p.result.money,
+            p.result.id1, p.result.id2, p.result.id3, p.result.id4, p.result.id5, p.result.id6, p.result.id7, p.result.id8, p.result.id9, p.result.id10,
+            p.result.id11, p.result.id12, p.result.id13, p.result.id14, p.result.id15, p.result.id16, p.result.id17, p.result.id18, p.result.id19 ]
 
         random.shuffle(loc_ids) # explore locations in different order every time
         A = [] # start with empty action space
@@ -173,8 +154,8 @@ async def test_exerciser(populated_game, populated_registry):
             random.shuffle(item_ids) # explore items in different order every time
             for item_id in item_ids:
                 curve = await engine.check_market_state(loc_id, item_id).invoke()
-                curve_item = curve.item_quantity
-                curve_money = curve.money_quantity
+                curve_item = curve.result.item_quantity
+                curve_money = curve.result.money_quantity
 
                 # Calculate price_for_one:
                 #   curve_item * curve_money = (curve_item-1) * (curve_money + X)
@@ -227,6 +208,3 @@ async def test_exerciser(populated_game, populated_registry):
 
     print("> test_exerciser passes.")
     return
-
-
-
