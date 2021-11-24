@@ -142,7 +142,7 @@ func manual_state_update{
         sig_r : felt,
         sig_s : felt,
         message_len : felt,
-        message* felt
+        message : felt*
     ):
     # Channels progress state, but if one player disappears, the remaining
     # player can update the game state using this function.
@@ -226,7 +226,7 @@ func append_queue_array{
         length : felt
     ):
 
-    if n = 0:
+    if n == 0:
         return (length)
     end
     length = append_queue_array(n - 1)
@@ -239,11 +239,11 @@ func append_queue_array{
     let (player) = player_from_queue_index.read(index)
     local exists
     local expired
-    if player = 0:
+    if player == 0:
         return (length + 1)
 
     # If the player.offer is expired, skip them.
-    if expired = 1:
+    if expired == 1:
         return (length + 1)
 
 
