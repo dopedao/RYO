@@ -192,7 +192,17 @@ func unpack_score{
     let (masked) = bitwise_and(mask, data)
 
     # 3. Shift element right by dividing by the order of the mask.
-    let (score, _) = unsigned_div_rem(masked, power)
+    let (result, _) = unsigned_div_rem(masked, power)
+
+    # If no score is set for this users item (e.g., registry
+    # has not been correctly initialised for this user), give the
+    # item a score of 5 (middle-range score).
+    local score
+    if result == 0:
+        assert score = 5
+    else:
+        assert score = result
+    end
 
     return (score)
 end
