@@ -6,9 +6,10 @@ RUN pip3 --disable-pip-version-check --no-cache-dir install -r /tmp/pip-tmp/requ
    && rm -rf /tmp/pip-tmp
 
 # [Optional] Uncomment this section to install additional OS packages.
-# RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
-#     && apt-get -y install --no-install-recommends \
-#     software-properties-common && \
-#    rm -rf /var/lib/apt/lists/*
+RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
+    && apt-get -y install --no-install-recommends \
+    libgmp3-dev \
+    software-properties-common && \
+   rm -rf /var/lib/apt/lists/*
 
 RUN git clone https://github.com/udhos/update-golang && RELEASE=1.17.2 ./update-golang/update-golang.sh
