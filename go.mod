@@ -19,6 +19,7 @@ require (
 	github.com/cpuguy83/go-md2man/v2 v2.0.0 // indirect
 	github.com/go-bindata/go-bindata v1.0.1-0.20190711162640-ee3c2418e368 // indirect
 	github.com/go-openapi/inflect v0.19.0 // indirect
+	github.com/google/go-querystring v1.1.0 // indirect
 	github.com/google/uuid v1.3.0 // indirect
 	github.com/gorilla/websocket v1.4.2 // indirect
 	github.com/graphql-go/graphql v0.7.10-0.20210411022516-8a92e977c10b // indirect
@@ -34,6 +35,7 @@ require (
 	github.com/shurcooL/sanitized_anchor_name v1.0.0 // indirect
 	github.com/spf13/cobra v1.1.3 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
+	github.com/tarrencev/go-starknet v0.0.0-20211124011805-057bd31926b6 // indirect
 	github.com/urfave/cli/v2 v2.1.1 // indirect
 	github.com/vektah/dataloaden v0.2.1-0.20190515034641-a19b9a6e7c9e // indirect
 	github.com/vmihailenco/tagparser v0.1.2 // indirect
