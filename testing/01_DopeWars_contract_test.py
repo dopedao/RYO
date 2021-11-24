@@ -1,22 +1,12 @@
 import pytest
 import asyncio
 import random
-import sys
 from fixtures.account import account_factory
 
-# Increase limit to enable initializing the market.
-sys.setrecursionlimit(10000)
-
 NUM_SIGNING_ACCOUNTS = 2
-# All accounts currently have the same L1 fallback address.
-L1_ADDRESS = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984
 
 # Number of users the game simulates for testing. E.g., >1000.
 USER_COUNT = 10
-
-# Combat stats.
-USER_COMBAT_STATS = [5]*16
-DRUG_LORD_STATS = [3]*16
 
 # Params
 CITIES = 19
@@ -361,69 +351,3 @@ async def test_single_turn_logic(game_factory):
     random_initialized_user = await user_owned.check_user_state(
         user_id - 1).call()
     print('rand user', random_initialized_user.result)
-
-
-@pytest.mark.asyncio
-async def test_04_registry_initializer(game_factory):
-    starknet, accounts, arbiter, controller, engine, \
-        location_owned, user_owned, registry, combat = game_factory
-    admin = accounts[0]
-    user_count = 500
-    sample_data = 84622096520155505419920978765481155
-    # Repeating sample data
-    # Indices from 0, 20, 40, 60, 80..., have values 3.
-    # Indices from 10, 30, 50, 70, 90..., have values 1.
-    # [00010000010011000011] * 6 == [1133] * 6
-    weapon_strength_index = 6
-    ring_bribe_index = 76
-    pubkey_prefix = 1000000
-    # Populate the registry with homogeneous users (same data each).
-    await registry.send_transaction(
-        account=admin,
-        to=registry.contract_address,
-        selector_name='admin_fill_registry',
-        calldata=[user_count, sample_data])
-
-    user_a_id = 271
-    user_a_pubkey = user_a_id + pubkey_prefix
-    # Check that the data is stored correctly for a random user.
-    r = await registry.get_user_info(
-        user_a_id, user_a_pubkey).call()
-    assert r.result.user_data == sample_data
-
-    # Check that the data decoding function works.
-    # Only dummy values are implemented so far.
-    # Weapon score
-    r = await registry.unpack_score(user_a_id,
-        weapon_strength_index).call()
-    assert r.weapon_score == 3
-    # Ring score
-    r = await registry.unpack_score(user_a_id,
-        ring_bribe_index).call()
-    assert r.result.score == 1
-
-
-
-@pytest.mark.asyncio
-async def test_combat(game_factory):
-    starknet, accounts, arbiter, controller, engine, \
-        location_owned, user_owned, registry, combat = game_factory
-    user = accounts[1]
-
-    user_combat_stats = [8]*16
-    drug_lord_combat_stats = [5]*16
-
-    await combat.send_transaction(
-        account=user,
-        to=combat.contract_address,
-        selector_name='challenge_current_drug_lord',
-        calldata=[user_combat_stats,
-            drug_lord_combat_stats]).invoke()
-
-    # TODO: Implement the battle and historical save function
-    user_id=0
-    r = await combat.view_combat(user_id)
-    c = r.result.combat_details
-    assert c.winner == 0
-    assert c.move_sequence_3 == 0
-
