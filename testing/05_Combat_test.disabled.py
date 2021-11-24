@@ -1,69 +1,100 @@
 import pytest
 import asyncio
-from starkware.starknet.testing.starknet import Starknet
-from utils.Account import Account
+from fixtures.account import account_factory
 
-# Create signers that use a private key to sign transaction objects.
 NUM_SIGNING_ACCOUNTS = 2
-DUMMY_PRIVATE = 123456789987654321
-# All accounts currently have the same L1 fallback address.
-L1_ADDRESS = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984
+
+# Combat stats.
+USER_COMBAT_STATS = [5]*16
+DRUG_LORD_STATS = [3]*16
 
 @pytest.fixture(scope='module')
 def event_loop():
     return asyncio.new_event_loop()
 
 @pytest.fixture(scope='module')
-async def account_factory():
-    # Initialize network
-    starknet = await Starknet.empty()
-    accounts = []
-    print(f'Deploying {NUM_SIGNING_ACCOUNTS} accounts...')
-    for i in range(NUM_SIGNING_ACCOUNTS):
-        account = Account(DUMMY_PRIVATE + i, L1_ADDRESS)
-        await account.create(starknet)
-        accounts.append(account)
+async def game_factory(account_factory):
+    (starknet, accounts, signers) = account_factory
+    admin_key = signers[0]
+    admin_account = accounts[0]
 
-        print(f'Account {i} is: {account}')
+    ## The Controller is the only unchangeable contract.
+    ## First deploy Arbiter.
+    ## Then send the Arbiter address during Controller deployment.
+    ## Then save the controller address in the Arbiter.
+    ## Then deploy Controller address during module deployments.
+    arbiter = await starknet.deploy(
+        source="contracts/Arbiter.cairo",
+        constructor_calldata=[admin_account.contract_address])
+    controller = await starknet.deploy(
+        source="contracts/ModuleController.cairo",
+        constructor_calldata=[arbiter.contract_address])
+    await admin_key.send_transaction(
+        account=admin_account,
+        to=arbiter.contract_address,
+        selector_name='set_address_of_controller',
+        calldata=[controller.contract_address])
+    engine = await starknet.deploy(
+        source="contracts/01_DopeWars.cairo",
+        constructor_calldata=[controller.contract_address])
+    location_owned = await starknet.deploy(
+        source="contracts/02_LocationOwned.cairo",
+        constructor_calldata=[controller.contract_address])
+    user_owned = await starknet.deploy(
+        source="contracts/03_UserOwned.cairo",
+        constructor_calldata=[controller.contract_address])
+    registry = await starknet.deploy(
+        source="contracts/04_UserRegistry.cairo",
+        constructor_calldata=[controller.contract_address])
+    combat = await starknet.deploy(
+        source="contracts/05_Combat.cairo",
+        constructor_calldata=[controller.contract_address])
+    drug_lord = await starknet.deploy(
+        source="contracts/06_DrugLord.cairo",
+        constructor_calldata=[controller.contract_address])
+    pseudorandom = await starknet.deploy(
+        source="contracts/07_PseudoRandom.cairo",
+        constructor_calldata=[controller.contract_address])
 
-    # Admin is usually accounts[0], user_1 = accounts[1].
-    # To build a transaction to call func_xyz(arg_1, arg_2)
-    # on a TargetContract:
+    # The admin key controls the arbiter. Use it to have the arbiter
+    # set the module deployment addresses in the controller.
 
-    # user_1 = accounts[1]
-    # await user_1.tx_with_nonce(
-    #     to=TargetContract,
-    #     selector_name='func_xyz',
-    #     calldata=[arg_1, arg_2])
-    return starknet, accounts
-
-
-@pytest.fixture(scope='module')
-async def combat_factory(account_factory):
-    starknet, accounts = account_factory
-    combat = await starknet.deploy("contracts/05_Combat.cairo")
-    return starknet, accounts, combat
-
+    await admin_key.send_transaction(
+        account=admin_account,
+        to=arbiter.contract_address,
+        selector_name='batch_set_controller_addresses',
+        calldata=[
+            engine.contract_address,
+            location_owned.contract_address,
+            user_owned.contract_address,
+            registry.contract_address,
+            combat.contract_address,
+            drug_lord.contract_address,
+            pseudorandom.contract_address])
+    return starknet, accounts, signers, arbiter, controller, engine, \
+        location_owned, user_owned, registry, combat
 
 @pytest.mark.asyncio
-async def test_combat(combat_factory):
-    _, accounts, combat = combat_factory
-    admin = accounts[0]
+@pytest.mark.parametrize('account_factory', [dict(num_signers=NUM_SIGNING_ACCOUNTS)], indirect=True)
+async def test_combat(game_factory):
+    starknet, accounts, signers, arbiter, controller, engine, \
+        location_owned, user_owned, registry, combat = game_factory
+    user = accounts[1]
+    user_signer = signers[1]
 
-    # Test framework doesn't currenlty handle struct arguments.
-    user_data = 0  # Struct.
-    lord_user_data = 0  # Struct.
-    user_combat_stats_len = 16
     user_combat_stats = [8]*16
-    drug_lord_combat_stats_len = 16
     drug_lord_combat_stats = [5]*16
 
-    (user_wins) = await combat.fight_1v1(
-        user_data,
-        lord_user_data,
-        user_combat_stats_len,
-        user_combat_stats,
-        drug_lord_combat_stats_len,
-        drug_lord_combat_stats).invoke()
+    await user_signer.send_transaction(
+        account=user,
+        to=combat.contract_address,
+        selector_name='challenge_current_drug_lord',
+        calldata=user_combat_stats + drug_lord_combat_stats)
 
-    assert user_wins == 1
+    # TODO: Implement the battle and historical save function
+    user_id=0
+    r = await combat.view_combat(user_id)
+    c = r.result.combat_details
+    assert c.winner == 0
+    assert c.move_sequence_3 == 0
+
