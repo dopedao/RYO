@@ -215,40 +215,42 @@ func have_turn{
     game_clock.write(current_clock + 1)
     clock_at_previous_turn.write(user_id, current_clock + 1)
 
-    let (turn_log : TurnLog*) = alloc()
-    assert turn_log.user_id = user_id
-    assert turn_log.location_id = location_id
-    assert turn_log.buy_or_sell = buy_or_sell
-    assert turn_log.item_id = item_id
-    assert turn_log.amount_to_give = amount_to_give
-    assert turn_log.market_post_trade_pre_event_item = market_post_trade_pre_event_item
-    assert turn_log.market_post_trade_post_event_item = market_post_trade_post_event_item
-    assert turn_log.market_pre_trade_money = market_pre_trade_money
-    assert turn_log.market_post_trade_pre_event_money = market_post_trade_pre_event_money
-    assert turn_log.market_post_trade_post_event_money = market_post_trade_post_event_money
-    assert turn_log.user_pre_trade_item = user_pre_trade_item
-    assert turn_log.user_post_trade_pre_event_item = user_post_trade_pre_event_item
-    assert turn_log.user_post_trade_post_event_item = user_post_trade_post_event_item
-    assert turn_log.user_pre_trade_money = user_pre_trade_money
-    assert turn_log.user_post_trade_pre_event_money = user_post_trade_pre_event_money
-    assert turn_log.user_post_trade_post_event_money = user_post_trade_post_event_money
-    assert turn_log.trade_occurs_bool = trade_occurs_bool
-    assert turn_log.money_reduction_factor = money_reduction_factor
-    assert turn_log.item_reduction_factor = item_reduction_factor
-    assert turn_log.regional_item_reduction_factor = regional_item_reduction_factor
-    assert turn_log.dealer_dash_bool = dealer_dash_bool
-    assert turn_log.wrangle_dashed_dealer_bool = wrangle_dashed_dealer_bool
-    assert turn_log.mugging_bool = mugging_bool
-    assert turn_log.run_from_mugging_bool = run_from_mugging_bool
-    assert turn_log.gang_war_bool = gang_war_bool
-    assert turn_log.defend_gang_war_bool = defend_gang_war_bool
-    assert turn_log.cop_raid_bool = cop_raid_bool
-    assert turn_log.bribe_cops_bool = bribe_cops_bool
-    assert turn_log.find_item_bool = find_item_bool
-    assert turn_log.local_shipment_bool = local_shipment_bool
-    assert turn_log.warehouse_seizure_bool = warehouse_seizure_bool
+    #let (turn_log : TurnLog) = alloc()
+    local turn_log : TurnLog
+    assert turn_log = TurnLog(user_id=user_id,
+        location_id=location_id,
+        buy_or_sell=buy_or_sell,
+        item_id=item_id,
+        amount_to_give=amount_to_give,
+        market_pre_trade_item=market_pre_trade_item,
+        market_post_trade_pre_event_item=market_post_trade_pre_event_item,
+        market_post_trade_post_event_item=market_post_trade_post_event_item,
+        market_pre_trade_money=market_pre_trade_money,
+        market_post_trade_pre_event_money=market_post_trade_pre_event_money,
+        market_post_trade_post_event_money=market_post_trade_post_event_money,
+        user_pre_trade_item=user_pre_trade_item,
+        user_post_trade_pre_event_item=user_post_trade_pre_event_item,
+        user_post_trade_post_event_item=user_post_trade_post_event_item,
+        user_pre_trade_money=user_pre_trade_money,
+        user_post_trade_pre_event_money=user_post_trade_pre_event_money,
+        user_post_trade_post_event_money=user_post_trade_post_event_money,
+        trade_occurs_bool=trade_occurs_bool,
+        money_reduction_factor=money_reduction_factor,
+        item_reduction_factor=item_reduction_factor,
+        regional_item_reduction_factor=regional_item_reduction_factor,
+        dealer_dash_bool=dealer_dash_bool,
+        wrangle_dashed_dealer_bool=wrangle_dashed_dealer_bool,
+        mugging_bool=mugging_bool,
+        run_from_mugging_bool=run_from_mugging_bool,
+        gang_war_bool=gang_war_bool,
+        defend_gang_war_bool=defend_gang_war_bool,
+        cop_raid_bool=cop_raid_bool,
+        bribe_cops_bool=bribe_cops_bool,
+        find_item_bool=find_item_bool,
+        local_shipment_bool=local_shipment_bool,
+        warehouse_seizure_bool=warehouse_seizure_bool)
 
-    logs_at_given_clock.write(current_clock + 1, [turn_log])
+    logs_at_given_clock.write(current_clock + 1, turn_log)
     return ()
 end
 
@@ -627,6 +629,8 @@ func scale_ability{
         effective_bp : felt
     ):
     # Ability range (derived from item scores 1-10, then scaled).
+    # Passing an ability less than 10 is not possible without
+    # first changing the min_ab below
     let min_ab = 10
     let max_ab = 100
     # Determine the minimum possible BP: EVENT_BP * MEF/100
