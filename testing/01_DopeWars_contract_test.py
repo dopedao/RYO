@@ -198,10 +198,9 @@ async def test_market_spawn(game_factory):
     starknet, accounts, arbiter, controller, engine, \
         location_owned, user_owned, registry, combat = game_factory
     # Recall that item_id=1 is the first item (money is id=0)
-    (spawn_item, spawn_money) = await engine.check_market_state(0, 1).call()
-
-    assert spawn_item != 0
-    assert spawn_money != 0
+    market  = await engine.check_market_state(0, 1).call()
+    assert market.result.item_quantity != 0
+    assert market.result.money_quantity != 0
 
 
 @pytest.mark.asyncio
@@ -317,8 +316,8 @@ async def test_single_turn_logic(game_factory):
     pre_trade_market = await engine.check_market_state(
         location_id, item_id).invoke()
 
-    print('pre_trade_market', pre_trade_market)
-    print('pre_trade_user', pre_trade_user)
+    print('pre_trade_market', pre_trade_market.result)
+    print('pre_trade_user', pre_trade_user.result)
     # Execute a game turn.
     turn = await user_signer.send_transaction(
         account=accounts[1],
