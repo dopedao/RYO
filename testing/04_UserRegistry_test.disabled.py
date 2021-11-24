@@ -4,9 +4,8 @@ from fixtures.account import account_factory
 
 NUM_SIGNING_ACCOUNTS = 2
 
-# Combat stats.
-USER_COMBAT_STATS = [5]*16
-DRUG_LORD_STATS = [3]*16
+# Number of ticks a player is locked out before its next turn is allowed; MUST be consistent with MIN_TURN_LOCKOUT in contract
+MIN_TURN_LOCKOUT = 3
 
 @pytest.fixture(scope='module')
 def event_loop():
@@ -76,25 +75,43 @@ async def game_factory(account_factory):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize('account_factory', [dict(num_signers=NUM_SIGNING_ACCOUNTS)], indirect=True)
-async def test_combat(game_factory):
+async def test_initializer(game_factory):
     starknet, accounts, signers, arbiter, controller, engine, \
         location_owned, user_owned, registry, combat = game_factory
-    user = accounts[1]
+    admin = accounts[0]
     user_signer = signers[1]
-
-    user_combat_stats = [8]*16
-    drug_lord_combat_stats = [5]*16
-
+    user_count = 500
+    sample_data = 84622096520155505419920978765481155
+    # Repeating sample data
+    # Indices from 0, 20, 40, 60, 80..., have values 3.
+    # Indices from 10, 30, 50, 70, 90..., have values 1.
+    # [00010000010011000011] * 6 == [1133] * 6
+    weapon_strength_index = 6
+    ring_bribe_index = 76
+    pubkey_prefix = 1000000
+    # Populate the registry with homogeneous users (same data each).
     await user_signer.send_transaction(
-        account=user,
-        to=combat.contract_address,
-        selector_name='challenge_current_drug_lord',
-        calldata=user_combat_stats + drug_lord_combat_stats)
+        account=admin,
+        to=registry.contract_address,
+        selector_name='admin_fill_registry',
+        calldata=[user_count, sample_data])
 
-    # TODO: Implement the battle and historical save function
-    user_id=0
-    r = await combat.view_combat(user_id)
-    c = r.result.combat_details
-    assert c.winner == 0
-    assert c.move_sequence_3 == 0
+    user_a_id = 271
+    user_a_pubkey = user_a_id + pubkey_prefix
+    # Check that the data is stored correctly for a random user.
+    r = await registry.get_user_info(
+        user_a_id, user_a_pubkey).call()
+    assert r.result.user_data == sample_data
+
+    # Check that the data decoding function works.
+    # Only dummy values are implemented so far.
+    # Weapon score
+    r = await registry.unpack_score(user_a_id,
+        weapon_strength_index).call()
+    assert r.weapon_score == 3
+    # Ring score
+    r = await registry.unpack_score(user_a_id,
+        ring_bribe_index).call()
+    assert r.result.score == 1
+
 

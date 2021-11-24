@@ -29,6 +29,18 @@ from contracts.utils.interfaces import (IModuleController,
 ## [ ] Review the combat structure then implement the fight logic.
 ## [ ] Add token-UserData to the fight logic in addition to the user inputs
 
+struct AutoCombat:
+    member index : felt
+    member user : felt
+    member drug_lord : felt
+    member winner : felt
+    member move_sequence_1 : felt
+    member move_sequence_2 : felt
+    member move_sequence_3 : felt
+    member move_sequence_4 : felt
+end
+
+
 @storage_var
 func controller_address() -> (address : felt):
 end
@@ -90,8 +102,37 @@ func challenge_current_drug_lord{
         drug_lord_combat_stats_len,
         drug_lord_combat_stats,)
 
-    ## [ ] Return win_bool and the events that took place for front end
+    ## [ ] Store win_bool and the events for harvesting by view_combat.
+
     return ()
+end
+
+@view
+func view_combat{}(
+        combat_index : felt
+    ) -> (
+        combat_details : AutoCombat
+    ):
+    alloc_locals
+
+    local combat : AutoCombat
+
+    # TODO
+    # Store each combat as a packed felt(s) that can be queried for the
+    # result of an autocombat. The data can include details of the fight
+    # that can be used by a front end to communicate the fight after
+    # the transaction has been included.
+
+    # TODO Return actual data.
+    assert combat = AutoCombat(index=0,
+        user=0,
+        drug_lord=0,
+        winner=0,
+        move_sequence_1=0,
+        move_sequence_2=0,
+        move_sequence_3=0,
+        move_sequence_4=0)
+    return (combat)
 end
 
 

@@ -1,22 +1,12 @@
 import pytest
 import asyncio
 import random
-import sys
 from fixtures.account import account_factory
 
-# Increase limit to enable initializing the market.
-sys.setrecursionlimit(10000)
-
 NUM_SIGNING_ACCOUNTS = 2
-# All accounts currently have the same L1 fallback address.
-L1_ADDRESS = 0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984
 
 # Number of users the game simulates for testing. E.g., >1000.
 USER_COUNT = 10
-
-# Combat stats.
-USER_COMBAT_STATS = [5]*16
-DRUG_LORD_STATS = [3]*16
 
 # Params
 CITIES = 19
@@ -361,4 +351,3 @@ async def test_single_turn_logic(game_factory):
     random_initialized_user = await user_owned.check_user_state(
         user_id - 1).call()
     print('rand user', random_initialized_user.result)
-
