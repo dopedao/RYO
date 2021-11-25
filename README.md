@@ -29,28 +29,56 @@ The game mechanics are separated from the game state variables.
 A controller system manages a mapping of modules to deployed addresses
 and a governance module may update the controller.
 
+For example all these modules could read and write from the state modules and be connected-but-distinct game interactions:
+
+- Try arbitrage drug markets [Dope Wars module](/module_notes/01_DopeWars.md).
+Manage inventory against risks and try to out-trade other players. Swap coke
+in one region and swoop in to collect cheap Krokodil after a regional drug bust.
+- Try to become a regional Drug Lord by submitting an autobattler to the
+[Combat module](/module_notes/05_Combat.md). Hand crafted strategies submitted
+against the current drug Lord. Winner collects a cut from future regional trades.
+- Try an L3 move-by-move 1v1 fight with another player in the
+[State channel module](/module_notes/08_StateChannel.md). Inventory from your work in
+the drug trades is placed as collateral for the channel. Off-chain messages
+signed by your key ensure that when submitted back to L2 the winnings are enforced.
+High-frequency moves allow for granular game play.
+
+## Contract hierarchy
+
 It is also worth pointing out that StarkNet has account abstraction
 (see background notes [here](https://perama-v.github.io/cairo/examples/test_accounts/)).
 This means that transactions are actioned by sending a payload to a personal
 Account contract that holds your public key. The contract checks the payload
 and forwards it on to the destination.
 
-- Accounts
+- Player Account
     - A user who controls a Hustler (game character) in the system.
-    - An admin who controls the Arbiter. The admin may be a human or a
-    multisig governance contract activated by votes on L2.
+- Governance Account
+    - An admin who controls the Arbiter.
+    - The admin may be an L2 DAO to administer governance decisions
+    voted through on L2, where voting will be cheap.
+    - Governance might enable a new module to have write-access to
+    and important game variable. For example, to change the location
+    that a player is currently in. All other modules that read and use location
+    would be affected by this.
 - Arbiter (most power in the system).
     - Can update/add module mappings in ModuleController.
-- ModuleController (mapping of deployments to module_ids)
+- ModuleController (mapping of deployments to module_ids).
+    - The game 'swichboard' that connects all modules.
     - Is the reference point for all modules. Modules call this
     contract as the source of truth for the address of other modules.
+    - The controller stores where modules can be found, and which modules
+    have write access to other modules.
 - Modules (open ended set)
     - Game mechanics (where a player would interact to play)
     - Storage modules (game variables)
-    - L1 connectors (for integrating L1 state/ownership to L2)
-    - Other arbitrary contracts
+    - L1 connectors/registry (for integrating L1 state/ownership to L2)
+    - Other arbitrary contracts as they are added to the game system.
 
-For more information see [system architecture](./system_architecture.md)
+For more information see
+
+- Modular [system architecture](./system_architecture.md).
+- Descriptions of example modules in [module notes](/module_notes).
 
 ## Setup
 
