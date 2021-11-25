@@ -1,5 +1,5 @@
 %lang starknet
-%builtins pedersen range_check ecdsa_ptr
+%builtins pedersen range_check ecdsa
 
 from starkware.cairo.common.cairo_builtins import (HashBuiltin,
     SignatureBuiltin)
@@ -126,7 +126,8 @@ end
 func manual_state_update{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
-        range_check_ptr
+        range_check_ptr,
+        ecdsa_ptr: SignatureBuiltin*
     }(
         channel_index : felt,
         state_index : felt,
@@ -135,10 +136,11 @@ func manual_state_update{
         message_len : felt,
         message : felt*
     ):
+    alloc_locals
     # Channels progress state, but if one player disappears, the remaining
     # player can update the game state using this function.
     # State_index is the unique (incrementing) state identifier.
-    let (c : Channel) = channel_from_index.read(channel_index)
+    let (local c : Channel) = channel_from_index.read(channel_index)
     # Check channel
     assert c.index = channel_index
     # Check state is not stale (latest state < provided state).
@@ -146,7 +148,8 @@ func manual_state_update{
     # The players are stored as a tuple. Fetch which index the caller is.
     let (player_index) = get_player_index(c)
     # Signature check.
-    is_valid_submission(c, player_index, message, message_len)
+    is_valid_submission(c, player_index, message_len, message,
+        sig_r, sig_s,)
 
     # Update the state.
     execute_final_outcome()
@@ -216,11 +219,11 @@ func append_queue_array{
     ) -> (
         length : felt
     ):
-
+    alloc_locals
     if n == 0:
         return (0)
     end
-    let (length) = append_queue_array(n - 1)
+    let (length) = append_queue_array(n - 1, queue, free_index)
     # On first entry, n=1.
     let index = 0
 
@@ -228,17 +231,17 @@ func append_queue_array{
     # if the offer is valid. If the player is 0, also skip (they
     # are the one matched and have been removed).
     let (player) = player_from_queue_index.read(index)
-    local exists
-    local expired
+    local exists : felt
+    local expired : felt
     if player == 0:
-        return (length + 1)
+        return (length)
     end
     # If the player.offer is expired, skip them.
     if expired == 1:
-        return (length + 1)
+        return (length)
     end
 
-    return ()
+    return (length + 1)
 end
 
 # Saves the result of the whole channel interaction to L2.
@@ -283,15 +286,22 @@ func is_valid_submission{
         range_check_ptr,
         ecdsa_ptr: SignatureBuiltin*
     }(
-        c : Channel*,
+        c : Channel,
         player_index : felt,
         message_len : felt,
         message : felt*,
         sig_r : felt,
         sig_s : felt
     ):
+    alloc_locals
     # Get the stored pubkey of the player.
-    let (public_key) = c.public_key[player_index]
+    local public_key : felt
+    if player_index == 0:
+        assert public_key = c.game_pub_key[0]
+    else:
+        assert public_key = c.game_pub_key[1]
+    end
+
     # Hash the message they signed.
     let (hash) = list_to_hash(message, message_len)
     # Verify the hash was signed by the pubk registered by the player.
@@ -308,17 +318,18 @@ func get_player_index{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        c : Channel*
+        c : Channel
     ) -> (
         index : felt
     ):
+    alloc_locals
     let (player) = get_caller_address()
     # Players are stored by index, use their address to get the index.
-    local player_index
-    if c.address[0] == player:
+    local player_index : felt
+    if c.addresses[0] == player:
         assert player_index = 0
     end
-    if c.address[1] == player:
+    if c.addresses[1] == player:
         player_index = 1
     end
     return (player_index)
@@ -346,7 +357,7 @@ func check_for_match{
     let index = queue_pos - 1
 
 
-    let (match) = check_for_match(index)
+    let (bool, match) = check_for_match(index)
     let bool = 1
     return (bool, match)
 end
