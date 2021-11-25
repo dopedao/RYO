@@ -1,7 +1,9 @@
 %lang starknet
 %builtins pedersen range_check ecdsa_ptr
 
-from starkware.cairo.common.cairo_builtins import HashBuiltin
+from starkware.cairo.common.cairo_builtins import (HashBuiltin,
+    SignatureBuiltin)
+from starkware.cairo.common.math import assert_nn_le
 from starkware.starknet.common.syscalls import get_caller_address
 from starkware.cairo.common.signature import verify_ecdsa_signature
 
@@ -15,18 +17,6 @@ from contracts.utils.general import list_to_hash
 # for a short period, exchange moves, then close the channel.
 #
 ####################
-
-# Steps - Copy and modify this template contract for new modules.
-# 1. Assign the new module the next available number in the contracts/ folder.
-# 2. Ensure state variables and application logic are in different modules.
-# 3. Expose any modifiable state variables with helper functions 'var_x_write()'.
-# 4. Import any module dependencies from utils.interfaces (above).
-# 5. Document which modules this module will interact with (above).
-# 6. Add deployment line to bin/compile bin/deploy.
-# 7. Document which modules this module requires write access to.
-# 8. Write tests in testing/XX_test.py and add to bin/test.
-# 9. +/- Add useful interfaces for this module to utils/interfaces.cairo.
-# 10. Delete this set of instructions.
 
 # Number of time-units (e.g., blocks or some other measure) a channel persists for.
 const DURATION = 20
@@ -119,12 +109,13 @@ func signal_available{
     # Check conditions of compatibility
     # E.g., players must be in same area or have some similar trait.
     # Currently left as anyone-is-compatible.
-
-    check_for_match()
+    let queue_length = 8
+    let (bool, match) = check_for_match(queue_length)
 
 
 
     open_channel()
+
 
     return ()
 end
@@ -204,11 +195,11 @@ func update_active_signals{
 
     # Iterate over all the active queued participants and assess if they
     # are still valid offers.
-    index = highest_queue_index.read()
+    let (index) = highest_queue_index.read()
     # Build up a queue by checking if players have been erased.
     local queue : felt*
     let (length) = append_queue_array(index, queue, 0)
-    iterate_queue(index)
+
 
     return ()
 end
@@ -227,9 +218,9 @@ func append_queue_array{
     ):
 
     if n == 0:
-        return (length)
+        return (0)
     end
-    length = append_queue_array(n - 1)
+    let (length) = append_queue_array(n - 1)
     # On first entry, n=1.
     let index = 0
 
@@ -241,11 +232,11 @@ func append_queue_array{
     local expired
     if player == 0:
         return (length + 1)
-
+    end
     # If the player.offer is expired, skip them.
     if expired == 1:
         return (length + 1)
-
+    end
 
     return ()
 end
@@ -298,7 +289,7 @@ func is_valid_submission{
         message : felt*,
         sig_r : felt,
         sig_s : felt
-    )
+    ):
     # Get the stored pubkey of the player.
     let (public_key) = c.public_key[player_index]
     # Hash the message they signed.
@@ -324,14 +315,42 @@ func get_player_index{
     let (player) = get_caller_address()
     # Players are stored by index, use their address to get the index.
     local player_index
-    if c.address[0] = player:
+    if c.address[0] == player:
         assert player_index = 0
     end
-    if c.address[1] = player:
+    if c.address[1] == player:
         player_index = 1
     end
-    return (index)
+    return (player_index)
 end
+
+# Returns the details of a matched player to open a channel with if found.
+func check_for_match{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        queue_pos : felt
+    ) -> (
+        match_found_bool : felt,
+        matched_player : felt
+    ):
+    # TODO implement checks and queue search.
+    if queue_pos == 0:
+        return (0, 0)
+    end
+    # Recursive loop.
+
+    let (bool, match) = check_for_match(queue_pos - 1)
+    # Upon first entry here, queue_pos=1.
+    let index = queue_pos - 1
+
+
+    let (match) = check_for_match(index)
+    let bool = 1
+    return (bool, match)
+end
+
 
 # Ensures a signed message contains the necessary authority.
 func only_channel_participant{
