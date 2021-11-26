@@ -4,6 +4,7 @@
 from starkware.cairo.common.cairo_builtins import (HashBuiltin,
     SignatureBuiltin)
 from starkware.cairo.common.math import assert_nn_le
+from starkware.cairo.common.math_cmp import is_nn_le
 from starkware.starknet.common.syscalls import get_caller_address
 from starkware.cairo.common.signature import verify_ecdsa_signature
 
@@ -44,6 +45,7 @@ struct Channel:
     member initial_state_hash : felt
 end
 
+
 # The address of the ModuleController.
 @storage_var
 func controller_address() -> (address : felt):
@@ -74,6 +76,15 @@ end
 func highest_channel_index() -> (value : felt):
 end
 
+# Records when an offer (to open a channel) will expire.
+@storage_var
+func offer_expires(player_address : felt) -> (value : felt):
+end
+
+# Temporary workaround until blocks/time available.
+@storage_var
+func clock() -> (value : felt):
+end
 
 # Called on deployment only.
 @constructor
@@ -103,8 +114,9 @@ func signal_available{
     # If a player signals availability but then is not available,
     # their opponent will win.
 
+
     # First update the active list
-    update_active_signals()
+    update_active_signals(queue_length)
 
     # Check conditions of compatibility
     # E.g., players must be in same area or have some similar trait.
@@ -115,6 +127,10 @@ func signal_available{
 
 
     open_channel()
+
+    # Update the 'clock', in lieu of actual time/blocks ticking.
+    let (time) = clock.read()
+    clock.write(time + 1)
 
 
     return ()
@@ -194,28 +210,27 @@ func update_active_signals{
         range_check_ptr
     }():
     alloc_locals
+    let (queue_length) = highest_queue_index.read() + 1
     # Look at time measure (e.g., block height)
-
-    # Iterate over all the active queued participants and assess if they
-    # are still valid offers.
-    let (index) = highest_queue_index.read()
+    let (time) = clock.read()
     # Build up a queue by checking if players have been erased.
     local queue : felt*
-    let (length) = append_queue_array(index, queue, 0)
-
+    let (length) = build_queue(index, queue, 0)
+    highest_queue_index.write(length - 1)
+    save_queue(length, queue)
 
     return ()
 end
 
 # Walks from the start to the end of the queue. If
-func append_queue_array{
+func build_queue{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
         n : felt,
         queue : felt*,
-        free_index : felt
+        time : felt
     ) -> (
         length : felt
     ):
@@ -223,25 +238,56 @@ func append_queue_array{
     if n == 0:
         return (0)
     end
-    let (length) = append_queue_array(n - 1, queue, free_index)
+    let (length) = build_queue(n - 1, queue, time)
     # On first entry, n=1.
     let index = 0
-
-    # TODO: Fetch the offer. Read the block number, determine
-    # if the offer is valid. If the player is 0, also skip (they
-    # are the one matched and have been removed).
     let (player) = player_from_queue_index.read(index)
-    local exists : felt
-    local expired : felt
     if player == 0:
-        return (length)
-    end
-    # If the player.offer is expired, skip them.
-    if expired == 1:
+        # If the player has been removed from the queue already.
+        offer_expires.write(player, 0)
+        queue_index_of_player.write(player, 0)
         return (length)
     end
 
+    let (expiry) = offer_expires.read(player)
+    let (expired) = is_nn_le(time, expiry)
+
+    # This queue is possibly outdated, wipe the order.
+    queue_index_of_player.write(player, 0)
+    player_from_queue_index.write(index, 0)
+
+    if expired == 1:
+        # If the players offer is expired,
+        # don't add them to the new_queue.
+        offer_expires.write(player, 0)
+        return (length)
+    end
+
+    # Add the player to the new queue
+    assert queue[index] = player
+    # Increment the length of this new queue.
     return (length + 1)
+end
+
+# Saves the order of the new queue.
+func save_queue{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        n : felt,
+        queue : felt*
+    ):
+    alloc_locals
+    if n == 0:
+        return ()
+    end
+    save_queue(n - 1, queue)
+    # On first entry, n=1.
+    let index = 0
+    queue_index_of_player.write(player, index)
+    player_from_queue_index.write(index, player)
+    return ()
 end
 
 # Saves the result of the whole channel interaction to L2.
