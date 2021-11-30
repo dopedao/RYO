@@ -3,7 +3,7 @@
 
 from starkware.cairo.common.cairo_builtins import (HashBuiltin,
     SignatureBuiltin)
-from starkware.cairo.common.math import assert_nn_le
+from starkware.cairo.common.math import assert_nn_le, assert_not_zero
 from starkware.cairo.common.math_cmp import is_nn_le
 from starkware.starknet.common.syscalls import get_caller_address
 from starkware.cairo.common.signature import verify_ecdsa_signature
@@ -39,7 +39,6 @@ struct Channel:
     member last_challenged_at_block : felt
     member latest_state_index : felt
     member addresses : (felt, felt)
-    member game_pub_key : (felt, felt)
     member balance : (felt, felt)
     member initial_channel_data : felt
     member initial_state_hash : felt
@@ -53,7 +52,7 @@ end
 
 # Number of people waiting to open channels.
 @storage_var
-func highest_queue_index() -> (count : felt):
+func queue_length() -> (value : felt):
 end
 
 # Records array of users who are available.
@@ -79,6 +78,11 @@ end
 # Records when an offer (to open a channel) will expire.
 @storage_var
 func offer_expires(player_address : felt) -> (value : felt):
+end
+
+# Records the public key a player wants to use for the channel.
+@storage_var
+func player_signing_key(player_account : felt) -> (signing_key : felt):
 end
 
 # Temporary workaround until blocks/time available.
@@ -111,27 +115,48 @@ func signal_available{
         duration : felt,
         pub_key : felt
     ):
+    alloc_locals
     # If a player signals availability but then is not available,
     # their opponent will win.
+    let (local player) = get_caller_address()
+    let (local time) = clock.read()
+    let (queue_len) = queue_length.read()
+    # If queue is not empty, look for a match.
+    if queue_len != 0:
+
+        # First update the active list
+        update_active_signals(queue_len)
+
+        # Is anyone in the queue compatible?
+        let (success, matched_player) = check_for_match(queue_len)
+
+        # If no match,
+        if success != 0:
+            jmp join_queue
+        else:
+            open_channel(player, matched_player)
+            jmp dont_join_queue
+        end
+    else:
+        jmp join_queue
+        local syscall_ptr : felt* = syscall_ptr
+    end
+
+    join_queue:
+    # Re-read the queue, some may have been removed.
+    let (old_queue_length) = queue_length.read()
+    queue_length.write(old_queue_length + 1)
+    let free_index = old_queue_length
+
+    player_from_queue_index.write(free_index, player)
+    queue_index_of_player.write(player, free_index)
 
 
-    # First update the active list
-    update_active_signals(queue_length)
-
-    # Check conditions of compatibility
-    # E.g., players must be in same area or have some similar trait.
-    # Currently left as anyone-is-compatible.
-    let queue_length = 8
-    let (bool, match) = check_for_match(queue_length)
+    dont_join_queue:
 
 
-
-    open_channel()
-
-    # Update the 'clock', in lieu of actual time/blocks ticking.
-    let (time) = clock.read()
+    register_new_account(pub_key)
     clock.write(time + 1)
-
 
     return ()
 end
@@ -179,10 +204,13 @@ func close_channel{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }():
-
+    }(
+        channel_id : felt
+    ):
+    only_channel_participant()
+    only_closable_channel()
     execute_final_outcome()
-
+    erase_channel(channel_id)
     return ()
 end
 
@@ -192,14 +220,61 @@ func open_channel{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }():
+    }(
+        player_from_tx : felt,
+        player_from_queue : felt
+    ):
 
     # Create channel
 
     # Remove channel participant matched from the waiting list
 
     # Update the waiting list
-    update_active_signals()
+    erase_from_queue(player_from_queue)
+    return ()
+end
+
+# Removes a player from the queue.
+func erase_from_queue{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        player_address : felt
+    ):
+
+    player_from_queue_index()
+    let (index) = queue_index_of_player.read(player_address)
+    player_from_queue_index.write(index, 0)
+    queue_index_of_player.write(player_address, 0)
+    offer_expires.write(player_address, 0)
+    let (length) = queue_length.read()
+    queue_length.write(length - 1)
+    return ()
+end
+
+# Removes all channel and player information.
+func erase_channel{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        channel_index : felt
+    ):
+    alloc_locals
+    let (local c : Channel) = channel_from_index.read(
+        channel_index)
+
+    # Get both player details.
+    let player_a = c.addresses[0]
+    let player_b = c.addresses[1]
+    # Wipe channel details.
+    channel_from_index.write(channel_index, 0)
+    let (channels) = highest_channel_index.read()
+    highest_channel_index.write(channels - 1)
+    # Wipe both player details.
+    player_signing_key.write(player_a, 0)
+    player_signing_key.write(player_b, 0)
     return ()
 end
 
@@ -208,15 +283,18 @@ func update_active_signals{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }():
+    }(
+        time : felt
+    ):
     alloc_locals
-    let (queue_length) = highest_queue_index.read() + 1
+    let (queue_length) = queue_length.read()
     # Look at time measure (e.g., block height)
     let (time) = clock.read()
     # Build up a queue by checking if players have been erased.
     local queue : felt*
-    let (length) = build_queue(index, queue, 0)
-    highest_queue_index.write(length - 1)
+    # Build queue and record the new length.
+    let (length) = build_queue(queue_length, queue, 0)
+    queue_length.write(length)
     save_queue(length, queue)
 
     return ()
@@ -275,6 +353,7 @@ func save_queue{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
+        player : felt,
         n : felt,
         queue : felt*
     ):
@@ -282,7 +361,7 @@ func save_queue{
     if n == 0:
         return ()
     end
-    save_queue(n - 1, queue)
+    save_queue(player, n - 1, queue)
     # On first entry, n=1.
     let index = 0
     queue_index_of_player.write(player, index)
@@ -306,6 +385,8 @@ func execute_final_outcome{
     # about this same channel.
 
     # Store the data
+
+    # Remove all details about players.
 
     return ()
 end
@@ -408,6 +489,42 @@ func check_for_match{
     return (bool, match)
 end
 
+# Ensures an account cannot be used twice simultaneously.
+func register_new_account{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        pub_key : felt
+    ):
+    # Prevents a user opening a channel but then joining a queue
+    # or another channel, which might result in wiped details.
+
+    let (player) = get_caller_address()
+    # A player always registers a non-zero key.
+    assert_not_zero(pub_key)
+    # Player must not have a registered key.
+    let (registered_key) = player_signing_key.read(player)
+    assert_not_zero(registered_key)
+    # The player is registered.
+    player_signing_key.write(player, pub_key)
+    return ()
+end
+
+
+# Ensures a channel is not closed during a waiting period.
+func only_closable_channel{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        channel : Channel
+    ):
+    # Checks when a channel is able to be closed by, based
+    # on the challenge period.
+
+    return ()
+end
 
 # Ensures a signed message contains the necessary authority.
 func only_channel_participant{
