@@ -139,11 +139,11 @@ func signal_available{
         end
     else:
         jmp join_queue
-        local syscall_ptr : felt* = syscall_ptr
     end
 
     join_queue:
     # Re-read the queue, some may have been removed.
+    # Err ---> syscall_ptr was revoked.
     let (old_queue_length) = queue_length.read()
     queue_length.write(old_queue_length + 1)
     let free_index = old_queue_length
