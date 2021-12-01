@@ -121,29 +121,40 @@ func signal_available{
     let (local player) = get_caller_address()
     let (local time) = clock.read()
     let (queue_len) = queue_length.read()
-    # If queue is not empty, look for a match.
+
     if queue_len != 0:
+        # If queue is not empty, look for a match.
 
         # First update the active list
-        update_active_signals(queue_len)
+        update_active_signals(player, time, queue_len)
 
         # Is anyone in the queue compatible?
         let (success, matched_player) = check_for_match(queue_len)
 
-        # If no match,
         if success != 0:
+            # If no match.
+            tempvar syscall_ptr = syscall_ptr
+            tempvar pedersen_ptr = pedersen_ptr
+            tempvar range_check_ptr = range_check_ptr
             jmp join_queue
         else:
+            # If match.
             open_channel(player, matched_player)
+            tempvar syscall_ptr = syscall_ptr
+            tempvar pedersen_ptr = pedersen_ptr
+            tempvar range_check_ptr = range_check_ptr
             jmp dont_join_queue
         end
     else:
+        # If queue is empty, join queue.
+        tempvar syscall_ptr = syscall_ptr
+        tempvar pedersen_ptr = pedersen_ptr
+        tempvar range_check_ptr = range_check_ptr
         jmp join_queue
     end
 
     join_queue:
     # Re-read the queue, some may have been removed.
-    # Err ---> syscall_ptr was revoked.
     let (old_queue_length) = queue_length.read()
     queue_length.write(old_queue_length + 1)
     let free_index = old_queue_length
@@ -151,9 +162,7 @@ func signal_available{
     player_from_queue_index.write(free_index, player)
     queue_index_of_player.write(player, free_index)
 
-
     dont_join_queue:
-
 
     register_new_account(pub_key)
     clock.write(time + 1)
@@ -205,12 +214,14 @@ func close_channel{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        channel_id : felt
+        channel_index : felt
     ):
+    alloc_locals
+    let (local c : Channel) = channel_from_index.read(channel_index)
     only_channel_participant()
-    only_closable_channel()
+    only_closable_channel(c)
     execute_final_outcome()
-    erase_channel(channel_id)
+    erase_channel(channel_index)
     return ()
 end
 
@@ -243,7 +254,6 @@ func erase_from_queue{
         player_address : felt
     ):
 
-    player_from_queue_index()
     let (index) = queue_index_of_player.read(player_address)
     player_from_queue_index.write(index, 0)
     queue_index_of_player.write(player_address, 0)
@@ -269,7 +279,8 @@ func erase_channel{
     let player_a = c.addresses[0]
     let player_b = c.addresses[1]
     # Wipe channel details.
-    channel_from_index.write(channel_index, 0)
+    local null_channel : Channel
+    channel_from_index.write(channel_index, null_channel)
     let (channels) = highest_channel_index.read()
     highest_channel_index.write(channels - 1)
     # Wipe both player details.
@@ -284,18 +295,17 @@ func update_active_signals{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        time : felt
+        player : felt,
+        time : felt,
+        original_queue_length : felt
     ):
     alloc_locals
-    let (queue_length) = queue_length.read()
-    # Look at time measure (e.g., block height)
-    let (time) = clock.read()
     # Build up a queue by checking if players have been erased.
     local queue : felt*
     # Build queue and record the new length.
-    let (length) = build_queue(queue_length, queue, 0)
+    let (length) = build_queue(original_queue_length, queue, 0)
     queue_length.write(length)
-    save_queue(length, queue)
+    save_queue(player, length, queue)
 
     return ()
 end
@@ -424,12 +434,15 @@ func is_valid_submission{
     # Get the stored pubkey of the player.
     local public_key : felt
     if player_index == 0:
-        assert public_key = c.game_pub_key[0]
+        let (pubk) = player_signing_key.read(c.addresses[0])
+        assert public_key = pubk
     else:
-        assert public_key = c.game_pub_key[1]
+        let (pubk) = player_signing_key.read(c.addresses[1])
+        assert public_key = pubk
     end
 
     # Hash the message they signed.
+    tempvar syscall_ptr = syscall_ptr
     let (hash) = list_to_hash(message, message_len)
     # Verify the hash was signed by the pubk registered by the player.
     verify_ecdsa_signature(
