@@ -189,3 +189,31 @@ In this way, the game is one of coordination and compromise.
 
 
 
+# Channel system architecture
+
+Details of particulars: timing, checks, guarantees, game theory, etc.
+
+## Events when channel created
+
+A is in queue, B is matched and A-B channel is opened.
+
+Issues:
+
+- A is waiting, channel opened a unpredictable time. B has submitted
+    to join queue, unsure if matched or queued.
+    - Solution: A and B both ping `status_of_player()` regularly to learn if
+    they have been matched.
+- Delay between channel opening and players making first peer to peer
+contact.
+    - Solution: Player endures the waiting period and then closes
+    the channel, releasing collateral of both parties.
+- When does the channel apply a penalty to a non-responsive player?
+    - Solution: Players commit to coordinate `n_agreed_states`, the length
+    of the interaction. The channel can be closed before this point,
+    and a penalty is applied to the non-submitting player.
+- A player prematurely closes the channel mid-game, the other player receives
+    penalty.
+    - If `n_agreed_states` is not yet agreed, a waiting period allows
+    the other player to cancel the channel closure by sending
+    a signed version of the state to `keep_channel_open()`.
+
