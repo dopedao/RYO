@@ -137,7 +137,7 @@ func signal_available{
 
         # Is anyone in the queue compatible?
         let (success, matched_player) = check_for_match(queue_len)
-        assert success == 1
+        assert success = 1
         if success != 0:
             # If no match.
             tempvar syscall_ptr = syscall_ptr
@@ -549,7 +549,7 @@ func check_for_match{
         match_found_bool : felt,
         matched_player : felt
     ):
-    # TODO implement checks and queue search.
+    alloc_locals
     if queue_pos == 0:
         return (0, 0)
     end
@@ -559,19 +559,22 @@ func check_for_match{
     # Upon first entry here, queue_pos=1.
     let index = queue_pos - 1
 
+    let (candidate) = player_from_queue_index.read(index)
+    assert_not_zero(candidate)
+    local matched_player : felt
+    local bool_result : felt
     if bool != 1:
         # If no match found yet, look for one.
-        let (matched_player) = player_from_queue_index.read(index)
-        assert_not_zero(matched_player)
+        assert matched_player = candidate
         # If suitable (currently everyone is suitable), save.
         # let (ok) = apply_check_to_selected_player(matched_player)
-        bool_result = 1
+        let ok = 1
+        assert bool_result = ok
     else:
         # If match already found
-        let matched player = match
-        let bool_result = 1
+        assert matched_player = match
+        assert bool_result = 1
     end
-
     return (bool_result, matched_player)
 end
 
