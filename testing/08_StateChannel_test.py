@@ -42,17 +42,9 @@ async def test_channel_match(game_factory):
     assert res.result.queue_len == 1
     assert res.result.index_in_queue == 0
     c = res.result.channel_details
-    print("Channel details: ")
-    [print(t) for t in c]
-    assert c.index == 0
-    assert c.opened_at_block == 0
-    assert c.last_challenged_at_block == 0
-    assert c.latest_state_index == 0
+    assert c.id == 0  # Empty channel has zero ID.
     assert c.addresses == (0, 0)
-    assert c.balance == (0, 0)
-    assert c.initial_channel_data == 0
     assert c.initial_state_hash == 0
-
     res = await channels.read_queue_length().call()
     assert res.result.length == 1
 
@@ -64,7 +56,7 @@ async def test_channel_match(game_factory):
         calldata=[OFFER_DURATION, user_2_signer.public_key])
 
     res = await channels.read_queue_length().call()
-    assert res.result.length == 1
+    assert res.result.length == 0
 
     res = await channels.status_of_player(user_2.contract_address).call()
     assert res.result.game_key == user_2_signer.public_key
@@ -73,12 +65,13 @@ async def test_channel_match(game_factory):
     c = res.result.channel_details
     print("Channel details: ")
     [print(t) for t in c]
-    assert c.index == 0
-    assert c.opened_at_block == 0
-    assert c.last_challenged_at_block == 0
+    assert c.id == 1  # First channel has id==1.
+    assert c.opened_at_block == 1
+    assert c.last_challenged_at_block == 1
     assert c.latest_state_index == 0
-    assert c.addresses == (user_1_signer.public_key,
-        user_2_signer.public_key)
+    # User 2 opens channel so is recorded at index 0 in the channel.
+    assert c.addresses[0] == user_2.contract_address
+    assert c.addresses[1] == user_1.contract_address
     assert c.balance == (100, 100)
     assert c.initial_channel_data == 987654321
     assert c.initial_state_hash == 123456789
@@ -105,6 +98,18 @@ async def test_queue_function(game_factory):
 
     res = await channels.read_queue_length().call()
     assert res.result.length == 1
+    assert res.result.player_at_index_0 == user_1.contract_address
+
+
+    # User 1 cannot rejoin queue.
+    try:
+        await user_1_signer.send_transaction(
+            account=user_1,
+            to=channels.contract_address,
+            selector_name='signal_available',
+            calldata=[OFFER_DURATION, user_1_signer.public_key])
+    except Exception as e:
+        print(f'\nPassed: Prevent queue re-entry.')
 
     # Second user signals availability and is matched.
     await user_2_signer.send_transaction(
@@ -125,7 +130,7 @@ async def test_queue_function(game_factory):
             selector_name='signal_available',
             calldata=[OFFER_DURATION, user_1_signer.public_key])
     except Exception as e:
-        print(f'\n\tPassed: Prevented User 1 queue re-entry.')
+        print(f'\nPassed: Prevent queue entry once in channel.')
 
     # Third user signals availability and is matched.
     await user_3_signer.send_transaction(
@@ -137,3 +142,8 @@ async def test_queue_function(game_factory):
     # User 3 enters queue.
     res = await channels.read_queue_length().call()
     assert res.result.length == 1
+
+    res = await channels.status_of_player(user_3.contract_address).call()
+    assert res.result.game_key == user_3_signer.public_key
+    assert res.result.queue_len == 1
+    assert res.result.index_in_queue == 0

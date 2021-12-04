@@ -4,7 +4,8 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import (HashBuiltin,
     SignatureBuiltin)
-from starkware.cairo.common.math import assert_nn_le, assert_not_zero
+from starkware.cairo.common.math import (assert_nn_le,
+    assert_not_zero, assert_not_equal)
 from starkware.cairo.common.math_cmp import is_nn_le
 from starkware.starknet.common.syscalls import get_caller_address
 from starkware.cairo.common.signature import verify_ecdsa_signature
@@ -34,8 +35,9 @@ struct Move:
 end
 
 # Stores the details of a channel tuples are: (user_a, user_b)
+# User A is whoever sends the transaction that opens the channel.
 struct Channel:
-    member index : felt
+    member id : felt
     member opened_at_block : felt
     member last_challenged_at_block : felt
     member latest_state_index : felt
@@ -68,12 +70,12 @@ end
 
 # Channel details.
 @storage_var
-func channel_from_index(index) -> (result : Channel):
+func channel_from_id(index) -> (result : Channel):
 end
 
 # Increments with every new channel.
 @storage_var
-func highest_channel_index() -> (value : felt):
+func highest_channel_id() -> (value : felt):
 end
 
 # Records when an offer (to open a channel) will expire.
@@ -89,7 +91,7 @@ end
 # Records the channel index for a given player.
 @storage_var
 func channel_of_player(player_account : felt) -> (
-    channel_index : felt):
+    channel_id : felt):
 end
 
 # Temporary workaround until blocks/time available.
@@ -138,14 +140,14 @@ func signal_available{
         # Is anyone in the queue compatible?
         let (success, matched_player) = check_for_match(queue_len)
         if success != 0:
-            # If no match.
+            # If match.
             open_channel(player, matched_player, clock_now)
             tempvar syscall_ptr = syscall_ptr
             tempvar pedersen_ptr = pedersen_ptr
             tempvar range_check_ptr = range_check_ptr
             jmp dont_join_queue
         else:
-            # If match.
+            # If no match.
             tempvar syscall_ptr = syscall_ptr
             tempvar pedersen_ptr = pedersen_ptr
             tempvar range_check_ptr = range_check_ptr
@@ -186,7 +188,7 @@ func manual_state_update{
         range_check_ptr,
         ecdsa_ptr: SignatureBuiltin*
     }(
-        channel_index : felt,
+        channel_id : felt,
         state_index : felt,
         sig_r : felt,
         sig_s : felt,
@@ -197,9 +199,9 @@ func manual_state_update{
     # Channels progress state, but if one player disappears, the remaining
     # player can update the game state using this function.
     # State_index is the unique (incrementing) state identifier.
-    let (local c : Channel) = channel_from_index.read(channel_index)
+    let (local c : Channel) = channel_from_id.read(channel_id)
     # Check channel
-    assert c.index = channel_index
+    assert c.id = channel_id
     # Check state is not stale (latest state < provided state).
     assert_nn_le(c.latest_state_index + 1, state_index)
     # The players are stored as a tuple. Fetch which index the caller is.
@@ -221,14 +223,14 @@ func close_channel{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        channel_index : felt
+        channel_id : felt
     ):
     alloc_locals
-    let (local c : Channel) = channel_from_index.read(channel_index)
+    let (local c : Channel) = channel_from_id.read(channel_id)
     only_channel_participant()
     only_closable_channel(c)
     execute_final_outcome()
-    erase_channel(channel_index)
+    erase_channel(channel_id)
     return ()
 end
 
@@ -255,8 +257,8 @@ func status_of_player{
     let (game_key) = player_signing_key.read(player_address)
     let (index_in_queue) = queue_index_of_player.read(player_address)
     let (queue_len) = queue_length.read()
-    let (channel_index) = channel_of_player.read(player_address)
-    let (local channel : Channel) = channel_from_index.read(channel_index)
+    let (channel_id) = channel_of_player.read(player_address)
+    let (local channel : Channel) = channel_from_id.read(channel_id)
 
     # To interprete these values:
     # If game_key is 0, player is not registered for queue or channel.
@@ -278,10 +280,12 @@ func read_queue_length{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }() -> (
-        length : felt
+        length : felt,
+        player_at_index_0 : felt
     ):
     let (length) = queue_length.read()
-    return (length)
+    let (zeroth_queuer) = player_from_queue_index.read(0)
+    return (length, zeroth_queuer)
 end
 
 # Stores the details of the channel.
@@ -295,11 +299,13 @@ func open_channel{
         clock : felt
     ):
     alloc_locals
-    let (current_index) = highest_channel_index.read()
+    # Cannot open channel with self.
+    assert_not_equal(player_from_tx, player_from_queue)
+    let (current_index) = highest_channel_id.read()
     # Create channel
-    let channel_index = current_index + 1
+    let channel_id = current_index + 1
     local c : Channel
-    assert c.index = channel_index
+    assert c.id = channel_id
     assert c.opened_at_block = clock
     assert c.last_challenged_at_block = clock
     assert c.latest_state_index = 0
@@ -311,10 +317,11 @@ func open_channel{
     assert c.initial_channel_data = 987654321
     assert c.initial_state_hash = 123456789
 
-    channel_from_index.write(channel_index, c)
-    highest_channel_index.write(channel_index)
-    channel_of_player.write(player_from_tx, channel_index)
-    channel_of_player.write(player_from_queue, channel_index)
+
+    channel_from_id.write(channel_id, c)
+    highest_channel_id.write(channel_id)
+    channel_of_player.write(player_from_tx, channel_id)
+    channel_of_player.write(player_from_queue, channel_id)
     # Update the waiting list
     erase_from_queue(player_from_queue)
     return ()
@@ -344,20 +351,20 @@ func erase_channel{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        channel_index : felt
+        channel_id : felt
     ):
     alloc_locals
-    let (local c : Channel) = channel_from_index.read(
-        channel_index)
+    let (local c : Channel) = channel_from_id.read(
+        channel_id)
 
     # Get both player details.
     let player_a = c.addresses[0]
     let player_b = c.addresses[1]
     # Wipe channel details.
     local null_channel : Channel
-    channel_from_index.write(channel_index, null_channel)
-    let (channels) = highest_channel_index.read()
-    highest_channel_index.write(channels - 1)
+    channel_from_id.write(channel_id, null_channel)
+    let (channels) = highest_channel_id.read()
+    highest_channel_id.write(channels - 1)
     # Wipe both player details.
     channel_of_player.write(player_a, 0)
     channel_of_player.write(player_b, 0)
