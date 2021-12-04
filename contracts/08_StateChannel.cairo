@@ -137,20 +137,19 @@ func signal_available{
 
         # Is anyone in the queue compatible?
         let (success, matched_player) = check_for_match(queue_len)
-        assert success = 1
         if success != 0:
             # If no match.
-            tempvar syscall_ptr = syscall_ptr
-            tempvar pedersen_ptr = pedersen_ptr
-            tempvar range_check_ptr = range_check_ptr
-            jmp join_queue
-        else:
-            # If match.
             open_channel(player, matched_player, clock_now)
             tempvar syscall_ptr = syscall_ptr
             tempvar pedersen_ptr = pedersen_ptr
             tempvar range_check_ptr = range_check_ptr
             jmp dont_join_queue
+        else:
+            # If match.
+            tempvar syscall_ptr = syscall_ptr
+            tempvar pedersen_ptr = pedersen_ptr
+            tempvar range_check_ptr = range_check_ptr
+            jmp join_queue
         end
     else:
         # If queue is empty, join queue.
@@ -178,41 +177,6 @@ func signal_available{
 end
 
 
-# Frontend calls to see if user has channel opened.
-@view
-func status_of_player{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        player_address : felt
-    ) -> (
-        game_key : felt,
-        index_in_queue : felt,
-        queue_len : felt,
-        channel_details : Channel
-    ):
-    alloc_locals
-    # Upon submitting to join the queue, players should ping this
-    # function to see if they are queued or matched.
-    # Could be replaced by listening to an Event when technically feasible.
-
-    let (game_key) = player_signing_key.read(player_address)
-    let (index_in_queue) = queue_index_of_player.read(player_address)
-    let (queue_len) = queue_length.read()
-    let (channel_index) = channel_of_player.read(player_address)
-    let (local channel : Channel) = channel_from_index.read(channel_index)
-
-    # To interprete these values:
-    # If game_key is 0, player is not registered for queue or channel.
-    # If channel_details is zero, the position_in_queue informs queue index.
-    # If channel_details not zero, the channel is live.
-    return (
-        game_key,
-        index_in_queue,
-        queue_len,
-        channel)
-end
 
 # Called by a user who intends to secure state on-chain.
 @external
@@ -268,6 +232,57 @@ func close_channel{
     return ()
 end
 
+
+# Frontend calls to see if user has channel opened.
+@view
+func status_of_player{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        player_address : felt
+    ) -> (
+        game_key : felt,
+        index_in_queue : felt,
+        queue_len : felt,
+        channel_details : Channel
+    ):
+    alloc_locals
+    # Upon submitting to join the queue, players should ping this
+    # function to see if they are queued or matched.
+    # Could be replaced by listening to an Event when technically feasible.
+
+    let (game_key) = player_signing_key.read(player_address)
+    let (index_in_queue) = queue_index_of_player.read(player_address)
+    let (queue_len) = queue_length.read()
+    let (channel_index) = channel_of_player.read(player_address)
+    let (local channel : Channel) = channel_from_index.read(channel_index)
+
+    # To interprete these values:
+    # If game_key is 0, player is not registered for queue or channel.
+    # If channel_details is zero, the position_in_queue informs queue index.
+    # If channel_details not zero, the channel is live.
+    return (
+        game_key,
+        index_in_queue,
+        queue_len,
+        channel)
+end
+
+
+
+# Queue length
+@view
+func read_queue_length{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }() -> (
+        length : felt
+    ):
+    let (length) = queue_length.read()
+    return (length)
+end
 
 # Stores the details of the channel.
 func open_channel{
@@ -565,8 +580,8 @@ func check_for_match{
     local bool_result : felt
     if bool != 1:
         # If no match found yet, look for one.
-        assert matched_player = candidate
         # If suitable (currently everyone is suitable), save.
+        assert matched_player = candidate
         # let (ok) = apply_check_to_selected_player(matched_player)
         let ok = 1
         assert bool_result = ok

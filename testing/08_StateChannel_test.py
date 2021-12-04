@@ -4,7 +4,7 @@ import random
 from fixtures.account import account_factory
 
 # admin, user, user
-NUM_SIGNING_ACCOUNTS = 3
+NUM_SIGNING_ACCOUNTS = 4
 
 # How long a channel offer persists ('time-units')
 OFFER_DURATION = 20
@@ -53,12 +53,18 @@ async def test_channel_match(game_factory):
     assert c.initial_channel_data == 0
     assert c.initial_state_hash == 0
 
+    res = await channels.read_queue_length().call()
+    assert res.result.length == 1
+
     # Second user signals availability and is matched.
     await user_2_signer.send_transaction(
         account=user_2,
         to=channels.contract_address,
         selector_name='signal_available',
         calldata=[OFFER_DURATION, user_2_signer.public_key])
+
+    res = await channels.read_queue_length().call()
+    assert res.result.length == 1
 
     res = await channels.status_of_player(user_2.contract_address).call()
     assert res.result.game_key == user_2_signer.public_key
@@ -80,3 +86,54 @@ async def test_channel_match(game_factory):
 
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize('account_factory', [dict(num_signers=NUM_SIGNING_ACCOUNTS)], indirect=True)
+async def test_queue_function(game_factory):
+    _, accounts, signers, channels = game_factory
+    user_1_signer = signers[1]
+    user_2_signer = signers[2]
+    user_3_signer = signers[3]
+    user_1 = accounts[1]
+    user_2 = accounts[2]
+    user_3 = accounts[3]
+    # User signals availability and submits a pubkey for the channel.
+    await user_1_signer.send_transaction(
+        account=user_1,
+        to=channels.contract_address,
+        selector_name='signal_available',
+        calldata=[OFFER_DURATION, user_1_signer.public_key])
+
+    res = await channels.read_queue_length().call()
+    assert res.result.length == 1
+
+    # Second user signals availability and is matched.
+    await user_2_signer.send_transaction(
+        account=user_2,
+        to=channels.contract_address,
+        selector_name='signal_available',
+        calldata=[OFFER_DURATION, user_2_signer.public_key])
+
+    # User 2 matches, channel should open and queue length reduces.
+    res = await channels.read_queue_length().call()
+    assert res.result.length == 0
+
+    # User 1 cannot rejoin queue now they are in a channel.
+    try:
+        await user_1_signer.send_transaction(
+            account=user_1,
+            to=channels.contract_address,
+            selector_name='signal_available',
+            calldata=[OFFER_DURATION, user_1_signer.public_key])
+    except Exception as e:
+        print(f'\n\tPassed: Prevented User 1 queue re-entry.')
+
+    # Third user signals availability and is matched.
+    await user_3_signer.send_transaction(
+        account=user_3,
+        to=channels.contract_address,
+        selector_name='signal_available',
+        calldata=[OFFER_DURATION, user_3_signer.public_key])
+
+    # User 3 enters queue.
+    res = await channels.read_queue_length().call()
+    assert res.result.length == 1
