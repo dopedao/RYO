@@ -22,14 +22,17 @@ async def game_factory(account_factory):
         constructor_calldata=[CONTROLLER_ADDRESS])
     return starknet, accounts, signers, channels
 
+@pytest.fixture(scope='module')
 @pytest.mark.asyncio
 @pytest.mark.parametrize('account_factory', [dict(num_signers=NUM_SIGNING_ACCOUNTS)], indirect=True)
-async def test_channel_match(game_factory):
-    _, accounts, signers, channels = game_factory
+async def test_channel_open(game_factory):
+    starknet, accounts, signers, channels = game_factory
     user_1_signer = signers[1]
     user_2_signer = signers[2]
+    user_3_signer = signers[3]
     user_1 = accounts[1]
     user_2 = accounts[2]
+    user_3 = accounts[3]
     # User signals availability and submits a pubkey for the channel.
     await user_1_signer.send_transaction(
         account=user_1,
@@ -73,8 +76,44 @@ async def test_channel_match(game_factory):
     assert c.balance == (100, 100)
     assert c.initial_channel_data == 987654321
     assert c.initial_state_hash == 123456789
+    print("Passed: Open a channel.")
+    try:
+        await user_3_signer.send_transaction(
+            account=user_3,
+            to=channels.contract_address,
+            selector_name='close_channel',
+            calldata=[c.id])
+    except Exception as e:
+        print("Passed: Prevent third party from closing channel")
+    return starknet, accounts, signers, channels
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize('account_factory', [dict(num_signers=NUM_SIGNING_ACCOUNTS)], indirect=True)
+async def test_close_channel(test_channel_open):
+    _, accounts, signers, channels = test_channel_open
+    user_1_signer = signers[1]
+    user_2_signer = signers[2]
+    user_3_signer = signers[3]
+    user_1 = accounts[1]
+    user_2 = accounts[2]
+    user_3 = accounts[3]
+    await user_1_signer.send_transaction(
+        account=user_1,
+        to=channels.contract_address,
+        selector_name='close_channel',
+        calldata=[OFFER_DURATION, user_1_signer.public_key])
+
+    # TODO: Implement channel closure logic.
+    # E.g., movement of assets to winner, record events as reportcard.
+    res = await channels.status_of_player(user_1.contract_address).call()
+    assert res.result.game_key == 0
+    assert res.result.queue_len == 0
+    assert res.result.index_in_queue == 0
+    c = res.result.channel_details
+    # Assert c is empty.
+    # assert balances are changed.
+    # assert report card administered.
 
 
 @pytest.mark.asyncio

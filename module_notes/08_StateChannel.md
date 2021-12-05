@@ -66,6 +66,11 @@ Good reading can be found:
 - A end-to-end state channel dice game setup [here](https://medium.com/ethereum-developers/how-to-create-scalable-dapps-and-smart-contracts-in-ethereum-with-state-channels-step-by-step-48e12481fb)
 - FunFair's overview of main considerations [here](https://funfair.io/a-reference-implementation-of-state-channel-contracts/)
 
+Reading on more complex general virtual channels:
+
+- StateChannels.org [blog](https://blog.statechannels.org/). Nitro virtual channels
+solidity [implementation](https://github.com/statechannels/statechannels/tree/master/packages/nitro-protocol/contracts).
+
 
 ## One player disappears
 
@@ -217,3 +222,16 @@ contact.
     the other player to cancel the channel closure by sending
     a signed version of the state to `keep_channel_open()`.
 
+# Outcomes of channel-based play
+
+## Who: Capture the game play outcome
+
+Winner vs loser recorded on L2.
+
+## How: Capture the characteristics of the player
+
+Game play involves the input of two players who behave differently.
+The game could try to condense the different actions taken by each
+player.
+
+See the [report card notes](./10_ReportCard.md)
