@@ -63,8 +63,6 @@ async def test_channel_match(game_factory):
     assert res.result.queue_len == 0
     assert res.result.index_in_queue == 0
     c = res.result.channel_details
-    print("Channel details: ")
-    [print(t) for t in c]
     assert c.id == 1  # First channel has id==1.
     assert c.opened_at_block == 1
     assert c.last_challenged_at_block == 1

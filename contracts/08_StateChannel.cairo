@@ -390,7 +390,7 @@ func update_active_signals{
     # Build queue and record the new length.
     let (length) = build_queue(original_queue_length, queue, clock_now)
     queue_length.write(length)
-    save_queue(player, length, queue)
+    save_queue(length, queue)
 
     return ()
 end
@@ -448,7 +448,6 @@ func save_queue{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        player : felt,
         n : felt,
         queue : felt*
     ):
@@ -456,11 +455,11 @@ func save_queue{
     if n == 0:
         return ()
     end
-    save_queue(player, n - 1, queue)
+    save_queue(n - 1, queue)
     # On first entry, n=1.
     let index = 0
-    queue_index_of_player.write(player, index)
-    player_from_queue_index.write(index, player)
+    queue_index_of_player.write(queue[index], index)
+    player_from_queue_index.write(index, queue[index])
     return ()
 end
 
