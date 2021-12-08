@@ -222,9 +222,67 @@ contact.
     the other player to cancel the channel closure by sending
     a signed version of the state to `keep_channel_open()`.
 
+# Channel protocol
+
+The following is a commit-reveal protocol which encourages users to
+commit to the other player's message without knowing its contents.
+In this way, you can't cheat by ignoring bad moves - you haves signed
+it and, your opponent could go to chain (L2).
+
+The channel state is best imagined as a small chain, where every state
+contains the hash of the parent state.
+
+- Starting (parent) state hash is read by Alice from the contract.
+- Alice commits to a move, increments nonce, signs.
+    - Bob checks that Alice's message contains the starting state hash.
+    If it doesn't match, Alice has not given a valid message. Bob
+    can request one, or submit this as evidence to the chain. The next
+    step
+- Bob accepts Alice's message, commits to a move, increments nonce,
+signs.
+    - A this point, both players have made 'blind turns'. One
+    way to imagine this is that the fight is happening in a strobe-light.
+    You make a move without complete knowledge of their positions or movements, which means a strike could miss, or a strike could arrive unexpectedly. A visualisation might be to have the players fighting
+    while traffic passes between the viewer (3rd person view), and the
+    fighters.
+- Alice accepts Bob's message, commits to a move, increments nonce,
+appends her previous move and signs.
+- Bob receives Alice's message and learns of her move.
+    - He checks it matches her commitment. If it is not valid, he
+    could submit it to the contract as proof.
+    - He now knows where she is and what she did pior to his last turn.
+    He also knows what is last move was and can see if he made a good
+    move. The UI can show those two (Alice+Bob) moves, which from
+    Bob's perspective is 1 round trip.
+- Bob knows that Alice still has a hidden move, so makes his move
+taking that uncertainty into account. Move, nonce, reveals
+his previous move, signs, send.
+- Loop continues.
+- If a player goes offline, their opponent can submit a the state
+to the chain, starting a countdown from that moment. The offline
+player has a window in which to cancel the window before being
+penalised. After cancelling the window they can resume channel activity.
+- If a player violates the rules of the game, they can submit the
+signed bad state to the chain. The contract can execute the state
+transition, and apply a penalty and close the channel.
+- Once nonce reaches the terminal value, either player submits to
+the chain.
+
+The state of the state-channel contains:
+
+- Quantity of locked asset owned.
+- Nonce
+- Game data:
+    - Player positions.
+    - Slots for player report card (e.g., Accuracy, agility)
+    - Slots for agreed in-game achievements. (tirple-combo trophy)
+    - Recent 10 moves (or all moves), so that the contract can
+    digest state transitions and apply rewards for combos. (e.g.,
+    triple-hit combo award).
+
 # Outcomes of channel-based play
 
-## Who: Capture the game play outcome
+## Capture the game play outcome
 
 Winner vs loser recorded on L2.
 
@@ -235,3 +293,5 @@ The game could try to condense the different actions taken by each
 player.
 
 See the [report card notes](./10_ReportCard.md)
+
+##

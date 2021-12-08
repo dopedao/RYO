@@ -40,7 +40,7 @@ struct Channel:
     member id : felt
     member opened_at_block : felt
     member last_challenged_at_block : felt
-    member latest_state_index : felt
+    member latest_state_nonce : felt
     member addresses : (felt, felt)
     member balance : (felt, felt)
     member initial_channel_data : felt
@@ -189,7 +189,7 @@ func manual_state_update{
         ecdsa_ptr: SignatureBuiltin*
     }(
         channel_id : felt,
-        state_index : felt,
+        state_nonce : felt,
         sig_r : felt,
         sig_s : felt,
         message_len : felt,
@@ -198,12 +198,12 @@ func manual_state_update{
     alloc_locals
     # Channels progress state, but if one player disappears, the remaining
     # player can update the game state using this function.
-    # State_index is the unique (incrementing) state identifier.
+    # state_nonce is the unique (incrementing) state identifier.
     let (local c : Channel) = channel_from_id.read(channel_id)
     # Check channel
     assert c.id = channel_id
     # Check state is not stale (latest state < provided state).
-    assert_nn_le(c.latest_state_index + 1, state_index)
+    assert_nn_le(c.latest_state_nonce + 1, state_nonce)
     # The players are stored as a tuple. Fetch which index the caller is.
     let (player_index) = get_player_index(c)
     # Signature check.
@@ -230,8 +230,133 @@ func close_channel{
     only_channel_participant()
     only_closable_channel(c)
     execute_final_outcome()
-    erase_channel(channel_id)
+    erase_channel(c)
     return ()
+end
+
+
+# @notice A signed bad message can be submitted here to punish the signer. Stops players from breaking the chain of moves.
+# @dev Checks the signed message has a bad parent hash.
+# @param bad_message The message that contains a non-parent hash.
+# @param parent_message The parent message.
+@external
+func submit_bad_parent{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        bad_message_len : felt,
+        bad_message : felt*,
+        sig_r : felt,
+        sig_s : felt
+        parent_message_len : felt,
+        parent_message : felt*
+    ):
+    # Check ECDSA signature.
+
+    # Compute the hash the parent message
+
+    # Detectsthat the hash is different from the parent hash
+
+    # Apply a penalty to the offending party (e.g., store a minor
+    # post-channel adjustment, or even just close the channel).
+
+    return ()
+end
+
+
+# @notice A signed bad message can be submitted here to punish the signer. Stops players from revealing a move they did not commit to.
+# @dev Checks the hash of the reveal doesn't match the commithash.
+# @param bad_message The message that contains a non-parent hash.
+# @param parent_message The parent message.
+@external
+func submit_bad_reveal{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        bad_message_len : felt,
+        bad_message : felt*,
+        sig_r : felt,
+        sig_s : felt
+        parent_message_len : felt,
+        parent_message : felt*
+    ):
+    # Check ECDSA signature.
+
+    # Compute the hash the reveal.
+
+    # Check that the reveal hash is not equal to the commit hash.
+
+    # Apply a penalty to the offending party (e.g., store a minor
+    # post-channel adjustment, or even just close the channel).
+
+    return ()
+end
+
+
+# @notice A signed state that violates the game rules can be submitted. Stops players from cheating the game rules.
+# @dev Executes a single state transition from a move and compares result.
+# @param bad_message The message that contains a non-parent hash.
+# @param parent_message The parent message.
+@external
+func submit_bad_state{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        bad_message_len : felt,
+        bad_message : felt*,
+        sig_r : felt,
+        sig_s : felt
+        parent_message_len : felt,
+        parent_message : felt*
+    ):
+    # Check ECDSA signature.
+
+    # Compute the new state from the revealed move and the parent state.
+
+    # Check that the new state is not equal to the signed state.
+
+    # Apply a penalty to the offending party (e.g., store a minor
+    # post-channel adjustment, or even just close the channel).
+
+    return ()
+end
+
+
+
+
+# @notice Applies state transition rules for a single move.
+# @dev Applies state transition rules for a single move.
+# @param bad_message The message that contains a non-parent hash.
+# @param parent_message The parent message.
+@external
+func transition_state{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        initial_state_len : felt*,
+        initial_state : felt,
+        moves_len : felt,
+        moves : felt*
+    ) -> (
+        new_state_len : felt,
+        new_state* : felt*
+    ):
+    # Go through each element in the array of moves and apply
+    # them to state.
+
+    # E.g.,
+    # - Move to new coordinates within legal bound.
+    # - Apply attack, if the attack hits the opponents coordinates.
+    # - Apply collateral transfer
+    # - Increment skill based metrics if appropriate.
+    #     - If hit the opponent, increase 'accuracy' metric.
+    #     - If this is a triple-combo, increment combo recorder.
+
+    return (new_state)
 end
 
 
@@ -308,7 +433,7 @@ func open_channel{
     assert c.id = channel_id
     assert c.opened_at_block = clock
     assert c.last_challenged_at_block = clock
-    assert c.latest_state_index = 0
+    assert c.latest_state_nonce = 0
     assert c.addresses[0] = player_from_tx
     assert c.addresses[1] = player_from_queue
     # Collateral, fake 100 units for now.
@@ -326,6 +451,7 @@ func open_channel{
     erase_from_queue(player_from_queue)
     return ()
 end
+
 
 # Removes a player from the queue.
 func erase_from_queue{
@@ -468,7 +594,9 @@ func execute_final_outcome{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }():
+    }(
+        c : Channel
+    ):
 
     # Check permissions
 

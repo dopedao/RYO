@@ -1,6 +1,5 @@
 import pytest
 import asyncio
-import random
 from fixtures.account import account_factory
 
 # admin, user, user
