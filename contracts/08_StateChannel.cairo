@@ -25,13 +25,27 @@ from contracts.utils.general import list_to_hash
 const DURATION = 20
 const CHALLENGE_TIMEOUT = 5
 
-# An transaction to update the L2 state contains a 'move'.
+# @notice A transaction to update the L2 state contains a 'move'.
+# @dev Used to manage player challenges, not stored on chain.
+# @param achievements Binary-outcome trophies obtained (Eg., triple-combos)
+# @param report_A Array of current report-card details.
 struct Move:
-    member target_id : felt
+    member channel_id : felt
+    member current_nonce : felt
+    member position : felt
+    member action : felt
     member message_hash : felt
     member sig_r : felt
     member sig_s : felt
-    member a : felt
+    member commit : felt
+    member reveal_len : felt
+    member reveal : felt*
+    member ten_move_history_len : felt
+    member ten_move_history : felt*
+    member achievements_len : felt
+    member achievements : felt*
+    member report_A : felt*
+    member report_B : felt*
 end
 
 # Stores the details of a channel tuples are: (user_a, user_b)
@@ -211,7 +225,7 @@ func manual_state_update{
         sig_r, sig_s,)
 
     # Update the state.
-    execute_final_outcome()
+    save_state_transition()
 
     return ()
 end
@@ -229,7 +243,7 @@ func close_channel{
     let (local c : Channel) = channel_from_id.read(channel_id)
     only_channel_participant()
     only_closable_channel(c)
-    execute_final_outcome()
+    distribute_to_players(c)
     erase_channel(c)
     return ()
 end
@@ -315,12 +329,12 @@ func submit_bad_state{
     # Check ECDSA signature.
 
     # Compute the new state from the revealed move and the parent state.
+    # E.g., let (computed_state) = transition_state(init, moves)
 
     # Check that the new state is not equal to the signed state.
 
-    # Apply a penalty to the offending party (e.g., store a minor
-    # post-channel adjustment, or even just close the channel).
-
+    # Apply a penalty to the offending party and close the channel.
+    # distribute_to_players()
     return ()
 end
 
@@ -337,8 +351,8 @@ func transition_state{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        initial_state_len : felt*,
-        initial_state : felt,
+        initial_state_len : felt,
+        initial_state : felt*,
         moves_len : felt,
         moves : felt*
     ) -> (
@@ -589,8 +603,9 @@ func save_queue{
     return ()
 end
 
-# Saves the result of the whole channel interaction to L2.
-func execute_final_outcome{
+# @notice This applies the final outcome of a state channel.
+# @dev Used once, when no further challenges are permitted.
+func distribute_to_players{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
@@ -598,27 +613,23 @@ func execute_final_outcome{
         c : Channel
     ):
 
-    # Check permissions
+    # Divide and send collateral to players as appropriate.
 
-    # Process the submitted data
-
-    # Evaluate channel logic to detect if this message is consistent with the
-    # general rules of channels, including whether this overrides a previous claim
-    # about this same channel.
-
-    # Store the data
-
-    # Remove all details about players.
+    # Mint report cards
 
     return ()
 end
 
-# Actions a state update.
+# @notice Updates on-chain channel information.
+# @dev Records the latest state and challenge data of a channel.
 func save_state_transition{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }():
+    }(
+        c : Channel,
+        m : Move
+    ):
     # Called when the game is progressed for some reason.
 
     # Increment 'Channel.latest_state_update_index'
