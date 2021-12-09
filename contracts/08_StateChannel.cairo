@@ -6,7 +6,7 @@ from starkware.cairo.common.cairo_builtins import (HashBuiltin,
     SignatureBuiltin)
 from starkware.cairo.common.math import (assert_nn_le,
     assert_not_zero, assert_not_equal)
-from starkware.cairo.common.math_cmp import is_nn_le
+from starkware.cairo.common.math_cmp import is_nn_le, is_not_zero
 from starkware.starknet.common.syscalls import get_caller_address
 from starkware.cairo.common.signature import verify_ecdsa_signature
 
@@ -28,7 +28,7 @@ const CHALLENGE_TIMEOUT = 5
 # Number of elements ineach struct. Used to parse message arrays to structs.
 const LEN_ACHIEVEMENTS = 10
 const LEN_REPORT = 10
-const LEN_action_history = 10
+const LEN_ACTION_HISTORY = 10
 const LEN_ACTION = 3
 
 # @notice Used to represent milestones co-signed by both players.
@@ -62,6 +62,12 @@ struct Channel:
     member state_hash : felt
 end
 
+# @notice Used to represent player summary co-signed by both players.
+# @dev Not stored on chain. Used for convenience.
+struct Report:
+    member todo : felt
+end
+
 # @notice Used to represent the accumulated game state for the channel.
 # @dev Part of a Move. Not stored in the contract.
 # @param achievements_* are awards given for certain actions. Likely binary encoded.
@@ -72,7 +78,7 @@ struct GameHistory:
     member achievements_B : Achievements
     member report_A : Report
     member report_B : Report
-    member action_history : Actions*
+    member action_history : Action*
 end
 
 # @notice The packet of data signed by a player. Can be submitted to L2.
@@ -98,11 +104,7 @@ struct Move:
 end
 
 
-# @notice Used to represent player summary co-signed by both players.
-# @dev Not stored on chain. Used for convenience.
-struct Report:
-    member todo : felt
-end
+
 
 # Channel details.
 @storage_var
@@ -245,29 +247,30 @@ func manual_state_update{
         ecdsa_ptr: SignatureBuiltin*
     }(
         move_len : felt,
-        move : felt*
+        move : felt*,
+        hash : felt,
+        sig_r : felt,
+        sig_s : felt
     ):
     alloc_locals
-    local m : Move
-    assert m = array_to_move_struct(move)
+    let (local m : Move) = array_to_move_struct(move, hash, sig_r, sig_s)
     # Signature check.
     is_valid_move_signature(m)
     # Channels progress state, but if one player disappears, the remaining
     # player can update the game state using this function.
     # state_nonce is the unique (incrementing) state identifier.
-
+    let (c : Channel) = channel_from_id.read(m.channel_id)
     # Check state is not stale (latest state < provided state).
     assert_nn_le(c.nonce + 1, m.nonce)
 
     # Update the state.
-    save_state_transition()
+    save_state_transition(c, m)
 
     return ()
 end
 
 # @notice Called by a channel participant to close.
 # @dev Only callable for channels undergoing a waiting period.
-@external
 func close_channel{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
@@ -276,7 +279,7 @@ func close_channel{
         m : Move
     ):
     alloc_locals
-    let (local c : Channel) = channel_from_id.read(channel_id)
+    let (local c : Channel) = channel_from_id.read(m.channel_id)
     only_channel_participant(c, m)
     only_closable_channel(c)
     distribute_to_players(c, m)
@@ -293,7 +296,8 @@ end
 func submit_bad_parent{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
-        range_check_ptr
+        range_check_ptr,
+        ecdsa_ptr: SignatureBuiltin*
     }(
         bad_move_len : felt,
         bad_move : felt*,
@@ -307,19 +311,14 @@ func submit_bad_parent{
         parent_move_sig_s : felt
     ):
     alloc_locals
-    check_move_hash(bad_move_len, bad_move, bad_move_hash)
-    check_move_hash(parent_move_len, parent_move, parent_move_hash)
-    # Unpack the arrays as structs for easier manipulation
-    local m : Move
-    assert m = array_to_move_struct(bad_move)
-    local parent_m : Move
-    assert parent_m = array_to_move_struct(parent_move)
-    # Both must be signed correctly
-    is_valid_move_signature(m)
-    is_valid_move_signature(parent_m)
+    let (local m : Move, local parent_m : Move) = parse_moves(
+        bad_move_len, bad_move, bad_move_hash,
+        bad_move_sig_r, bad_move_sig_s,
+        parent_move_len, parent_move, parent_move_hash,
+        parent_move_sig_r, parent_move_sig_s)
 
     # Enforces that the hash is different from the parent hash
-    assert bad_move.parent_hash = parent_move.hash
+    assert m.parent_hash = parent_m.hash
     # Apply a penalty to the offending party and close the channel.
     # - TODO.
 
@@ -335,7 +334,8 @@ end
 func submit_bad_reveal{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
-        range_check_ptr
+        range_check_ptr,
+        ecdsa_ptr: SignatureBuiltin*
     }(
         bad_move_len : felt,
         bad_move : felt*,
@@ -348,12 +348,12 @@ func submit_bad_reveal{
         parent_move_sig_r : felt,
         parent_move_sig_s : felt
     ):
-    # Unpack the arrays as structs for easier manipulation
-    local m : Move
-    assert m = array_to_move_struct(bad_move)
-    local parent_m : Move
-    assert parent_m = array_to_move_struct(parent_move)
-    # Check ECDSA signature.
+    alloc_locals
+    let (local m : Move, local parent_m : Move) = parse_moves(
+        bad_move_len, bad_move, bad_move_hash,
+        bad_move_sig_r, bad_move_sig_s,
+        parent_move_len, parent_move, parent_move_hash,
+        parent_move_sig_r, parent_move_sig_s)
 
     # Compute the hash the reveal.
 
@@ -374,7 +374,8 @@ end
 func submit_bad_state{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
-        range_check_ptr
+        range_check_ptr,
+        ecdsa_ptr: SignatureBuiltin*
     }(
         bad_move_len : felt,
         bad_move : felt*,
@@ -387,15 +388,16 @@ func submit_bad_state{
         parent_move_sig_r : felt,
         parent_move_sig_s : felt
     ):
-    # Unpack the arrays as structs for easier manipulation
-    local m : Move
-    assert m = array_to_move_struct(bad_move)
-    local parent_m : Move
-    assert parent_m = array_to_move_struct(parent_move)
-    # Check ECDSA signature.
+        alloc_locals
+    let (local m : Move, local parent_m : Move) = parse_moves(
+        bad_move_len, bad_move, bad_move_hash,
+        bad_move_sig_r, bad_move_sig_s,
+        parent_move_len, parent_move, parent_move_hash,
+        parent_move_sig_r, parent_move_sig_s)
+
 
     # Compute the new state from the revealed move and the parent state.
-    # E.g., let (computed_state) = transition_state(init, moves)
+    # E.g., let (computed_state) = transition_state(init, move)
 
     # Check that the new state is not equal to the signed state.
 
@@ -405,10 +407,10 @@ func submit_bad_state{
 end
 
 
-# @notice Applies state transition rules for a single move.
-# @dev Applies state transition rules for a single move.
-# @param bad_move The message that contains a non-parent hash.
-# @param parent_move The parent message.
+# @notice Applies state transition rules (e.g., to detect an illegal move).
+# @dev Applies state transition rules for a single move. Note stored on chain.
+# @param initial_state The state from the prior move.
+# @param move The signed move to modify state.
 @external
 func transition_state{
         syscall_ptr : felt*,
@@ -417,11 +419,11 @@ func transition_state{
     }(
         initial_state_len : felt,
         initial_state : felt*,
-        moves_len : felt,
-        moves : felt*
+        move_len : felt,
+        move : felt*
     ) -> (
         new_state_len : felt,
-        new_state* : felt*
+        new_state : felt*
     ):
     # Go through each element in the array of moves and apply
     # them to state.
@@ -433,8 +435,9 @@ func transition_state{
     # - Increment skill based metrics if appropriate.
     #     - If hit the opponent, increase 'accuracy' metric.
     #     - If this is a triple-combo, increment combo recorder.
+    let (new_state : felt*) = alloc()
 
-    return (new_state)
+    return (initial_state_len, new_state)
 end
 
 
@@ -488,6 +491,8 @@ func read_queue_length{
     let (zeroth_queuer) = player_from_queue_index.read(0)
     return (length, zeroth_queuer)
 end
+
+
 
 # Stores the details of the channel.
 func open_channel{
@@ -553,18 +558,16 @@ func erase_channel{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        channel_id : felt
+        c : Channel
     ):
     alloc_locals
-    let (local c : Channel) = channel_from_id.read(
-        channel_id)
 
     # Get both player details.
     let player_a = c.addresses[0]
     let player_b = c.addresses[1]
     # Wipe channel details.
     local null_channel : Channel
-    channel_from_id.write(channel_id, null_channel)
+    channel_from_id.write(c.id, null_channel)
     let (channels) = highest_channel_id.read()
     highest_channel_id.write(channels - 1)
     # Wipe both player details.
@@ -713,6 +716,9 @@ func save_state_transition{
     return ()
 end
 
+
+
+
 # @notice Checks that a signed move is valid with respect to a channel and public key.
 func is_valid_move_signature{
         syscall_ptr : felt*,
@@ -723,25 +729,29 @@ func is_valid_move_signature{
         m : Move
     ):
     alloc_locals
-    let (c : Channel) = channel_from_id(m.channel_id)
+    let (c : Channel) = channel_from_id.read(m.channel_id)
     # Retrieve the public key from the chain.
-    let (public_key) = player_signing_key.read(c.addresses[m.player_index])
-
-    # Hash the message they signed.
-    tempvar syscall_ptr = syscall_ptr
-    let (hash) = list_to_hash(message, message_len)
+    # Hack: "Subscript-operator for tuples supports only constant offsets, found 'ExprDeref'." Would have otherwise used: c.addresses[index]
+    local public_key : felt
+    if m.player_index == 0:
+        let (pk) = player_signing_key.read(c.addresses[0])
+        assert public_key = pk
+    else:
+        let (pk) = player_signing_key.read(c.addresses[1])
+        assert public_key = pk
+    end
     # Verify the hash was signed by the pubk registered by the player.
     verify_ecdsa_signature(
         message=m.hash,
         public_key=public_key,
-        signature_r=sig_r,
-        signature_s=sig_s)
+        signature_r=m.sig_r,
+        signature_s=m.sig_s)
     return ()
 end
 
 # @notice Ensures the hash supplied/signed is correctly computed.
 # @dev The order of the array elements is defined in
-func is_valid_hash(){
+func is_valid_hash{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
@@ -841,10 +851,47 @@ func register_new_account{
     return ()
 end
 
+# @notice Helper function for commonly used checks on submitted moves.
+# @dev Comutes and verifies hash, parses to struct, checks signature.
+func parse_moves{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        ecdsa_ptr: SignatureBuiltin*
+    }(
+        bad_move_len : felt,
+        bad_move : felt*,
+        bad_move_hash : felt,
+        bad_move_sig_r : felt,
+        bad_move_sig_s : felt,
+        parent_move_len : felt,
+        parent_move : felt*,
+        parent_move_hash : felt,
+        parent_move_sig_r : felt,
+        parent_move_sig_s : felt
+    ) -> (
+        m : Move,
+        parent_move : Move
+    ):
+    alloc_locals
+    is_valid_hash(bad_move_len, bad_move, bad_move_hash)
+    is_valid_hash(parent_move_len, parent_move, parent_move_hash)
+    # Unpack the arrays as structs for easier manipulation
+    let (local m : Move) = array_to_move_struct(bad_move,
+        bad_move_hash, bad_move_sig_r, bad_move_sig_s)
+    let (local parent_m : Move) = array_to_move_struct(parent_move,
+        parent_move_hash, parent_move_sig_r, parent_move_sig_s)
+    # Both must be signed correctly
+    is_valid_move_signature(m)
+    is_valid_move_signature(parent_m)
+
+    return (m, parent_m)
+end
+
 # @notice Helper function to convert move-array to Move-struct.
 # @dev Defines hash sequence. Allows Inputs and Move struct to change over time more easily.
 # @param a The array containing ordered elements to populate struct.
-func move_array_to_struct{
+func array_to_move_struct{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
@@ -854,35 +901,40 @@ func move_array_to_struct{
         sig_r : felt,
         sig_s : felt
     ) -> (
-        struct : Move
+        m : Move
     ):
     alloc_locals
     # Dummy values. Needs to incorporate nested struct once actual
     # channel data format is worked out (e.g., game elements/awards/actions).
-    local action : Action
+    # Create empty structs to populate.
+    let (local actions : Action*) = alloc()
     local game : GameHistory
     local m : Move
 
     # Action history index, representing where the first element is.
     let ah = 23  # Dummy value
-    local game : GameHistory
-    assert game = GameHistory(
+    # Everything comes from the array. E.g.,
+    assert actions[0] = Action(1, 1, 1) # Action(a[ah + 0], a[ah + 2], a[ah + 3]),
+    assert actions[1] = Action(1, 1, 1) # Action(a[ah + 4], a[ah + 5], a[ah + 6]),
+    assert actions[2] = Action(1, 1, 1)
+    assert actions[3] = Action(1, 1, 1)
+    assert actions[4] = Action(1, 1, 1)
+    assert actions[5] = Action(1, 1, 1)
+    assert actions[6] = Action(1, 1, 1)
+    assert actions[7] = Action(1, 1, 1)
+    assert actions[8] = Action(1, 1, 1)
+    assert actions[9] = Action(1, 1, 1)
+
+    local gh : GameHistory
+    assert gh = GameHistory(
         achievements_A=Achievements(todo=0),
-        achievements_B==Achievements(todo=0),
+        achievements_B=Achievements(todo=0),
         report_A=Report(todo=0),
         report_B=Report(todo=0),
-        action_history=[  # Everything comes from the array. E.g.,
-            Action(1, 1, 1), # Action(a[ah + 0], a[ah + 2], a[ah + 3]),
-            Action(1, 1, 1), # Action(a[ah + 4], a[ah + 5], a[ah + 6]),
-            Action(1, 1, 1),
-            Action(1, 1, 1),
-            Action(1, 1, 1),
-            Action(1, 1, 1),
-            Action(1, 1, 1),
-            Action(1, 1, 1),
-            Action(1, 1, 1),
-            Action(1, 1, 1)]
+        action_history=actions
     )
+
+    let action : Action = Action(1, 1, 1)
     # A message is passed to the contract as an array.
     # The length of the achievements/reports/movehistory elements
     # affect the parsing of the array. These lengths are recorded
@@ -896,15 +948,16 @@ func move_array_to_struct{
     assert m = Move(
         channel_id=a[0],
         commit=a[1],
-        history=g,
+        history=gh,
         hash=hash,
         nonce=a[nonce_pos],
         parent_hash=a[nonce_pos + 1],
+        player_index=a[nonce_pos + 2],
         reveal=action,
         sig_r=sig_r,
         sig_s=sig_s
     )
-    return ()
+    return (m)
 end
 
 
@@ -938,7 +991,18 @@ func only_channel_participant{
     ):
     # Checks which account originating address
     let (player) = get_caller_address()
-    assert player = c.player_account[m.player_index]
+    # Hack: Subscript-operator for tuples supports only constant offsets, found 'ExprDeref'.
+    # assert player = c.addresses[m.player_index]
+    let stored_player_0 = c.addresses[0]
+    let stored_player_1 = c.addresses[1]
+
+    let zero_if_is_0 = player - stored_player_0
+    let zero_if_is_1 = player - stored_player_1
+
+    let zero_if_1_or_0 = zero_if_is_0 * zero_if_is_1
+    # The calling address must be must be one of the stored accounts.
+    assert zero_if_1_or_0 = 0
+
     return ()
 end
 
