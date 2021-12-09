@@ -281,7 +281,6 @@ func close_channel{
     alloc_locals
     let (local c : Channel) = channel_from_id.read(m.channel_id)
     only_channel_participant(c, m)
-    only_closable_channel(c)
     distribute_to_players(c, m)
     erase_channel(c)
     return ()
@@ -319,9 +318,10 @@ func submit_bad_parent{
 
     # Enforces that the hash is different from the parent hash
     assert m.parent_hash = parent_m.hash
-    # Apply a penalty to the offending party and close the channel.
-    # - TODO.
 
+    # Apply a penalty to the offending party and close the channel.
+    apply_penalty(m)
+    close_channel(m)
     return ()
 end
 
@@ -359,9 +359,9 @@ func submit_bad_reveal{
 
     # Check that the reveal hash is not equal to the commit hash.
 
-    # Apply a penalty to the offending party (e.g., store a minor
-    # post-channel adjustment, or even just close the channel).
-
+    # Apply a penalty to the offending party and close the channel.
+    apply_penalty(m)
+    close_channel(m)
     return ()
 end
 
@@ -402,7 +402,8 @@ func submit_bad_state{
     # Check that the new state is not equal to the signed state.
 
     # Apply a penalty to the offending party and close the channel.
-    # distribute_to_players()
+    apply_penalty(m)
+    close_channel(m)
     return ()
 end
 
@@ -961,21 +962,29 @@ func array_to_move_struct{
 end
 
 
-# Ensures a channel is not closed during a waiting period.
-func only_closable_channel{
+# @notice Applies a penalty to one party in favour of the other.
+# @dev Moves allocated capital in stored channel. Usually followed by channel close.
+# @param player_index The in-channel index of the offending player.
+func apply_penalty{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        channel : Channel
+        m : Move
     ):
-    # Checks when a channel is able to be closed by, based
-    # on the challenge period.
-
-    # Assert that the channel is undergoing a waiting period.
-
-    # Then that the waiting period has expired.
-
+    alloc_locals
+    let (local c : Channel) = channel_from_id.read(m.channel_id)
+    # Player looses all of their collateral. This could be modified
+    # to burn some of it, or distribute it differently.
+    if m.player_index == 0:
+        assert c.balance[0] = 0
+        assert c.balance[1] = c.balance[1] + c.balance[0]
+    else:
+        assert c.balance[1] = 0
+        assert c.balance[0] = c.balance[0] + c.balance[1]
+    end
+    assert c.balance[0] * c.balance[1] = 0
+    channel_from_id.write(m.channel_id, c)
     return ()
 end
 
