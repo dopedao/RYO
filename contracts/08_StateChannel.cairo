@@ -137,7 +137,7 @@ end
 func queue_length() -> (value : felt):
 end
 
-# Called on deployment only.
+# @notice Called on deployment only.
 @constructor
 func constructor{
         syscall_ptr : felt*,
@@ -152,7 +152,7 @@ func constructor{
 end
 
 
-# Called by a player who wishes to engage in channel interaction.
+# @notice Called by a player who wishes to engage in channel interaction.
 @external
 func signal_available{
         syscall_ptr : felt*,
@@ -218,7 +218,7 @@ end
 
 
 
-# Called by a user who intends to secure state on-chain.
+# @notice Called by a user who intends to secure state on-chain.
 @external
 func manual_state_update{
         syscall_ptr : felt*,
@@ -254,7 +254,7 @@ func manual_state_update{
     return ()
 end
 
-# Called by a channel participant to close.
+# @notice Called by a channel participant to close.
 @external
 func close_channel{
         syscall_ptr : felt*,
@@ -398,7 +398,7 @@ func transition_state{
 end
 
 
-# Frontend calls to see if user has channel opened.
+# @notice Frontend calls to see if user has channel opened.
 @view
 func status_of_player{
         syscall_ptr : felt*,
@@ -434,9 +434,7 @@ func status_of_player{
         channel)
 end
 
-
-
-# Queue length
+# @notice Fetch queue length
 @view
 func read_queue_length{
         syscall_ptr : felt*,
@@ -491,7 +489,7 @@ func open_channel{
 end
 
 
-# Removes a player from the queue.
+# @notice Removes a player from the queue.
 func erase_from_queue{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
@@ -509,7 +507,7 @@ func erase_from_queue{
     return ()
 end
 
-# Removes all channel and player information.
+# @notice Removes all channel and player information.
 func erase_channel{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
@@ -537,7 +535,7 @@ func erase_channel{
     return ()
 end
 
-# Used to check which of the channel offers are still valid.
+# @notice Used to check which of the channel offers are still valid.
 func update_active_signals{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
@@ -559,7 +557,7 @@ func update_active_signals{
     return ()
 end
 
-# Walks from the start to the end of the queue. If
+# @notice Walks from the start to the end of the queue.
 func build_queue{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
@@ -606,7 +604,7 @@ func build_queue{
     return (length + 1)
 end
 
-# Saves the order of the new queue.
+# @notice Saves the order of the new queue.
 func save_queue{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
