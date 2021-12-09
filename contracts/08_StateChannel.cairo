@@ -31,6 +31,12 @@ const LEN_REPORT = 10
 const LEN_action_history = 10
 const LEN_ACTION = 3
 
+# @notice Used to represent milestones co-signed by both players.
+# @dev Not stored on chain. Used for convenience.
+struct Achievements:
+    member todo : felt
+end
+
 # @notice Used to manage the elements of a player's turn.
 # @dev Part of a Move. The x/y are relative to current position.
 # @param delta_* pixel movement in x/y plane player moves to.
@@ -58,18 +64,15 @@ end
 
 # @notice Used to represent the accumulated game state for the channel.
 # @dev Part of a Move. Not stored in the contract.
-# @param achievements_* are awards given for certain actions.
+# @param achievements_* are awards given for certain actions. Likely binary encoded.
 # @param report_* are the report card parameters for each user (e.g., agility points/100).
 # @param action_history is an array of actions (TBC format) used to award combos.
 struct GameHistory:
-    member achievements_A_len : felt
-    member achievements_A : felt*
-    member achievements_B_len : felt
-    member achievements_B : felt*
-    member report_A : felt*
-    member report_B : felt*
-    member action_history_len : felt
-    member action_history : felt*
+    member achievements_A : Achievements
+    member achievements_B : Achievements
+    member report_A : Report
+    member report_B : Report
+    member action_history : Actions*
 end
 
 # @notice The packet of data signed by a player. Can be submitted to L2.
@@ -92,6 +95,13 @@ struct Move:
     member reveal : Action
     member sig_r : felt
     member sig_s : felt
+end
+
+
+# @notice Used to represent player summary co-signed by both players.
+# @dev Not stored on chain. Used for convenience.
+struct Report:
+    member todo : felt
 end
 
 # Channel details.
@@ -847,21 +857,31 @@ func move_array_to_struct{
         struct : Move
     ):
     alloc_locals
-    # Dummy values. Needs to incorporate nested struct.
+    # Dummy values. Needs to incorporate nested struct once actual
+    # channel data format is worked out (e.g., game elements/awards/actions).
     local action : Action
     local game : GameHistory
     local m : Move
 
+    # Action history index, representing where the first element is.
+    let ah = 23  # Dummy value
     local game : GameHistory
     assert game = GameHistory(
-        achievements_A_len=LEN_ACHIEVEMENTS,
-        achievements_A=a[SLICE],
-        achievements_B_len=LEN_ACHIEVEMENTS,
-        achievements_B=,
-        report_A=,
-        report_B=,
-        action_history_len=LEN_ACTION_HISTORY,
-        action_history=
+        achievements_A=Achievements(todo=0),
+        achievements_B==Achievements(todo=0),
+        report_A=Report(todo=0),
+        report_B=Report(todo=0),
+        action_history=[  # Everything comes from the array. E.g.,
+            Action(1, 1, 1), # Action(a[ah + 0], a[ah + 2], a[ah + 3]),
+            Action(1, 1, 1), # Action(a[ah + 4], a[ah + 5], a[ah + 6]),
+            Action(1, 1, 1),
+            Action(1, 1, 1),
+            Action(1, 1, 1),
+            Action(1, 1, 1),
+            Action(1, 1, 1),
+            Action(1, 1, 1),
+            Action(1, 1, 1),
+            Action(1, 1, 1)]
     )
     # A message is passed to the contract as an array.
     # The length of the achievements/reports/movehistory elements
