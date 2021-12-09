@@ -25,31 +25,20 @@ from contracts.utils.general import list_to_hash
 const DURATION = 20
 const CHALLENGE_TIMEOUT = 5
 
-# @notice A transaction to update the L2 state contains a 'move'.
-# @dev Used to manage player challenges, not stored on chain.
-# @param achievements Binary-outcome trophies obtained (Eg., triple-combos)
-# @param report_A Array of current report-card details.
-struct Move:
-    member channel_id : felt
-    member current_nonce : felt
-    member position : felt
-    member action : felt
-    member message_hash : felt
-    member sig_r : felt
-    member sig_s : felt
-    member commit : felt
-    member reveal_len : felt
-    member reveal : felt*
-    member ten_move_history_len : felt
-    member ten_move_history : felt*
-    member achievements_len : felt
-    member achievements : felt*
-    member report_A : felt*
-    member report_B : felt*
+# @notice Used to manage the elements of a player's turn.
+# @dev Part of a Move. The x/y are relative to current position.
+# @param delta_* pixel movement in x/y plane player moves to.
+# @param type Encoded punch/kick/duck/jump/shoot.
+struct Action:
+    member delta_x : felt
+    member delta_y : felt
+    member type : felt
 end
 
-# Stores the details of a channel tuples are: (user_a, user_b)
-# User A is whoever sends the transaction that opens the channel.
+# @notice Information stored on-chain about a channel.
+# @dev User A is whoever sends the transaction that opens the channel.
+# @param addresses Account addreses (user_a, user_b).
+# @param balances Locked collateral (user_a, user_b).
 struct Channel:
     member id : felt
     member opened_at_block : felt
@@ -61,30 +50,61 @@ struct Channel:
     member initial_state_hash : felt
 end
 
-
-# The address of the ModuleController.
-@storage_var
-func controller_address() -> (address : felt):
+# @notice Used to represent the accumulated game state for the channel.
+# @dev Part of a Move. Not stored in the contract.
+# @param achievements_* are awards given for certain actions.
+# @param report_* are the report card parameters for each user (e.g., agility points/100).
+# @param ten_move_history is an array of actions (TBC format) used to award combos.
+struct GameHistory:
+    member achievements_A_len : felt
+    member achievements_A : felt*
+    member achievements_B_len : felt
+    member achievements_B : felt*
+    member report_A : felt*
+    member report_B : felt*
+    member ten_move_history_len : felt
+    member ten_move_history : felt*
 end
 
-# Number of people waiting to open channels.
-@storage_var
-func queue_length() -> (value : felt):
-end
-
-# Records array of users who are available.
-@storage_var
-func queue_index_of_player(address) -> (index : felt):
-end
-
-# Gets the account address of a player by index.
-@storage_var
-func player_from_queue_index(index) -> (address : felt):
+# @notice The packet of data signed by a player. Can be submitted to L2.
+# @dev Used to manage player challenges, not stored on chain.
+# @param commit The hash of the action for the current turn (concealed).
+# @param history The accumulated agreed upon game outcomes.
+# @param hash The hash of the message that sig_r/sig_s refer to.
+# @param parent_hash The hash of the parent message (signed by opponent).
+# @param reveal The actions commited to (nonce - 2) by the same player.
+# @param sig_r/sig_s Signature attesting to the hash.
+struct Move:
+    member channel_id : felt
+    member commit : felt
+    member history : GameHistory
+    member hash : felt
+    member nonce : felt
+    member parent_hash : felt
+    member reveal : Action
+    member sig_r : felt
+    member sig_s : felt
 end
 
 # Channel details.
 @storage_var
 func channel_from_id(index) -> (result : Channel):
+end
+
+# Records the channel index for a given player.
+@storage_var
+func channel_of_player(player_account : felt) -> (
+    channel_id : felt):
+end
+
+# Temporary workaround until blocks/time available.
+@storage_var
+func clock() -> (value : felt):
+end
+
+# The address of the ModuleController.
+@storage_var
+func controller_address() -> (address : felt):
 end
 
 # Increments with every new channel.
@@ -97,20 +117,24 @@ end
 func offer_expires(player_address : felt) -> (value : felt):
 end
 
+# Gets the account address of a player by index.
+@storage_var
+func player_from_queue_index(index) -> (address : felt):
+end
+
 # Records the public key a player wants to use for the channel.
 @storage_var
 func player_signing_key(player_account : felt) -> (signing_key : felt):
 end
 
-# Records the channel index for a given player.
+# Records array of users who are available.
 @storage_var
-func channel_of_player(player_account : felt) -> (
-    channel_id : felt):
+func queue_index_of_player(address) -> (index : felt):
 end
 
-# Temporary workaround until blocks/time available.
+# Number of people waiting to open channels.
 @storage_var
-func clock() -> (value : felt):
+func queue_length() -> (value : felt):
 end
 
 # Called on deployment only.
@@ -251,20 +275,20 @@ end
 
 # @notice A signed bad message can be submitted here to punish the signer. Stops players from breaking the chain of moves.
 # @dev Checks the signed message has a bad parent hash.
-# @param bad_message The message that contains a non-parent hash.
-# @param parent_message The parent message.
+# @param bad_move The message that contains a non-parent hash.
+# @param parent_move The parent message.
 @external
 func submit_bad_parent{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        bad_message_len : felt,
-        bad_message : felt*,
+        bad_move_len : felt,
+        bad_move : felt*,
         sig_r : felt,
         sig_s : felt
-        parent_message_len : felt,
-        parent_message : felt*
+        parent_move_len : felt,
+        parent_move : felt*
     ):
     # Check ECDSA signature.
 
@@ -281,20 +305,20 @@ end
 
 # @notice A signed bad message can be submitted here to punish the signer. Stops players from revealing a move they did not commit to.
 # @dev Checks the hash of the reveal doesn't match the commithash.
-# @param bad_message The message that contains a non-parent hash.
-# @param parent_message The parent message.
+# @param bad_move The message that contains a non-parent hash.
+# @param parent_move The parent message.
 @external
 func submit_bad_reveal{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        bad_message_len : felt,
-        bad_message : felt*,
+        bad_move_len : felt,
+        bad_move : felt*,
         sig_r : felt,
         sig_s : felt
-        parent_message_len : felt,
-        parent_message : felt*
+        parent_move_len : felt,
+        parent_move : felt*
     ):
     # Check ECDSA signature.
 
@@ -311,20 +335,20 @@ end
 
 # @notice A signed state that violates the game rules can be submitted. Stops players from cheating the game rules.
 # @dev Executes a single state transition from a move and compares result.
-# @param bad_message The message that contains a non-parent hash.
-# @param parent_message The parent message.
+# @param bad_move The message that contains a non-parent hash.
+# @param parent_move The parent message.
 @external
 func submit_bad_state{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        bad_message_len : felt,
-        bad_message : felt*,
+        bad_move_len : felt,
+        bad_move : felt*,
         sig_r : felt,
         sig_s : felt
-        parent_message_len : felt,
-        parent_message : felt*
+        parent_move_len : felt,
+        parent_move : felt*
     ):
     # Check ECDSA signature.
 
@@ -343,8 +367,8 @@ end
 
 # @notice Applies state transition rules for a single move.
 # @dev Applies state transition rules for a single move.
-# @param bad_message The message that contains a non-parent hash.
-# @param parent_message The parent message.
+# @param bad_move The message that contains a non-parent hash.
+# @param parent_move The parent message.
 @external
 func transition_state{
         syscall_ptr : felt*,
