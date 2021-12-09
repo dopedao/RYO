@@ -25,6 +25,12 @@ from contracts.utils.general import list_to_hash
 const DURATION = 20
 const CHALLENGE_TIMEOUT = 5
 
+# Number of elements ineach struct. Used to parse message arrays to structs.
+const LEN_ACHIEVEMENTS = 10
+const LEN_REPORT = 10
+const LEN_action_history = 10
+const LEN_ACTION = 3
+
 # @notice Used to manage the elements of a player's turn.
 # @dev Part of a Move. The x/y are relative to current position.
 # @param delta_* pixel movement in x/y plane player moves to.
@@ -40,21 +46,21 @@ end
 # @param addresses Account addreses (user_a, user_b).
 # @param balances Locked collateral (user_a, user_b).
 struct Channel:
-    member id : felt
-    member opened_at_block : felt
-    member last_challenged_at_block : felt
-    member latest_state_nonce : felt
     member addresses : (felt, felt)
     member balance : (felt, felt)
+    member id : felt
     member initial_channel_data : felt
-    member initial_state_hash : felt
+    member last_challenged_at_block : felt
+    member nonce : felt
+    member opened_at_block : felt
+    member state_hash : felt
 end
 
 # @notice Used to represent the accumulated game state for the channel.
 # @dev Part of a Move. Not stored in the contract.
 # @param achievements_* are awards given for certain actions.
 # @param report_* are the report card parameters for each user (e.g., agility points/100).
-# @param ten_move_history is an array of actions (TBC format) used to award combos.
+# @param action_history is an array of actions (TBC format) used to award combos.
 struct GameHistory:
     member achievements_A_len : felt
     member achievements_A : felt*
@@ -62,8 +68,8 @@ struct GameHistory:
     member achievements_B : felt*
     member report_A : felt*
     member report_B : felt*
-    member ten_move_history_len : felt
-    member ten_move_history : felt*
+    member action_history_len : felt
+    member action_history : felt*
 end
 
 # @notice The packet of data signed by a player. Can be submitted to L2.
@@ -72,6 +78,7 @@ end
 # @param history The accumulated agreed upon game outcomes.
 # @param hash The hash of the message that sig_r/sig_s refer to.
 # @param parent_hash The hash of the parent message (signed by opponent).
+# @param player_index The index of the player in the channel (0 or 1).
 # @param reveal The actions commited to (nonce - 2) by the same player.
 # @param sig_r/sig_s Signature attesting to the hash.
 struct Move:
@@ -81,6 +88,7 @@ struct Move:
     member hash : felt
     member nonce : felt
     member parent_hash : felt
+    member player_index : felt
     member reveal : Action
     member sig_r : felt
     member sig_s : felt
@@ -88,13 +96,12 @@ end
 
 # Channel details.
 @storage_var
-func channel_from_id(index) -> (result : Channel):
+func channel_from_id(id) -> (result : Channel):
 end
 
 # Records the channel index for a given player.
 @storage_var
-func channel_of_player(player_account : felt) -> (
-    channel_id : felt):
+func channel_of_player(player_account : felt) -> (channel_id : felt):
 end
 
 # Temporary workaround until blocks/time available.
@@ -219,6 +226,7 @@ end
 
 
 # @notice Called by a user who intends to secure state on-chain.
+# @dev Anyone with the signed message can submit the move.
 @external
 func manual_state_update{
         syscall_ptr : felt*,
@@ -226,27 +234,20 @@ func manual_state_update{
         range_check_ptr,
         ecdsa_ptr: SignatureBuiltin*
     }(
-        channel_id : felt,
-        state_nonce : felt,
-        sig_r : felt,
-        sig_s : felt,
-        message_len : felt,
-        message : felt*
+        move_len : felt,
+        move : felt*
     ):
     alloc_locals
+    local m : Move
+    assert m = array_to_move_struct(move)
+    # Signature check.
+    is_valid_move_signature(m)
     # Channels progress state, but if one player disappears, the remaining
     # player can update the game state using this function.
     # state_nonce is the unique (incrementing) state identifier.
-    let (local c : Channel) = channel_from_id.read(channel_id)
-    # Check channel
-    assert c.id = channel_id
+
     # Check state is not stale (latest state < provided state).
-    assert_nn_le(c.latest_state_nonce + 1, state_nonce)
-    # The players are stored as a tuple. Fetch which index the caller is.
-    let (player_index) = get_player_index(c)
-    # Signature check.
-    is_valid_submission(c, player_index, message_len, message,
-        sig_r, sig_s,)
+    assert_nn_le(c.nonce + 1, m.nonce)
 
     # Update the state.
     save_state_transition()
@@ -255,19 +256,20 @@ func manual_state_update{
 end
 
 # @notice Called by a channel participant to close.
+# @dev Only callable for channels undergoing a waiting period.
 @external
 func close_channel{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        channel_id : felt
+        m : Move
     ):
     alloc_locals
     let (local c : Channel) = channel_from_id.read(channel_id)
-    only_channel_participant()
+    only_channel_participant(c, m)
     only_closable_channel(c)
-    distribute_to_players(c)
+    distribute_to_players(c, m)
     erase_channel(c)
     return ()
 end
@@ -285,19 +287,31 @@ func submit_bad_parent{
     }(
         bad_move_len : felt,
         bad_move : felt*,
-        sig_r : felt,
-        sig_s : felt
+        bad_move_hash : felt,
+        bad_move_sig_r : felt,
+        bad_move_sig_s : felt,
         parent_move_len : felt,
-        parent_move : felt*
+        parent_move : felt*,
+        parent_move_hash : felt,
+        parent_move_sig_r : felt,
+        parent_move_sig_s : felt
     ):
-    # Check ECDSA signature.
+    alloc_locals
+    check_move_hash(bad_move_len, bad_move, bad_move_hash)
+    check_move_hash(parent_move_len, parent_move, parent_move_hash)
+    # Unpack the arrays as structs for easier manipulation
+    local m : Move
+    assert m = array_to_move_struct(bad_move)
+    local parent_m : Move
+    assert parent_m = array_to_move_struct(parent_move)
+    # Both must be signed correctly
+    is_valid_move_signature(m)
+    is_valid_move_signature(parent_m)
 
-    # Compute the hash the parent message
-
-    # Detectsthat the hash is different from the parent hash
-
-    # Apply a penalty to the offending party (e.g., store a minor
-    # post-channel adjustment, or even just close the channel).
+    # Enforces that the hash is different from the parent hash
+    assert bad_move.parent_hash = parent_move.hash
+    # Apply a penalty to the offending party and close the channel.
+    # - TODO.
 
     return ()
 end
@@ -315,11 +329,20 @@ func submit_bad_reveal{
     }(
         bad_move_len : felt,
         bad_move : felt*,
-        sig_r : felt,
-        sig_s : felt
+        bad_move_hash : felt,
+        bad_move_sig_r : felt,
+        bad_move_sig_s : felt,
         parent_move_len : felt,
-        parent_move : felt*
+        parent_move : felt*,
+        parent_move_hash : felt,
+        parent_move_sig_r : felt,
+        parent_move_sig_s : felt
     ):
+    # Unpack the arrays as structs for easier manipulation
+    local m : Move
+    assert m = array_to_move_struct(bad_move)
+    local parent_m : Move
+    assert parent_m = array_to_move_struct(parent_move)
     # Check ECDSA signature.
 
     # Compute the hash the reveal.
@@ -345,11 +368,20 @@ func submit_bad_state{
     }(
         bad_move_len : felt,
         bad_move : felt*,
-        sig_r : felt,
-        sig_s : felt
+        bad_move_hash : felt,
+        bad_move_sig_r : felt,
+        bad_move_sig_s : felt,
         parent_move_len : felt,
-        parent_move : felt*
+        parent_move : felt*,
+        parent_move_hash : felt,
+        parent_move_sig_r : felt,
+        parent_move_sig_s : felt
     ):
+    # Unpack the arrays as structs for easier manipulation
+    local m : Move
+    assert m = array_to_move_struct(bad_move)
+    local parent_m : Move
+    assert parent_m = array_to_move_struct(parent_move)
     # Check ECDSA signature.
 
     # Compute the new state from the revealed move and the parent state.
@@ -361,8 +393,6 @@ func submit_bad_state{
     # distribute_to_players()
     return ()
 end
-
-
 
 
 # @notice Applies state transition rules for a single move.
@@ -469,14 +499,14 @@ func open_channel{
     assert c.id = channel_id
     assert c.opened_at_block = clock
     assert c.last_challenged_at_block = clock
-    assert c.latest_state_nonce = 0
+    assert c.nonce = 0
     assert c.addresses[0] = player_from_tx
     assert c.addresses[1] = player_from_queue
     # Collateral, fake 100 units for now.
     assert c.balance[0] = 100
     assert c.balance[1] = 100
     assert c.initial_channel_data = 987654321
-    assert c.initial_state_hash = 123456789
+    assert c.state_hash = 123456789
 
 
     channel_from_id.write(channel_id, c)
@@ -627,22 +657,35 @@ end
 
 # @notice This applies the final outcome of a state channel.
 # @dev Used once, when no further challenges are permitted.
+# @param c Channel details, sourced from on-chain state.
+# @param m Move, submitted by player as tx data.
 func distribute_to_players{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        c : Channel
+        c : Channel,
+        m : Move
     ):
+
+    # Assert that the move submitted is confirmed already
+    # c.state_hash == m.hash
 
     # Divide and send collateral to players as appropriate.
 
-    # Mint report cards
+    # Mint report cards. E.g.,
+    # - I10_ReportCard.mint(c.player[0], m.report_A)
+    # - I10_ReportCard.mint(c.player[1], m.report_B)
+
+    # Administer achievement artifacts. Eg.,
+    # - Mint artifact as trophy for each triple-combo.
+    # - Ixx_ArtifactMaker.mint(c.player[0], m.achievements)
+    # - Ixx_ArtifactMaker.mint(c.player[1], m.achievements)
 
     return ()
 end
 
-# @notice Updates on-chain channel information.
+# @notice Updates on-chain channel information. E.g., Player submits tx.
 # @dev Records the latest state and challenge data of a channel.
 func save_state_transition{
         syscall_ptr : felt*,
@@ -652,49 +695,55 @@ func save_state_transition{
         c : Channel,
         m : Move
     ):
-    # Called when the game is progressed for some reason.
-
-    # Increment 'Channel.latest_state_update_index'
-
+    # Update the on-chain channel to the latest confirmed state.
+    assert c.nonce = m.nonce
+    assert c.state_hash = m.hash
     # Save new state
-
+    channel_from_id.write(c.id, c)
     return ()
 end
 
-# Checks that
-func is_valid_submission{
+# @notice Checks that a signed move is valid with respect to a channel and public key.
+func is_valid_move_signature{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr,
         ecdsa_ptr: SignatureBuiltin*
     }(
-        c : Channel,
-        player_index : felt,
-        message_len : felt,
-        message : felt*,
-        sig_r : felt,
-        sig_s : felt
+        m : Move
     ):
     alloc_locals
-    # Get the stored pubkey of the player.
-    local public_key : felt
-    if player_index == 0:
-        let (pubk) = player_signing_key.read(c.addresses[0])
-        assert public_key = pubk
-    else:
-        let (pubk) = player_signing_key.read(c.addresses[1])
-        assert public_key = pubk
-    end
+    let (c : Channel) = channel_from_id(m.channel_id)
+    # Retrieve the public key from the chain.
+    let (public_key) = player_signing_key.read(c.addresses[m.player_index])
 
     # Hash the message they signed.
     tempvar syscall_ptr = syscall_ptr
     let (hash) = list_to_hash(message, message_len)
     # Verify the hash was signed by the pubk registered by the player.
     verify_ecdsa_signature(
-        message=hash,
+        message=m.hash,
         public_key=public_key,
         signature_r=sig_r,
         signature_s=sig_s)
+    return ()
+end
+
+# @notice Ensures the hash supplied/signed is correctly computed.
+# @dev The order of the array elements is defined in
+func is_valid_hash(){
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        move_array_len : felt,
+        move_array : felt*,
+        supplied_hash : felt
+    ):
+    # All the Move elements are hashed alphabetically by Move struct name.
+    # Omitted: hash, sig_r, sig_s (the hash cannot be self referential).
+    let (hash) = list_to_hash(move_array, move_array_len)
+    assert supplied_hash = hash
     return ()
 end
 
@@ -782,6 +831,62 @@ func register_new_account{
     return ()
 end
 
+# @notice Helper function to convert move-array to Move-struct.
+# @dev Defines hash sequence. Allows Inputs and Move struct to change over time more easily.
+# @param a The array containing ordered elements to populate struct.
+func move_array_to_struct{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        a : felt*,
+        hash : felt,
+        sig_r : felt,
+        sig_s : felt
+    ) -> (
+        struct : Move
+    ):
+    alloc_locals
+    # Dummy values. Needs to incorporate nested struct.
+    local action : Action
+    local game : GameHistory
+    local m : Move
+
+    local game : GameHistory
+    assert game = GameHistory(
+        achievements_A_len=LEN_ACHIEVEMENTS,
+        achievements_A=a[SLICE],
+        achievements_B_len=LEN_ACHIEVEMENTS,
+        achievements_B=,
+        report_A=,
+        report_B=,
+        action_history_len=LEN_ACTION_HISTORY,
+        action_history=
+    )
+    # A message is passed to the contract as an array.
+    # The length of the achievements/reports/movehistory elements
+    # affect the parsing of the array. These lengths are recorded
+    # as constants at the top of this page.
+    # LEN_ACHIEVEMENTS, LEN_REPORT, LEN_ACTION_HISTORY, LEN_ACTION
+    let game_history_len = ((1 + LEN_ACHIEVEMENTS) * 2 +
+        LEN_REPORT * 2 + 1 + LEN_ACTION_HISTORY * LEN_ACTION)
+    # [id, commit, history, hash, nonce, ...]
+    let nonce_pos = 2 + game_history_len + 1
+    let reveal_pos = nonce_pos + 2
+    assert m = Move(
+        channel_id=a[0],
+        commit=a[1],
+        history=g,
+        hash=hash,
+        nonce=a[nonce_pos],
+        parent_hash=a[nonce_pos + 1],
+        reveal=action,
+        sig_r=sig_r,
+        sig_s=sig_s
+    )
+    return ()
+end
+
 
 # Ensures a channel is not closed during a waiting period.
 func only_closable_channel{
@@ -794,17 +899,26 @@ func only_closable_channel{
     # Checks when a channel is able to be closed by, based
     # on the challenge period.
 
+    # Assert that the channel is undergoing a waiting period.
+
+    # Then that the waiting period has expired.
+
     return ()
 end
 
-# Ensures a signed message contains the necessary authority.
+# @notice Ensures only channel participant can call this function.
+# @dev Prevents non-channel participants closing a channel.
 func only_channel_participant{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
-    }():
-    # Checks originating address and signatures of signed
-    # channel message.
+    }(
+        c : Channel,
+        m : Move
+    ):
+    # Checks which account originating address
+    let (player) = get_caller_address()
+    assert player = c.player_account[m.player_index]
     return ()
 end
 
