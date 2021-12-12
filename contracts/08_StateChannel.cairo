@@ -406,7 +406,7 @@ func submit_bad_state{
         parent_move_sig_r, parent_move_sig_s)
 
     # Checks the new state from the revealed move and the parent state.
-    let (is_valid_bool) = check_state_transition(parent_move, move)
+    let (is_valid_bool) = check_state_transition(parent_m, m)
     # Require that the transition was incorrect.
     assert is_valid_bool = 0
     # Apply a penalty to the offending party and close the channel.
@@ -420,7 +420,6 @@ end
 # @dev Detects if signed reveal violates state transition.
 # @param m_parent The parent move.
 # @param m The signed move to modify state.
-@external
 func check_state_transition{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
@@ -431,7 +430,7 @@ func check_state_transition{
     ) -> (
         is_valid_bool : felt
     ):
-
+    alloc_locals
     # TBD: Does the state transition truly need to be implemented here
     # in the contract? It seems so. Uses:
     # - If a player signs a bad transition, the other player needs to be
@@ -444,7 +443,7 @@ func check_state_transition{
     # The state must be sequential.
     assert m.nonce = m_parent.nonce + 1
     # State to apply transition to.
-    let prior : Action = m_parent.action_history[0]
+    let prior : Action = m_parent.history.action_history[0]
     # New state that was signed by the player.
     let proposed : Action = m.reveal
 
@@ -452,9 +451,9 @@ func check_state_transition{
     # These are the game rules, intended to be very basic as POC.
     # Movement is within range.
     let (x_dist) = abs_value(prior.x - proposed.x)
-    is_nn_le(x_dist, MAX_X)
+    let (local x_ok) = is_nn_le(x_dist, MAX_X)
     let (y_dist) = abs_value(prior.y - proposed.y)
-    is_nn_le(y_dist, MAX_Y)
+    let (local y_ok) = is_nn_le(y_dist, MAX_Y)
 
     # Detect if hit:
     # - Within range.
@@ -473,14 +472,14 @@ func check_state_transition{
     # - ...
 
     # Can also check that the stored history matches.
-    let new_stored = m.action_history[0]
-    let old_stored = m_parent.reveal
+    let new_stored : Action = m.history.action_history[0]
+    let old_stored : Action = m_parent.reveal
     assert new_stored = old_stored
 
     # If any conditions are not ok (they equal 0), then this will be 0 too.
-    let is_valid_bool = x_ok *
+    let is_valid_bool = x_ok * y_ok
 
-    return (bool)
+    return (is_valid_bool)
 end
 
 
