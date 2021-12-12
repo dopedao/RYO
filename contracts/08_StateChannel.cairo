@@ -4,8 +4,9 @@
 from starkware.cairo.common.alloc import alloc
 from starkware.cairo.common.cairo_builtins import (HashBuiltin,
     SignatureBuiltin)
+from starkware.cairo.common.hash import hash2
 from starkware.cairo.common.math import (assert_nn_le,
-    assert_not_zero, assert_not_equal)
+    assert_not_zero, assert_not_equal, abs_value)
 from starkware.cairo.common.math_cmp import is_nn_le, is_not_zero
 from starkware.starknet.common.syscalls import get_caller_address
 from starkware.cairo.common.signature import verify_ecdsa_signature
@@ -31,6 +32,12 @@ const LEN_REPORT = 10
 const LEN_ACTION_HISTORY = 10
 const LEN_ACTION = 3
 
+# State transition rule constants.
+const MAX_X = 9
+const MAX_Y = 9
+const DAMAGE_ZONE = 1  # Max distance where damage possible.
+const DAMAGE = 1  # Collateral lost when hit.
+
 # @notice Used to represent milestones co-signed by both players.
 # @dev Not stored on chain. Used for convenience.
 struct Achievements:
@@ -42,8 +49,8 @@ end
 # @param delta_* pixel movement in x/y plane player moves to.
 # @param type Encoded punch/kick/duck/jump/shoot.
 struct Action:
-    member delta_x : felt
-    member delta_y : felt
+    member x : felt
+    member y : felt
     member type : felt
 end
 
@@ -72,7 +79,7 @@ end
 # @dev Part of a Move. Not stored in the contract.
 # @param achievements_* are awards given for certain actions. Likely binary encoded.
 # @param report_* are the report card parameters for each user (e.g., agility points/100).
-# @param action_history is an array of actions (TBC format) used to award combos.
+# @param action_history is an array of actions. Used for state transitions and to award achievements. [a_latest_action, b_latest_action, a_2nd_last, b_2nd_last, ... b_last]
 struct GameHistory:
     member achievements_A : Achievements
     member achievements_B : Achievements
@@ -355,10 +362,13 @@ func submit_bad_reveal{
         parent_move_len, parent_move, parent_move_hash,
         parent_move_sig_r, parent_move_sig_s)
 
-    # Compute the hash the reveal.
-
+    # Compute the hash chain of the reveal.
+    # Hash the members of the moves' reaveal, last to first.
+    # E.g., h(a, h(b, c))
+    let (h1) = hash2{hash_ptr=pedersen_ptr}(m.reveal.y, m.reveal.type)
+    let (h2) = hash2{hash_ptr=pedersen_ptr}(m.reveal.x, h1)
     # Check that the reveal hash is not equal to the commit hash.
-
+    assert_not_equal(parent_m.commit, h2)
     # Apply a penalty to the offending party and close the channel.
     apply_penalty(m)
     close_channel(m)
@@ -395,12 +405,10 @@ func submit_bad_state{
         parent_move_len, parent_move, parent_move_hash,
         parent_move_sig_r, parent_move_sig_s)
 
-
-    # Compute the new state from the revealed move and the parent state.
-    # E.g., let (computed_state) = transition_state(init, move)
-
-    # Check that the new state is not equal to the signed state.
-
+    # Checks the new state from the revealed move and the parent state.
+    let (is_valid_bool) = check_state_transition(parent_move, move)
+    # Require that the transition was incorrect.
+    assert is_valid_bool = 0
     # Apply a penalty to the offending party and close the channel.
     apply_penalty(m)
     close_channel(m)
@@ -409,36 +417,70 @@ end
 
 
 # @notice Applies state transition rules (e.g., to detect an illegal move).
-# @dev Applies state transition rules for a single move. Note stored on chain.
-# @param initial_state The state from the prior move.
-# @param move The signed move to modify state.
+# @dev Detects if signed reveal violates state transition.
+# @param m_parent The parent move.
+# @param m The signed move to modify state.
 @external
-func transition_state{
+func check_state_transition{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        initial_state_len : felt,
-        initial_state : felt*,
-        move_len : felt,
-        move : felt*
+        m_parent : Move,
+        m : Move
     ) -> (
-        new_state_len : felt,
-        new_state : felt*
+        is_valid_bool : felt
     ):
-    # Go through each element in the array of moves and apply
-    # them to state.
 
-    # E.g.,
-    # - Move to new coordinates within legal bound.
-    # - Apply attack, if the attack hits the opponents coordinates.
-    # - Apply collateral transfer
-    # - Increment skill based metrics if appropriate.
-    #     - If hit the opponent, increase 'accuracy' metric.
-    #     - If this is a triple-combo, increment combo recorder.
-    let (new_state : felt*) = alloc()
+    # TBD: Does the state transition truly need to be implemented here
+    # in the contract? It seems so. Uses:
+    # - If a player signs a bad transition, the other player needs to be
+    # able to punish them. If they ignore the bad message, then they are
+    # themselves vulnerable to an inactivity punishment.
 
-    return (initial_state_len, new_state)
+
+    # History structure:
+    # [a, b, a-1, b-1, a-2, b-2, ...,]
+    # The state must be sequential.
+    assert m.nonce = m_parent.nonce + 1
+    # State to apply transition to.
+    let prior : Action = m_parent.action_history[0]
+    # New state that was signed by the player.
+    let proposed : Action = m.reveal
+
+    # The reveal is used to transition state.
+    # These are the game rules, intended to be very basic as POC.
+    # Movement is within range.
+    let (x_dist) = abs_value(prior.x - proposed.x)
+    is_nn_le(x_dist, MAX_X)
+    let (y_dist) = abs_value(prior.y - proposed.y)
+    is_nn_le(y_dist, MAX_Y)
+
+    # Detect if hit:
+    # - Within range.
+    # - Attack hits opponents position.
+    # - Damage sustained is correct.
+    # - Allocated balances are correctly adjusted.
+
+    # Apply any achievements,
+    # - Examine moves in the context of recent history:
+    # - If this is a third consecutive hit without a miss, record triple_combo=1.
+    # - If no damage sustained yet, set damage_free=0.
+    # - ...
+
+    # Adjust live report card:
+    # - If hit the opponent, increase 'accuracy' metric.
+    # - ...
+
+    # Can also check that the stored history matches.
+    let new_stored = m.action_history[0]
+    let old_stored = m_parent.reveal
+    assert new_stored = old_stored
+
+    # If any conditions are not ok (they equal 0), then this will be 0 too.
+    let is_valid_bool = x_ok *
+
+    return (bool)
 end
 
 
