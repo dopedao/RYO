@@ -1,6 +1,7 @@
 import pytest
 import asyncio
 from fixtures.account import account_factory
+from utils import Signer
 
 # admin, user, user
 NUM_SIGNING_ACCOUNTS = 4
@@ -46,7 +47,6 @@ async def test_channel_open(game_factory):
     c = res.result.channel_details
     assert c.id == 0  # Empty channel has zero ID.
     assert c.addresses == (0, 0)
-    assert c.initial_state_hash == 0
     res = await channels.read_queue_length().call()
     assert res.result.length == 1
 
@@ -68,23 +68,56 @@ async def test_channel_open(game_factory):
     assert c.id == 1  # First channel has id==1.
     assert c.opened_at_block == 1
     assert c.last_challenged_at_block == 1
-    assert c.latest_state_index == 0
     # User 2 opens channel so is recorded at index 0 in the channel.
     assert c.addresses[0] == user_2.contract_address
     assert c.addresses[1] == user_1.contract_address
     assert c.balance == (100, 100)
     assert c.initial_channel_data == 987654321
-    assert c.initial_state_hash == 123456789
     print("Passed: Open a channel.")
-    try:
-        await user_3_signer.send_transaction(
-            account=user_3,
-            to=channels.contract_address,
-            selector_name='close_channel',
-            calldata=[c.id])
-    except Exception as e:
-        print("Passed: Prevent third party from closing channel")
     return starknet, accounts, signers, channels
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('account_factory', [dict(num_signers=NUM_SIGNING_ACCOUNTS)], indirect=True)
+async def test_final_move_submission(test_channel_open):
+    _, accounts, signers, channels = test_channel_open
+    user_1_signer = signers[1]
+    user_2_signer = signers[2]
+    user_3_signer = signers[3]
+    user_1 = accounts[1]
+    user_2 = accounts[2]
+    user_3 = accounts[3]
+
+    # Create and array representing a move
+    # TODO
+
+    # Sign the array
+    # E.g.., Signer(move_array)
+
+    # Pass it to the other player
+
+    # Have them verify the signature/conditions
+
+    # Repeat the process N times
+
+    # Submit final move.
+
+    await user_1_signer.send_transaction(
+        account=user_1,
+        to=channels.contract_address,
+        selector_name='submit_final_move',
+        calldata=[move, hash, sig_r, sig_s])
+
+    # E.g., movement of assets to winner, record events as reportcard.
+    res = await channels.status_of_player(user_1.contract_address).call()
+    assert res.result.game_key == 0
+    assert res.result.queue_len == 0
+    assert res.result.index_in_queue == 0
+    c = res.result.channel_details
+    # Assert c is empty.
+    # assert balances are changed.
+    # assert report card administered.
+
 
 
 @pytest.mark.asyncio
@@ -100,7 +133,7 @@ async def test_close_channel(test_channel_open):
     await user_1_signer.send_transaction(
         account=user_1,
         to=channels.contract_address,
-        selector_name='close_channel',
+        selector_name='submit_final_move',
         calldata=[OFFER_DURATION, user_1_signer.public_key])
 
     # TODO: Implement channel closure logic.

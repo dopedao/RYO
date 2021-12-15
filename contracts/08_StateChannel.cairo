@@ -276,22 +276,6 @@ func manual_state_update{
     return ()
 end
 
-# @notice Called by a channel participant to close.
-# @dev Only callable for channels undergoing a waiting period.
-func close_channel{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        m : Move
-    ):
-    alloc_locals
-    let (local c : Channel) = channel_from_id.read(m.channel_id)
-    only_channel_participant(c, m)
-    distribute_to_players(c, m)
-    erase_channel(c)
-    return ()
-end
 
 
 # @notice A signed bad message can be submitted here to punish the signer. Stops players from breaking the chain of moves.
@@ -412,6 +396,51 @@ func submit_bad_state{
     # Apply a penalty to the offending party and close the channel.
     apply_penalty(m)
     close_channel(m)
+    return ()
+end
+
+# @notice Submit the final move of the channel to close the channel.
+# @dev Check the move and ensure the nonce is the end-nonce.
+# @param move The final move.
+@external
+func cooperative_close{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr,
+        ecdsa_ptr: SignatureBuiltin*
+    }(
+        move_len : felt,
+        move : felt*,
+        hash : felt,
+        sig_r : felt,
+        sig_s : felt
+    ):
+        alloc_locals
+    let (local m : Move) = array_to_move_struct(move, hash, sig_r, sig_s)
+    # The DURATION of the channel should be equal to the nonce.
+    assert DURATION = m.nonce
+    # Signature check.
+    is_valid_move_signature(m)
+    # Close.
+    close_channel(m)
+    return ()
+end
+
+
+# @notice Called by a channel participant to close.
+# @dev Only callable for channels undergoing a waiting period.
+func close_channel{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }(
+        m : Move
+    ):
+    alloc_locals
+    let (local c : Channel) = channel_from_id.read(m.channel_id)
+    only_channel_participant(c, m)
+    distribute_to_players(c, m)
+    erase_channel(c)
     return ()
 end
 
