@@ -90,6 +90,10 @@ async def test_final_move_submission(test_channel_open):
 
     # Create and array representing a move
     # TODO
+    # - Look at array_to_move_struct() and create a definitive order for
+    #   how a Move is best represented as an array.
+    # - Make an array here
+    # - Test it by calling manual_state_update()
 
     # Sign the array
     # E.g.., Signer(move_array)
