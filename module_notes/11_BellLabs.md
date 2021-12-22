@@ -1,4 +1,4 @@
-## Trinity
+## Bell Labs
 
 A module that provides a score for a game character along a requested axis.
 
@@ -22,7 +22,7 @@ a bloodstained shirt).
 The system might be thought of as assigning colours to different objects. A shovel
 might be a 'green' object. Another game module might define an interaction (e.g., a fight)
 as a 'red' interaction. The fighting module might look to assess how much damage the
-player will inflict with their weapon. They call Trinity and ask for a score along the
+player will inflict with their weapon. They call BellLabs and ask for a score along the
 'red' axis. The contract detects that the player has a shovel, which has a high green
 score but a low red score. It returns a low value and the fighting contract inflicts
 low damage in the interaction.
@@ -35,10 +35,10 @@ Rough steps to get going:
 - Install github and clone the RYO repository.
 - Create a branch and give it a name.
 - Install docker and VS Code.
-- Then edit the contract in `contracts/11_Trinity.cairo`.
+- Then edit the contract in `contracts/11_BellLabs.cairo`.
 - Open the terminal in VS code.
-- Compile the contract `nile compile contracts/contracts/11_Trinity.cairo`.
-- Test the contract `pytest -s testing/11_Trinity_test.disabled.py::get_aggregate_score`.
+- Compile the contract `nile compile contracts/contracts/11_BellLabs.cairo`.
+- Test the contract `pytest -s testing/11_BellLabs_test.disabled.py::get_aggregate_score`.
 
 
 ## Contract design
@@ -72,7 +72,7 @@ divide by 12 to arrive at a composite score for the axis.
 
 ## Testing
 
-In the `testing/11_Trinity_test.disabled.py` file, the contract can be
+In the `testing/11_BellLabs_test.disabled.py` file, the contract can be
 called in a local environment. The user can be created with an arbitrary
 array of equipped items, and the score for this configuration can be queried
 from the contract locally. Different tests can be created to check
