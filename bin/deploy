@@ -1,22 +1,26 @@
 #!/bin/bash
 set -eu
 
+###########################################
+#               Network                   #
+###########################################
+
+# For a network_type=localhost node open a new shell and run:
+# `nile node`
+
+# network_type=localhost
+network_type=goerli
+# network_type=mainnet
+
+
 # Flow:
 ## The Controller is the only unchangeable contract.
 ## First deploy Arbiter.
 ## Then send the Arbiter address during Controller deployment.
 ## Then deploy Controller address during module deployments.
 
-# For a network_type=localhost node open a new shell and run:
-# `nile node`
-
-# Network:
-network_type=localhost
-# network_type=goerli
-# network_type=mainnet
-
 # Wipe old deployment record if it exists.
-rm $network_type.deployments.txt || echo 'Will create one...'
+#rm $network_type.deployments.txt || echo 'Will create one...'
 
 # Searches for a keyword, then fetches the address from that line.
 get_address () {
@@ -29,36 +33,27 @@ declare -i AdminPubKey=12345678987654321
 declare -i User00PubKey=456456456
 
 # Admin account contract
-AdminAccount=$(nile deploy Account $AdminPubKey \
-    --alias AdminAccount --network $network_type)
-# AdminAddress=$(get_address "AdminAccount")
+#AdminAccount=$(nile deploy Account $AdminPubKey \
+#    --alias AdminAccount --network $network_type)
 
 # Arbiter contract (controlled by Admin)
-Arbiter=$(nile deploy Arbiter $(get_address "AdminAccount") \
-    --alias Arbiter --network $network_type)
-# ArbiterAddress=$(get_address "Arbiter")
-echo $(get_address "AdminAccount")
+#Arbiter=$(nile deploy Arbiter $(get_address "AdminAccount") \
+#    --alias Arbiter --network $network_type)
 
 # Module controller contract (controlled by Arbiter)
-ModuleController=$(nile deploy ModuleController $(get_address "Arbiter") \
-    --alias ModuleController --network $network_type)
-# ModuleControllerAddress=$(get_address ModuleController)
+#ModuleController=$(nile deploy ModuleController $(get_address "Arbiter") \
+#    --alias ModuleController --network $network_type)
 
-# The constructor of each module is passed the address of the controller.
-deploy_module () {
-    nile deploy $1 $(get_address "ModuleController") \
-        --alias $1 --network $network_type
-}
+# Save address of controller into the arbiter
+echo "invoking contract:" $(get_address "Arbiter")
+nile invoke Arbiter set_address_of_controller \
+    $(get_address "ModuleController") --network $network_type
 
-# Deploy each module.
-deploy_module "01_DopeWars"
-deploy_module "02_LocationOwned"
-deploy_module "03_UserOwned"
-deploy_module "04_UserRegistry"
-deploy_module "05_Combat"
-deploy_module "06_DrugLord"
-deploy_module "07_PseudoRandom"
-
+# Error, seems to be adding two 0's when invoking a contract.:
+# invoking contract: 0x012d7a0d2864ba2b6312e2a293e950325673b9c34bb4c9aed0ebf52cc81c41
+# Invoke transaction was sent.
+# Contract address: 0x00012d7a0d2864ba2b6312e2a293e950325673b9c34bb4c9aed0ebf52cc81c41
+# Transaction hash: 0x373acf096ec931fcc7ecf344b0f21a3911092ea36f6b7a9eb53863e72b55d8b
 
 # The admin account will control the Arbiter
 # and will be deployed with STARK-friendly ECDSA keypair(s). The
@@ -67,16 +62,26 @@ deploy_module "07_PseudoRandom"
 # to the Arbiter. The Arbiter may then do things like call the
 # ModuleController with information about a new module address.
 
-nile deploy Account $User00PubKey \
-    --alias User00Account --network $network_type
+###########################################
+#                Modules                  #
+###########################################
+# The constructor of each module is passed the address of the controller.
+deploy_module () {
+    nile deploy $1 $(get_address "ModuleController") \
+        --alias $1 --network $network_type
+}
 
-# Save address of controller into the arbiter
-nile invoke Arbiter set_address_of_controller \
-    $(get_address "ModuleController") --network $network_type
+# Deploy each module.
+#deploy_module "01_DopeWars"
+#deploy_module "02_LocationOwned"
+#deploy_module "03_UserOwned"
+#deploy_module "04_UserRegistry"
+#deploy_module "05_Combat"
+#deploy_module "06_DrugLord"
+#deploy_module "07_PseudoRandom"
 
-# These could be fetched from the deployments.txt files which
-# would make the above deploy commands simpler.
 # Use the Arbiter to save module addresses into the ModuleController.
+echo "invoking contract:" $(get_address "ModuleController")
 nile invoke ModuleController set_initial_module_addresses \
     $(get_address "1_DopeWars") \
     $(get_address "2_LocationOwned") \
@@ -86,4 +91,16 @@ nile invoke ModuleController set_initial_module_addresses \
     $(get_address "6_DrugLord") \
     $(get_address "7_PseudoRandom") \
     --network $network_type
+
+
+# invoking contract: 0x00c7ef45435e2de8290b2919955420bd318ce133a0367338ef7fa63ff9f08f
+# Invoke transaction was sent.
+# Contract address: 0x0000c7ef45435e2de8290b2919955420bd318ce133a0367338ef7fa63ff9f08f
+# Transaction hash: 0x6d9ddafc7cb2c98f76a5816a703059117f692679f030ad9288d81a86bd90c6d
+
+###########################################
+#                Player(s)                #
+###########################################
+nile deploy Account $User00PubKey \
+    --alias User00Account --network $network_type
 
