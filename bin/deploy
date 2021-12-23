@@ -20,7 +20,7 @@ network_type=goerli
 ## Then deploy Controller address during module deployments.
 
 # Wipe old deployment record if it exists.
-#rm $network_type.deployments.txt || echo 'Will create one...'
+rm $network_type.deployments.txt || echo 'Will create one...'
 
 # Searches for a keyword, then fetches the address from that line.
 get_address () {
@@ -33,27 +33,21 @@ declare -i AdminPubKey=12345678987654321
 declare -i User00PubKey=456456456
 
 # Admin account contract
-#AdminAccount=$(nile deploy Account $AdminPubKey \
-#    --alias AdminAccount --network $network_type)
+AdminAccount=$(nile deploy Account $AdminPubKey \
+    --alias AdminAccount --network $network_type)
 
 # Arbiter contract (controlled by Admin)
-#Arbiter=$(nile deploy Arbiter $(get_address "AdminAccount") \
-#    --alias Arbiter --network $network_type)
+Arbiter=$(nile deploy Arbiter $(get_address "AdminAccount") \
+    --alias Arbiter --network $network_type)
 
 # Module controller contract (controlled by Arbiter)
-#ModuleController=$(nile deploy ModuleController $(get_address "Arbiter") \
-#    --alias ModuleController --network $network_type)
+ModuleController=$(nile deploy ModuleController $(get_address "Arbiter") \
+    --alias ModuleController --network $network_type)
 
 # Save address of controller into the arbiter
 echo "invoking contract:" $(get_address "Arbiter")
 nile invoke Arbiter set_address_of_controller \
     $(get_address "ModuleController") --network $network_type
-
-# Error, seems to be adding two 0's when invoking a contract.:
-# invoking contract: 0x012d7a0d2864ba2b6312e2a293e950325673b9c34bb4c9aed0ebf52cc81c41
-# Invoke transaction was sent.
-# Contract address: 0x00012d7a0d2864ba2b6312e2a293e950325673b9c34bb4c9aed0ebf52cc81c41
-# Transaction hash: 0x373acf096ec931fcc7ecf344b0f21a3911092ea36f6b7a9eb53863e72b55d8b
 
 # The admin account will control the Arbiter
 # and will be deployed with STARK-friendly ECDSA keypair(s). The
@@ -72,13 +66,13 @@ deploy_module () {
 }
 
 # Deploy each module.
-#deploy_module "01_DopeWars"
-#deploy_module "02_LocationOwned"
-#deploy_module "03_UserOwned"
-#deploy_module "04_UserRegistry"
-#deploy_module "05_Combat"
-#deploy_module "06_DrugLord"
-#deploy_module "07_PseudoRandom"
+deploy_module "01_DopeWars"
+deploy_module "02_LocationOwned"
+deploy_module "03_UserOwned"
+deploy_module "04_UserRegistry"
+deploy_module "05_Combat"
+deploy_module "06_DrugLord"
+deploy_module "07_PseudoRandom"
 
 # Use the Arbiter to save module addresses into the ModuleController.
 echo "invoking contract:" $(get_address "ModuleController")
@@ -91,12 +85,6 @@ nile invoke ModuleController set_initial_module_addresses \
     $(get_address "6_DrugLord") \
     $(get_address "7_PseudoRandom") \
     --network $network_type
-
-
-# invoking contract: 0x00c7ef45435e2de8290b2919955420bd318ce133a0367338ef7fa63ff9f08f
-# Invoke transaction was sent.
-# Contract address: 0x0000c7ef45435e2de8290b2919955420bd318ce133a0367338ef7fa63ff9f08f
-# Transaction hash: 0x6d9ddafc7cb2c98f76a5816a703059117f692679f030ad9288d81a86bd90c6d
 
 ###########################################
 #                Player(s)                #
