@@ -13,6 +13,7 @@ set -eu
 
 # Network:
 network_type=localhost
+# network_type=goerli
 # network_type=mainnet
 
 # localhost is a ShardLabs devnet locally.
@@ -20,14 +21,16 @@ network_type=localhost
 
 
 # Wipe old deployment record if it exists.
-rm $network_type.deployments.txt || $echo 'Will create one...'
+#rm $network_type.deployments.txt || $echo 'Will create one...'
 
 
 get_address () {
     # TODO read deployment address from $network_type.deployments.txt
     # Find the line containing the alias $1.
-    # grep -o -m 1 '\b0x\w*'
-    # echo result.
+    deployment=$network_type.deployments.txt
+    line=$(grep -o $1 deployment)
+    local address=$(grep -o -m 1 '\b0x\w*')
+    echo $address
 }
 
 # Public keys of wallets (dummy/placeholder)
