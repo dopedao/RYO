@@ -7,8 +7,7 @@ set -eu
 ## Then send the Arbiter address during Controller deployment.
 ## Then deploy Controller address during module deployments.
 
-# TODO: For a network_type node open a new shell and run:
-# Need to incorporate this into the script.
+# For a network_type=localhost node open a new shell and run:
 # `nile node`
 
 # Network:
@@ -16,21 +15,13 @@ network_type=localhost
 # network_type=goerli
 # network_type=mainnet
 
-# localhost is a ShardLabs devnet locally.
-# mainnet is currently Goerli/StarkNet-alpha
-
-
 # Wipe old deployment record if it exists.
-#rm $network_type.deployments.txt || $echo 'Will create one...'
+rm $network_type.deployments.txt || echo 'Will create one...'
 
-
+# Searches for a keyword, then fetches the address from that line.
 get_address () {
-    # TODO read deployment address from $network_type.deployments.txt
-    # Find the line containing the alias $1.
-    deployment=$network_type.deployments.txt
-    line=$(grep -o $1 deployment)
-    local address=$(grep -o -m 1 '\b0x\w*')
-    echo $address
+    echo $(grep $1 $network_type.deployments.txt | \
+        grep -o -m 1 '\b0x\w*')
 }
 
 # Public keys of wallets (dummy/placeholder)
@@ -38,26 +29,25 @@ declare -i AdminPubKey=12345678987654321
 declare -i User00PubKey=456456456
 
 # Admin account contract
-AdminAccount=nile deploy Account $AdminPubKey \
-    --alias AdminAccount --network $network_type
-AdminAddress=$(get_address AdminAccount)
+AdminAccount=$(nile deploy Account $AdminPubKey \
+    --alias AdminAccount --network $network_type)
+# AdminAddress=$(get_address "AdminAccount")
 
 # Arbiter contract (controlled by Admin)
-Arbiter=nile deploy Arbiter $AdminAddress \
-    --alias Arbiter --network $network_type
-ArbiterAddress=$(get_address Arbiter)
+Arbiter=$(nile deploy Arbiter $(get_address "AdminAccount") \
+    --alias Arbiter --network $network_type)
+# ArbiterAddress=$(get_address "Arbiter")
+echo $(get_address "AdminAccount")
 
 # Module controller contract (controlled by Arbiter)
-ModuleController=nile deploy ModuleController $ArbiterAddress \
-    --alias ModuleController --network $network_type
-ModuleControllerAddress=$(get_address ModuleController)
+ModuleController=$(nile deploy ModuleController $(get_address "Arbiter") \
+    --alias ModuleController --network $network_type)
+# ModuleControllerAddress=$(get_address ModuleController)
 
 # The constructor of each module is passed the address of the controller.
 deploy_module () {
-    nile deploy $1 $ModuleControllerAddress \
+    nile deploy $1 $(get_address "ModuleController") \
         --alias $1 --network $network_type
-    address=$(get_address $1)
-    # TODO Export this as "module$1" to be later sent to the controller.
 }
 
 # Deploy each module.
@@ -77,19 +67,23 @@ deploy_module "07_PseudoRandom"
 # to the Arbiter. The Arbiter may then do things like call the
 # ModuleController with information about a new module address.
 
-
 nile deploy Account $User00PubKey \
     --alias User00Account --network $network_type
 
 # Save address of controller into the arbiter
-nile invoke Arbiter set_address_of_controller $ModuleControllerAddress
+nile invoke Arbiter set_address_of_controller \
+    $(get_address "ModuleController") --network $network_type
 
 # These could be fetched from the deployments.txt files which
 # would make the above deploy commands simpler.
 # Use the Arbiter to save module addresses into the ModuleController.
 nile invoke ModuleController set_initial_module_addresses \
-    $module_01_DopeWars module_02_LocationOwned \
-    $module_03_UserOwned module_04_UserRegistry \
-    $module_05_Combat module_06_DrugLord \
-    $module_07_PseudoRandom
+    $(get_address "1_DopeWars") \
+    $(get_address "2_LocationOwned") \
+    $(get_address "3_UserOwned") \
+    $(get_address "4_UserRegistry") \
+    $(get_address "5_Combat") \
+    $(get_address "6_DrugLord") \
+    $(get_address "7_PseudoRandom") \
+    --network $network_type
 
