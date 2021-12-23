@@ -49,6 +49,8 @@ echo "invoking contract:" $(get_address "Arbiter")
 nile invoke Arbiter set_address_of_controller \
     $(get_address "ModuleController") --network $network_type
 
+# Tx failed. Hash: 0x77cc8ff0af3fc65532577e17e420d2db9fda60bf7e4cf11ddf0286aa9d51aa5
+
 # The admin account will control the Arbiter
 # and will be deployed with STARK-friendly ECDSA keypair(s). The
 # key(s) will then be used to sign messages that go to the Account.
