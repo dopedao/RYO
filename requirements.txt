@@ -8,7 +8,7 @@ base58==2.1.1
 bitarray==1.2.2
 cachetools==4.2.4
 cairo-lang==0.6.2
-cairo-nile==0.2.1
+cairo-nile @ git+https://github.com/OpenZeppelin/nile.git@9a20ad26a8bdf19f827be6835c00c036dd831621
 certifi==2021.10.8
 charset-normalizer==2.0.7
 click==8.0.3
@@ -60,6 +60,7 @@ pyparsing==2.4.7
 pyrsistent==0.18.0
 pytest==6.2.5
 pytest-asyncio==0.16.0
+python-dotenv==0.19.2
 PyYAML==5.3.1
 requests==2.26.0
 rlp==2.0.1
