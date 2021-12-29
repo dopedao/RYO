@@ -56,8 +56,8 @@ func set_address_of_controller{
     # Locked starts as zero
     assert_not_zero(1 - locked)
     lock.write(1)
-    only_owner()
-
+    # Could enforce only_owner, but this is unlikely before lock.
+    # only_owner()
     controller_address.write(contract_address)
     return ()
 end
