@@ -128,6 +128,26 @@ For more information see
 - Modular [system architecture](./system_architecture.md).
 - Descriptions of example modules in [module notes](/module_notes).
 
+## Status
+
+| Module | Description | Status |
+| --- | ----------- | - |
+| 01 DopeWars | Self-contained Drug Game with random hazards | Needs event/item effect paramater tweaks and improved call to user-registry |
+| 02 LocationOwned | Storage for module 01 dealer drug quantities | Functional. Can adjust initial values for different 'vibes'. |
+| 03 UseOwned | Storage for module 01 player drug quantities | Functional |
+| 04 UserRegistry | Stores cross-chain NFT ownership | Needs implementation of storage/input mechanism (E.g., storage proofs later if available) |
+| 05 Combat | King-of-the-hill fights from pre-planned moves | Needs design of combat data structure and calculations |
+| 06 DrugLord | Storage for module 05 winners | Functional |
+| 07 PseudoRandom | Source of pRandom numbers | Ready for low importance uses |
+| 08 StateChannel | 1v1 move-by-move off chain game | Needs design of data structure for messages |
+| 09 Wall | Store and vote on text 'graffiti' | Needs testing, could bve expanded. |
+| 10 ReportCard | Token that represents player performance | Idea only, no code.  Likely suitable as ERC1155 |
+| 11 BellLabs | A three-axis scoring system for dope elements | Boiler-plate code and ideas only. Needs design/setting of values for each item on each axis |
+| Account | Identity/contract/wallet for each user | Regularly refresh from OpenZepellin's latest |
+| Arbiter | Can tell the module controller that one module has write access over another | Might be good to upgrade this to a governance contract to vote through write access changes  |
+| ModuleController | Keeps module addresses so they can read or even write to each other | Functional. Can add new modules to initial module addresses set function |
+
+
 ## Setup
 
 Clone this repo and use our docker shell to interact with starknet:
