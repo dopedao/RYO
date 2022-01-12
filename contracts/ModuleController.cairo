@@ -147,7 +147,11 @@ func set_initial_module_addresses{
         module_06_addr : felt,
         module_07_addr : felt
     ):
-    only_arbiter()
+    # The operation can only be called once.
+    let (address_01) = address_of_module_id.read(1)
+    if address_01 != 0:
+        return ()
+    end
 
     address_of_module_id.write(1, module_01_addr)
     module_id_of_address.write(module_01_addr, 1)

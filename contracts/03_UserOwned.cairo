@@ -7,9 +7,10 @@ from starkware.starknet.common.syscalls import get_caller_address
 
 from contracts.utils.interfaces import IModuleController
 
-##### Module XX #####
+##### Module 03 #####
 #
-# This module ...
+# This module stores the drugs the player owns in the drug wars
+# game.
 #
 #
 ####################

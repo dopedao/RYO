@@ -8,7 +8,7 @@ base58==2.1.1
 bitarray==1.2.2
 cachetools==4.2.4
 cairo-lang==0.6.2
-cairo-nile @ git+https://github.com/OpenZeppelin/nile.git@9a20ad26a8bdf19f827be6835c00c036dd831621
+cairo-nile==0.3.0
 certifi==2021.10.8
 charset-normalizer==2.0.7
 click==8.0.3

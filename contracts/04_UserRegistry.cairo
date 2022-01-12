@@ -9,10 +9,16 @@ from starkware.cairo.common.pow import pow
 
 from contracts.utils.interfaces import IModuleController
 
-##### Module XX #####
+##### Module 04 #####
 #
-# This module ...
+# This module is populated using NFT ownership data from other
+# chains (DOPE-L1 or Hustler-Optimism). Once 'imported' and stored
+# here, modules can then use that information. Likely going to
+# involve L1 storage proofs (WIP).
 #
+# Currently has scores feed from off-chain for some items,
+# which may be replaced by Module 10 scoring
+# system.
 #
 ####################
 

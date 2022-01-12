@@ -8,10 +8,9 @@ set -eu
 # For a network_type=localhost node open a new shell and run:
 # `nile node`
 
-# network_type=localhost
-network_type=goerli
+#network_type=localhost
+network_type=alpha-goerli
 # network_type=mainnet
-
 
 # Flow:
 ## The Controller is the only unchangeable contract.
@@ -19,12 +18,22 @@ network_type=goerli
 ## Then send the Arbiter address during Controller deployment.
 ## Then deploy Controller address during module deployments.
 
+# Removes `alpha-` from `alpha-goerli`, to use for deployments.txt.
+network () {
+    if [[ "$1" == "alpha-goerli" ]]
+    then
+        echo "goerli"
+    else
+        echo $1
+    fi
+}
+
 # Wipe old deployment record if it exists.
-rm $network_type.deployments.txt || echo 'Will create one...'
+rm $(network $network_type).deployments.txt || echo 'Will create one...'
 
 # Searches for a keyword, then fetches the address from that line.
 get_address () {
-    echo $(grep $1 $network_type.deployments.txt | \
+    echo $(grep $1 $(network $network_type).deployments.txt | \
         grep -o -m 1 '\b0x\w*')
 }
 
@@ -49,7 +58,17 @@ echo "invoking contract:" $(get_address "Arbiter")
 nile invoke Arbiter set_address_of_controller \
     $(get_address "ModuleController") --network $network_type
 
-# Tx failed. Hash: 0x77cc8ff0af3fc65532577e17e420d2db9fda60bf7e4cf11ddf0286aa9d51aa5
+# TODO: Read the returned tx hash from the 'invoke' operation
+# pass it to read the status (json). E.g., require that the status is
+# ok, and print the status message to the console.
+
+# If on localhost mode, check the transaction status as follows:
+# starknet tx_status --hash TX_HASH --feeder_gateway_url http://localhost:5000/
+
+# If on public testnet:
+# starknet tx_status --hash TX_HASH
+
+# Goerli Tx failed. Hash: 0x77cc8ff0af3fc65532577e17e420d2db9fda60bf7e4cf11ddf0286aa9d51aa5
 
 # The admin account will control the Arbiter
 # and will be deployed with STARK-friendly ECDSA keypair(s). The
