@@ -1,7 +1,6 @@
 # OpenZepellin commit hash: 259d2854a5c1e7d62878f0fb03d0772777c7c348
 
 %lang starknet
-%builtins pedersen range_check ecdsa
 
 from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.signature import verify_ecdsa_signature
