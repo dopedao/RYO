@@ -43,6 +43,14 @@ from contracts.utils.interfaces import (IModuleController,
 
 # E.g., first location (location_id=0), first item (item_id=1)
 
+############ Events ############
+
+# An event emitted whenever have_turn() is called.
+# current_balance is the balance before it was increased.
+@event
+func have_turn_called(
+        clock : felt):
+end
 
 ############ Game state ############
 # Records if a user has been initialized (flips to 1 on first turn).
@@ -250,6 +258,7 @@ func have_turn{
         warehouse_seizure_bool=warehouse_seizure_bool)
 
     logs_at_given_clock.write(current_clock + 1, turn_log)
+    have_turn_called.emit(current_clock + 1)
     return ()
 end
 
