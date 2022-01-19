@@ -1,5 +1,4 @@
 %lang starknet
-%builtins pedersen range_check
 
 # Imports
 from starkware.cairo.common.cairo_builtins import HashBuiltin

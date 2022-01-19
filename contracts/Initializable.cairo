@@ -2,7 +2,6 @@
 # Used for testing Account.cairo
 
 %lang starknet
-%builtins pedersen range_check
 
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 

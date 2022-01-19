@@ -1,5 +1,4 @@
 %lang starknet
-%builtins pedersen range_check bitwise
 
 from starkware.cairo.common.bitwise import bitwise_xor
 from starkware.cairo.common.cairo_builtins import (HashBuiltin,
