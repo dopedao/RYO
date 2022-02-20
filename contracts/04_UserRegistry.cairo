@@ -93,10 +93,10 @@ func constructor{
     return ()
 end
 
+############ Read-Only Functions
 
-##### External Functions #####
 # Returns the L2 public key and game-related player data for a user.
-@external
+@view
 func get_user_info{
         syscall_ptr : felt*,
         pedersen_ptr : HashBuiltin*,
@@ -115,6 +115,54 @@ func get_user_info{
     let (data) = user_data.read(user_id)
     return (data)
 end
+
+# Returns a 4-bit value at a particular index for item score.
+@view
+func unpack_score{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        bitwise_ptr: BitwiseBuiltin*,
+        range_check_ptr
+    }(
+        user_id : felt,
+        index : felt
+    ) -> (
+        score : felt
+    ):
+    alloc_locals
+    # User data is a binary encoded value with alternating
+    # 6-bit id followed by a 4-bit score (see top of file).
+    let (local data) = user_data.read(user_id)
+    local syscall_ptr : felt* = syscall_ptr
+    local pedersen_ptr : HashBuiltin* = pedersen_ptr
+    local bitwise_ptr: BitwiseBuiltin* = bitwise_ptr
+    # 1. Create a 4-bit mask at and to the left of the index
+    # E.g., 000111100 = 2**2 + 2**3 + 2**4 + 2**5
+    # E.g.,  2**(i) + 2**(i+1) + 2**(i+2) + 2**(i+3) = (2**i)(15)
+    let (power) = pow(2, index)
+    # 1 + 2 + 4 + 8 = 15
+    let mask = 15 * power
+
+    # 2. Apply mask using bitwise operation: mask AND data.
+    let (masked) = bitwise_and(mask, data)
+
+    # 3. Shift element right by dividing by the order of the mask.
+    let (result, _) = unsigned_div_rem(masked, power)
+
+    # If no score is set for this users item (e.g., registry
+    # has not been correctly initialised for this user), give the
+    # item a score of 5 (middle-range score).
+    local score
+    if result == 0:
+        assert score = 5
+    else:
+        assert score = result
+    end
+
+    return (score)
+end
+
+##### External Functions #####
 
 # User with specific token calls to save their details the game.
 @external
@@ -164,52 +212,6 @@ func admin_fill_registry{
     # Loop over, populating user store with pubkey and data.
     loop_n_users(n_users, data)
     return ()
-end
-
-# Returns a 4-bit value at a particular index for item score.
-@external
-func unpack_score{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        bitwise_ptr: BitwiseBuiltin*,
-        range_check_ptr
-    }(
-        user_id : felt,
-        index : felt
-    ) -> (
-        score : felt
-    ):
-    alloc_locals
-    # User data is a binary encoded value with alternating
-    # 6-bit id followed by a 4-bit score (see top of file).
-    let (local data) = user_data.read(user_id)
-    local syscall_ptr : felt* = syscall_ptr
-    local pedersen_ptr : HashBuiltin* = pedersen_ptr
-    local bitwise_ptr: BitwiseBuiltin* = bitwise_ptr
-    # 1. Create a 4-bit mask at and to the left of the index
-    # E.g., 000111100 = 2**2 + 2**3 + 2**4 + 2**5
-    # E.g.,  2**(i) + 2**(i+1) + 2**(i+2) + 2**(i+3) = (2**i)(15)
-    let (power) = pow(2, index)
-    # 1 + 2 + 4 + 8 = 15
-    let mask = 15 * power
-
-    # 2. Apply mask using bitwise operation: mask AND data.
-    let (masked) = bitwise_and(mask, data)
-
-    # 3. Shift element right by dividing by the order of the mask.
-    let (result, _) = unsigned_div_rem(masked, power)
-
-    # If no score is set for this users item (e.g., registry
-    # has not been correctly initialised for this user), give the
-    # item a score of 5 (middle-range score).
-    local score
-    if result == 0:
-        assert score = 5
-    else:
-        assert score = result
-    end
-
-    return (score)
 end
 
 ##### Helper Functions #####

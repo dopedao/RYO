@@ -37,9 +37,8 @@ get_address () {
         grep -o -m 1 '\b0x\w*')
 }
 
-# Public keys of wallets (dummy/placeholder)
-declare -i AdminPubKey=12345678987654321
-declare -i User00PubKey=456456456
+# Public keys of wallets
+declare AdminPubKey=0x03e4a42dce4abe22e02666fcd10c7cba530a7b84bf540d38e7ad28f7e8b567b3
 
 # Admin account contract
 AdminAccount=$(nile deploy Account $AdminPubKey \
@@ -110,6 +109,5 @@ nile invoke ModuleController set_initial_module_addresses \
 ###########################################
 #                Player(s)                #
 ###########################################
-nile deploy Account $User00PubKey \
-    --alias User00Account --network $network_type
-
+# nile deploy Account $User00PubKey \
+#     --alias User00Account --network $network_type
