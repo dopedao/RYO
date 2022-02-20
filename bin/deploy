@@ -9,7 +9,7 @@ set -eu
 # `nile node`
 
 #network_type=localhost
-network_type=alpha-goerli
+network_type=goerli
 # network_type=mainnet
 
 # Flow:
