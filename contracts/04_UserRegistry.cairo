@@ -3,9 +3,9 @@
 from starkware.cairo.common.bitwise import bitwise_and
 from starkware.cairo.common.cairo_builtins import (HashBuiltin,
     BitwiseBuiltin)
-from starkware.cairo.common.math import unsigned_div_rem
+from starkware.cairo.common.math import (unsigned_div_rem,
+    assert_not_zero)
 from starkware.cairo.common.pow import pow
-
 from contracts.utils.interfaces import IModuleController
 
 ##### Module 04 #####
@@ -59,14 +59,6 @@ func user_data(
 end
 
 @storage_var
-func user_pubkey(
-        user_id : felt
-    ) -> (
-        pubkey : felt
-    ):
-end
-
-@storage_var
 func available_id(
     ) -> (
         res : felt
@@ -103,17 +95,13 @@ func get_user_info{
         range_check_ptr
     }(
         user_id : felt,
-        starknet_pubkey : felt
     ) -> (
         user_data : felt
     ):
     # The GameEngine contract calls this function when a player
     # takes a turn. This ensures a user is allowed to play.
     # The user_data provides different properties during gameplay.
-    let (stored_pubkey) = user_pubkey.read(user_id)
-    assert stored_pubkey = starknet_pubkey
-    let (data) = user_data.read(user_id)
-    return (data)
+    return user_data.read(user_id)
 end
 
 # Returns a 4-bit value at a particular index for item score.
@@ -171,10 +159,8 @@ func register_user{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        starknet_pubkey : felt,
+        user_id : felt,
         data : felt
-    ) -> (
-        user_id : felt
     ):
     # Performs a check on either:
     # 1) Merkle claim or
@@ -185,16 +171,18 @@ func register_user{
     # Saves the user_id, L2_public_key and user_data
 
     # Testing
-    let (id) = available_id.read()
-    available_id.write(id + 1)
+    # ensure user data is non-zero
+    assert_not_zero(data)
 
-    user_pubkey.write(id, starknet_pubkey)
+    # ensure user isn't already registered
+    let (existing) = user_data.read(user_id)
+    assert existing = 0
+
     # User data may be a binary encoding of all assets.
     # 00000000000000000000000000010000000010001
     #                            ^ RR         ^ shovel
-    user_data.write(id, data)
-
-    return (id)
+    user_data.write(user_id, data)
+    return ()
 end
 
 # Creates artificial users for testing.
