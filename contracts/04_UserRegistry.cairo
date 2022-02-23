@@ -7,6 +7,7 @@ from starkware.cairo.common.math import (unsigned_div_rem,
     assert_not_zero)
 from starkware.cairo.common.pow import pow
 from contracts.utils.interfaces import IModuleController
+from starkware.starknet.common.syscalls import get_caller_address
 
 ##### Module 04 #####
 #
@@ -159,7 +160,6 @@ func register_user{
         pedersen_ptr : HashBuiltin*,
         range_check_ptr
     }(
-        user_id : felt,
         data : felt
     ):
     # Performs a check on either:
@@ -167,6 +167,7 @@ func register_user{
     # 2) Ownership of L2-bridged ERC721, ERC1155 or ERC20 token
 
     # Allocates the user a user_id
+    let (user_id) = get_caller_address()
 
     # Saves the user_id, L2_public_key and user_data
 
@@ -184,41 +185,3 @@ func register_user{
     user_data.write(user_id, data)
     return ()
 end
-
-# Creates artificial users for testing.
-@external
-func admin_fill_registry{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        n_users : felt,
-        data : felt
-    ):
-    #
-
-    # Loop over, populating user store with pubkey and data.
-    loop_n_users(n_users, data)
-    return ()
-end
-
-##### Helper Functions #####
-# Recursion to populate registry storage.
-func loop_n_users{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        num : felt,
-        data : felt
-    ):
-    if num == 0:
-        return ()
-    end
-    loop_n_users(num - 1, data)
-    # On first entry, num=1.
-    # Set the pubkey to be n+1000000 (testing). Same data for all.
-    register_user(num - 1 + 1000000, data)
-    return ()
-end
-

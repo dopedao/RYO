@@ -8,6 +8,7 @@ from starkware.cairo.common.math_cmp import is_nn_le
 from starkware.cairo.common.hash_state import (hash_init,
     hash_update, HashState)
 from starkware.cairo.common.alloc import alloc
+from starkware.starknet.common.syscalls import get_caller_address
 
 from contracts.utils.market_maker import trade
 from contracts.utils.game_constants import (DEALER_DASH_BP,
@@ -108,7 +109,6 @@ func have_turn{
         range_check_ptr,
         bitwise_ptr: BitwiseBuiltin*
     }(
-        user_id : felt,
         location_id : felt,
         buy_or_sell : felt,
         item_id : felt,
@@ -119,7 +119,7 @@ func have_turn{
     # let user_registry = USER_REGISTRY_ADDRESS
 
     # User_id will be the account contract address of the player.
-    # TODO: let (user_id) = get_caller_address
+    let (user_id) = get_caller_address()
 
     # Check if user has registered to play.
     check_user(user_id)
@@ -682,16 +682,16 @@ func check_user{
         user_data : felt
     ):
     alloc_locals
+    let (controller) = controller_address.read()
+
     # The user_id is the account contract address of the user.
     # Calls UserRegistry and retrieves information stored there.
-    # let (user_registry) = user_registry_address.read()
-    # let(local pub_key, player_data) = I04_UserRegistry.get_user_info()
-    # Assert message sender pubkey used here matches the one retrieved.
-    # assert pub_key = user_id
+    let (user_registry_addr) = IModuleController.get_module_address(
+        controller, 4)
+    let(player_data) = I04_UserRegistry.get_user_info(user_registry_addr, user_id)
 
     # Check that the user is initialized. If not, give money.
     let (already_initialized) = user_initialized.read(user_id)
-    let (controller) = controller_address.read()
     let (user_owned_addr) = IModuleController.get_module_address(
         controller, 3)
     if already_initialized == 0:

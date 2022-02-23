@@ -112,8 +112,7 @@ end
 @contract_interface
 namespace I04_UserRegistry:
     func get_user_info(
-        user_id : felt,
-        starknet_pubkey : felt
+        user_id : felt
     ) -> (
         user_data : felt
     ):
