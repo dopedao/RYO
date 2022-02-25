@@ -3,10 +3,7 @@ import asyncio
 import random
 from fixtures.account import account_factory
 
-NUM_SIGNING_ACCOUNTS = 2
-
-# Number of users the game simulates for testing. E.g., >1000.
-USER_COUNT = 10
+NUM_SIGNING_ACCOUNTS = 7
 
 # Params
 CITIES = 19
@@ -64,6 +61,22 @@ async def game_factory(account_factory):
         source="contracts/07_PseudoRandom.cairo",
         constructor_calldata=[controller.contract_address])
 
+    # Populate the registry with some data.
+    sample_data = 84622096520155505419920978765481155
+
+    # Repeating sample data
+    # Indices from 0, 20, 40, 60, 80..., have values 3.
+    # Indices from 10, 30, 50, 70, 90..., have values 1.
+    # [00010000010011000011] * 6 == [1133] * 6
+    # Populate the registry with homogeneous users (same data each).
+    for i in range(NUM_SIGNING_ACCOUNTS):
+        await signers[i].send_transaction(
+            account=accounts[i],
+            to=registry.contract_address,
+            selector_name='register_user',
+            calldata=[sample_data]
+        )
+
     # The admin key controls the arbiter. Use it to have the arbiter
     # set the module deployment addresses in the controller.
 
@@ -94,27 +107,6 @@ async def test_account_unique(game_factory):
     assert user_1_pub.result == (signers[1].public_key,)
     assert signers[0].public_key != signers[1].public_key
 
-@pytest.fixture(scope='module')
-async def populated_registry(game_factory):
-    starknet, accounts, signers, arbiter, controller, engine, \
-        location_owned, user_owned, registry, combat = game_factory
-    admin = accounts[0]
-    # Populate the registry with some data.
-    sample_data = 84622096520155505419920978765481155
-
-    # Repeating sample data
-    # Indices from 0, 20, 40, 60, 80..., have values 3.
-    # Indices from 10, 30, 50, 70, 90..., have values 1.
-    # [00010000010011000011] * 6 == [1133] * 6
-    # Populate the registry with homogeneous users (same data each).
-    await admin.send_transaction(
-        account=admin,
-        to=registry.contract_address,
-        selector_name='admin_fill_registry',
-        calldata=[USER_COUNT, sample_data])
-    return registry
-
-
 @pytest.mark.asyncio
 @pytest.mark.parametrize('account_factory', [dict(num_signers=NUM_SIGNING_ACCOUNTS)], indirect=True)
 async def test_playerlockout(game_factory):
@@ -136,26 +128,25 @@ async def test_playerlockout(game_factory):
     print(f"> [test_playerlockout] test begins with MIN_TURN_LOCKOUT = {MIN_TURN_LOCKOUT}")
 
     # sub-test #1: 1 user making two consecutive turns
-    user_id = 1
     location_id = 1
     item_id = 1
     buy_or_sell = 0 # buy
     give_quantity = 2000
 
-    turn_1 = await user_signer.send_transaction(
+    turn_1 = await signers[1].send_transaction(
         account=accounts[1],
         to=engine.contract_address,
         selector_name='have_turn',
-        calldata=[user_id, location_id,
-        buy_or_sell, item_id, give_quantity])
+        calldata=[location_id, buy_or_sell, item_id, give_quantity]
+    )
 
     with pytest.raises(Exception) as e_info:
-        turn_2 = await user_signer.send_transaction(
+        turn_2 = await signers[1].send_transaction(
             account=accounts[1],
             to=engine.contract_address,
             selector_name='have_turn',
-            calldata=[user_id, location_id,
-            buy_or_sell, item_id, give_quantity])
+            calldata=[location_id, buy_or_sell, item_id, give_quantity]
+        )
     print(f"> [test_playerlockout] sub-test #1 raises exception: {e_info.value.args}")
     print( "> [test_playerlockout] sub-test #1 passes with exception raised correctly.")
 
@@ -166,24 +157,24 @@ async def test_playerlockout(game_factory):
         item_id = random.randint(1, 19)
         buy_or_sell = 0 # buy only since players start with all money and no items
         give_quantity = 2000
-        turn = await user_signer.send_transaction(
-            account=accounts[1],
+        turn = await signers[user_id].send_transaction(
+            account=accounts[user_id],
             to=engine.contract_address,
             selector_name='have_turn',
-            calldata=[user_id, location_id,
-            buy_or_sell, item_id, give_quantity])
+            calldata=[location_id, buy_or_sell, item_id, give_quantity]
+        )
         print(f"> [test_playerlockout] sub-test #2 #{i}-turn by user#{user_id} completed.")
 
     # back to the first user making its second turn after exactly MIN_TURN_LOCKOUT ticks
     user_id = 2
     location_id = 6
     item_id = 10
-    turn = await user_signer.send_transaction(
+    turn = await signers[1].send_transaction(
         account=accounts[1],
         to=engine.contract_address,
         selector_name='have_turn',
-        calldata=[user_id, location_id,
-        buy_or_sell, item_id, give_quantity])
+        calldata=[location_id, buy_or_sell, item_id, give_quantity]
+    )
     print(f"> [test_playerlockout] sub-test #2 #{MIN_TURN_LOCKOUT+1}-turn by user#{user_id} (its second turn) completed.")
 
     print("> [test_playerlockout] sub-test 2 passes")
@@ -202,8 +193,10 @@ def market_spawn_list_index(city_index, district_index, item_id):
 async def test_single_turn_logic(game_factory):
     starknet, accounts, signers, arbiter, controller, engine, \
         location_owned, user_owned, registry, combat = game_factory
-    user_signer = signers[1]
-    user_id = 9 # avoid reusing user_id already used by test_playerlockout
+    signer = signers[6]
+    account = accounts[6]
+    pub = (await account.get_address().call()).result.res
+    user_idx = 6 # avoid reusing user_id already used by test_playerlockout
     location_id = 34
     item_id = 13
     city_index = location_id // 4 # 34 is in city index 8 (Brooklyn)
@@ -225,7 +218,7 @@ async def test_single_turn_logic(game_factory):
     # If selling, it is "give 50 item". If buying, it is "give 50 money".
     give_quantity = 2000
 
-    pre_trade_user = await user_owned.check_user_state(user_id).call()
+    pre_trade_user = await user_owned.check_user_state(pub).call()
 
     pre_trade_market = await location_owned.check_market_state(
         location_id, item_id).call()
@@ -233,12 +226,12 @@ async def test_single_turn_logic(game_factory):
     print('pre_trade_market', pre_trade_market.result)
     print('pre_trade_user', pre_trade_user.result)
     # Execute a game turn.
-    await user_signer.send_transaction(
-        account=accounts[1],
+    await signer.send_transaction(
+        account=account,
         to=engine.contract_address,
         selector_name='have_turn',
-        calldata=[user_id, location_id,
-        buy_or_sell, item_id, give_quantity])
+        calldata=[location_id, buy_or_sell, item_id, give_quantity]
+    )
 
     response = await engine.read_game_clock().call()
     turn = await engine.view_given_turn(response.result.clock).call()
@@ -320,15 +313,13 @@ async def test_single_turn_logic(game_factory):
 
     # Make a separate contract call to assert persistence of state.
     # Inspect post-trade state
-    response = await user_owned.check_user_state(
-        user_id).call()
+    response = await user_owned.check_user_state(pub).call()
     post_trade_user = response.result
     assert post_trade_user.items[0] == t.user_post_trade_post_event_money
     assert post_trade_user.items[item_id] == t.user_post_trade_post_event_item
     print('post_trade_user', post_trade_user)
 
-    response = await location_owned.check_market_state(
-        location_id, item_id).call()
+    response = await location_owned.check_market_state(location_id, item_id).call()
     post_trade_market = response.result
     assert post_trade_market.item_quantity == t.market_post_trade_post_event_item
     assert post_trade_market.money_quantity == t.market_post_trade_post_event_money
@@ -348,6 +339,6 @@ async def test_single_turn_logic(game_factory):
     #assert random_market_item == random_market_pre_turn_item * \
     #    regional_item_reduction_factor // 100
 
-    random_initialized_user = await user_owned.check_user_state(
-        user_id - 1).call()
-    print('rand user', random_initialized_user.result)
+    # random_initialized_user = await user_owned.check_user_state(
+    #     user_id - 1).call()
+    # print('rand user', random_initialized_user.result)
