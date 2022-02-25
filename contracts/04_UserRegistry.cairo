@@ -60,7 +60,7 @@ func user_data(
 end
 
 @storage_var
-func available_id(
+func user_count(
     ) -> (
         res : felt
     ):
@@ -151,6 +151,17 @@ func unpack_score{
     return (score)
 end
 
+@view
+func get_user_count{
+        syscall_ptr : felt*,
+        pedersen_ptr : HashBuiltin*,
+        range_check_ptr
+    }() -> (
+        user_count : felt
+    ):
+    return user_count.read()
+end
+
 ##### External Functions #####
 
 # User with specific token calls to save their details the game.
@@ -183,5 +194,10 @@ func register_user{
     # 00000000000000000000000000010000000010001
     #                            ^ RR         ^ shovel
     user_data.write(user_id, data)
+
+    # Increment user count
+    let (count) = user_count.read()
+    user_count.write(count + 1)
+
     return ()
 end

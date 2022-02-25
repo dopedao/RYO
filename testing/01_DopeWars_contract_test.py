@@ -77,6 +77,9 @@ async def game_factory(account_factory):
             calldata=[sample_data]
         )
 
+    user_count_call = await registry.get_user_count().call()
+    assert user_count_call.result.user_count == NUM_SIGNING_ACCOUNTS
+
     # The admin key controls the arbiter. Use it to have the arbiter
     # set the module deployment addresses in the controller.
 
