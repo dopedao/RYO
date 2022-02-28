@@ -22,43 +22,10 @@ COLOR_GREEN = '\33[32m'
 COLOR_RED = '\33[31m'
 ENDC = '\033[0m'
 
-@pytest.fixture(scope='module')
-def event_loop():
-    return asyncio.new_event_loop()
+@pytest.mark.asyncio
+async def populated_registry(ctx_factory):
+    ctx = ctx_factory()
 
-@pytest.fixture(scope='module')
-async def game_factory(account_factory):
-    starknet, accounts, signers = account_factory
-
-    arbiter = await starknet.deploy("contracts/Arbiter.cairo")
-    controller = await starknet.deploy(
-        source="contracts/ModuleController.cairo",
-        constructor_calldata=[arbiter.contract_address])
-    engine = await starknet.deploy(
-        source="contracts/01_DopeWars.cairo",
-        constructor_calldata=[controller.contract_address])
-    location_owned = await starknet.deploy(
-        source="contracts/02_LocationOwned.cairo",
-        constructor_calldata=[controller.contract_address])
-    user_owned = await starknet.deploy(
-        source="contracts/03_UserOwned.cairo",
-        constructor_calldata=[controller.contract_address])
-    registry = await starknet.deploy(
-        source="contracts/04_UserRegistry.cairo",
-        constructor_calldata=[controller.contract_address])
-    combat = await starknet.deploy(
-        source="contracts/05_Combat.cairo",
-        constructor_calldata=[controller.contract_address])
-
-
-    return starknet, accounts, signers, arbiter, controller, engine, \
-        location_owned, user_owned, registry, combat
-
-@pytest.fixture(scope='module')
-async def populated_registry(game_factory):
-    starknet, accounts, signers, arbiter, controller, engine, \
-        location_owned, user_owned, registry, combat = game_factory
-    admin = accounts[0]
     # Populate the registry with some data.
     sample_data = 84622096520155505419920978765481155
 
@@ -74,7 +41,7 @@ async def populated_registry(game_factory):
         calldata=[len(signers), sample_data])
     return registry
 
-@pytest.fixture(scope='module')
+@pytest.mark.asyncio
 async def populated_game(game_factory):
     starknet, accounts, signers, arbiter, controller, engine, \
         location_owned, user_owned, registry, combat = game_factory

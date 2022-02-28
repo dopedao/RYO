@@ -1,0 +1,24 @@
+[tool.poetry]
+name = "ryo"
+version = "0.1.0"
+description = ""
+authors = ["ryo"]
+
+[tool.poetry.dependencies]
+python = "^3.7"
+ecdsa = "^0.17.0"
+fastecdsa = "^2.2.1"
+sympy = "^1.9"
+pytest = "^6.2.5"
+pytest-asyncio = "^0.16.0"
+cairo-lang = "^0.7.0"
+dill = "^0.3.4"
+pytest-xdist = "^2.4.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^6.2.5"
+black = {version = "^21.9b0", allow-prereleases = true}
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
