@@ -689,6 +689,8 @@ func check_user{
     let (user_registry_addr) = IModuleController.get_module_address(
         controller, 4)
     let(player_data) = I04_UserRegistry.get_user_info(user_registry_addr, user_id)
+    # assert user is initialized
+    assert_not_zero(player_data)
 
     # Check that the user is initialized. If not, give money.
     let (already_initialized) = user_initialized.read(user_id)

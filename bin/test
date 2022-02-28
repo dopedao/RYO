@@ -1,4 +1,12 @@
 #!/bin/bash
 set -eu
 
-find ./testing -type f -name '*_test.py' -exec pytest {} \;
+# find ./test -type f -name '*_test.py' -exec pytest {} \;
+
+if [ ! -f cache_hash ] || [ ! $(cat cache_hash) = $(git hash-object test/conftest.py) ]; then
+    CLEAR_CACHE="1"
+    poetry run pytest --cache-clear -s -W ignore::DeprecationWarning test/build_cache.py
+    git hash-object test/conftest.py > cache_hash
+fi
+
+poetry run pytest -n auto -s -W ignore::DeprecationWarning test/01_DopeWars_contract_test.py
