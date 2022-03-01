@@ -5,9 +5,10 @@ from starkware.cairo.common.registers import get_fp_and_pc
 from starkware.cairo.common.signature import verify_ecdsa_signature
 from starkware.cairo.common.cairo_builtins import HashBuiltin, SignatureBuiltin
 from starkware.starknet.common.syscalls import (
-    call_contract, get_caller_address, get_tx_signature, get_contract_address)
+    call_contract, get_caller_address, get_tx_signature, get_contract_address, get_block_timestamp)
 from starkware.cairo.common.hash_state import (
     hash_init, hash_finalize, hash_update, hash_update_single)
+from starkware.cairo.common.math import (assert_nn_le)
 
 #
 # Structs
@@ -32,6 +33,11 @@ end
 
 @storage_var
 func public_key() -> (res : felt):
+end
+
+# Given a guardian selector, returns its expiration time
+@storage_var
+func guardians(selector : felt) -> (expires : felt):
 end
 
 #
@@ -82,6 +88,16 @@ func set_public_key{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_chec
     return ()
 end
 
+@external
+func set_guardian{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+        public_key : felt, to : felt, selector : felt, expires : felt):
+    alloc_locals
+    assert_only_self()
+    let (guardian_selector) = hash_guardian_selector(public_key, to, selector)
+    guardians.write(guardian_selector, expires)
+    return ()
+end
+
 #
 # Constructor
 #
@@ -100,8 +116,7 @@ end
 @view
 func is_valid_signature{
         syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr,
-        ecdsa_ptr : SignatureBuiltin*}(hash : felt, signature_len : felt, signature : felt*) -> ():
-    let (_public_key) = public_key.read()
+        ecdsa_ptr : SignatureBuiltin*}(public_key : felt, hash : felt, signature_len : felt, signature : felt*) -> ():
 
     # This interface expects a signature pointer and length to make
     # no assumption about signature validation schemes.
@@ -110,16 +125,55 @@ func is_valid_signature{
     let sig_s = signature[1]
 
     verify_ecdsa_signature(
-        message=hash, public_key=_public_key, signature_r=sig_r, signature_s=sig_s)
+        message=hash, public_key=public_key, signature_r=sig_r, signature_s=sig_s)
 
+    return ()
+end
+
+@view
+func is_authorized{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr,
+        ecdsa_ptr : SignatureBuiltin*}(
+        public_key : felt, to : felt, selector : felt) -> ():
+
+    let (guardian_selector) = hash_guardian_selector(public_key, to, selector)
+    let (expires) = guardians.read(guardian_selector)
+    let (block_timestamp) = get_block_timestamp()
+    assert_nn_le(block_timestamp, expires)
     return ()
 end
 
 @external
 func execute{
-        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr,
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr,
         ecdsa_ptr : SignatureBuiltin*}(
         to : felt, selector : felt, calldata_len : felt, calldata : felt*, nonce : felt) -> (
+        response : felt):
+    alloc_locals
+    let (_public_key) = public_key.read()
+    let (response) = _execute(_public_key, to, selector, calldata_len, calldata, nonce)
+    return (response=response)
+end
+
+@external
+func executeFrom{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr,
+        ecdsa_ptr : SignatureBuiltin*}(
+        public_key : felt, to : felt, selector : felt, calldata_len : felt, calldata : felt*, nonce : felt) -> (
+        response : felt):
+    alloc_locals
+
+    is_authorized(public_key, to, selector)
+
+    # execute call
+    let (response) = _execute(public_key, to, selector, calldata_len, calldata, nonce)
+    return (response=response)
+end
+
+func _execute{
+        syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr,
+        ecdsa_ptr : SignatureBuiltin*}(
+        public_key : felt, to : felt, selector : felt, calldata_len : felt, calldata : felt*, nonce : felt) -> (
         response : felt):
     alloc_locals
 
@@ -139,7 +193,7 @@ func execute{
     # validate transaction
     let (hash) = hash_message(&message)
     let (signature_len, signature) = get_tx_signature()
-    is_valid_signature(hash, signature_len, signature)
+    is_valid_signature(public_key, hash, signature_len, signature)
 
     # bump nonce
     current_nonce.write(_current_nonce + 1)
@@ -178,6 +232,20 @@ func hash_calldata{pedersen_ptr : HashBuiltin*}(calldata : felt*, calldata_size 
     with hash_ptr:
         let (hash_state_ptr) = hash_init()
         let (hash_state_ptr) = hash_update(hash_state_ptr, calldata, calldata_size)
+        let (res) = hash_finalize(hash_state_ptr)
+        let pedersen_ptr = hash_ptr
+        return (res=res)
+    end
+end
+
+func hash_guardian_selector{pedersen_ptr : HashBuiltin*}(guardian : felt, to : felt, selector : felt) -> (
+        res : felt):
+    let hash_ptr = pedersen_ptr
+    with hash_ptr:
+        let (hash_state_ptr) = hash_init()
+        let (hash_state_ptr) = hash_update_single(hash_state_ptr, guardian)
+        let (hash_state_ptr) = hash_update_single(hash_state_ptr, to)
+        let (hash_state_ptr) = hash_update_single(hash_state_ptr, selector)
         let (res) = hash_finalize(hash_state_ptr)
         let pedersen_ptr = hash_ptr
         return (res=res)
