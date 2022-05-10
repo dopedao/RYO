@@ -5,9 +5,9 @@ from utils.Signer import Signer
 # Create signers that use a private key to sign transaction objects.
 DUMMY_PRIVATE = 123456789987654321
 
-@pytest.fixture(scope='module')
-async def account_factory(request):
-    num_signers = request.param.get("num_signers", "1")
+# @pytest.fixture(scope='module')
+async def account_factory(num_signers):
+    # num_signers = request.param.get("num_signers", "1")
     starknet = await Starknet.empty()
     accounts = []
     signers = []
@@ -20,7 +20,7 @@ async def account_factory(request):
             "contracts/Account.cairo",
             constructor_calldata=[signer.public_key]
         )
-        await account.initialize(account.contract_address).invoke()
+        # await account.initialize(account.contract_address).invoke()
         accounts.append(account)
 
         print(f'Account {i} is: {hex(account.contract_address)}')

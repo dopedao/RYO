@@ -1,32 +1,53 @@
 %lang starknet
 
-from starkware.cairo.common.cairo_builtins import (HashBuiltin,
-    BitwiseBuiltin)
-from starkware.cairo.common.math import (assert_nn_le,
-    unsigned_div_rem, assert_not_zero)
+from starkware.cairo.common.cairo_builtins import HashBuiltin, BitwiseBuiltin
+from starkware.cairo.common.math import assert_nn_le, unsigned_div_rem, assert_not_zero
 from starkware.cairo.common.math_cmp import is_nn_le
-from starkware.cairo.common.hash_state import (hash_init,
-    hash_update, HashState)
+from starkware.cairo.common.hash_state import hash_init, hash_update, HashState
 from starkware.cairo.common.alloc import alloc
 from starkware.starknet.common.syscalls import get_caller_address
 
 from contracts.utils.market_maker import trade
-from contracts.utils.game_constants import (DEALER_DASH_BP,
-    WRANGLE_DASHED_DEALER_BP, MUGGING_BP, MUGGING_IMPACT,
-    RUN_FROM_MUGGING_BP, GANG_WAR_BP, GANG_WAR_IMPACT,
-    DEFEND_GANG_WAR_BP, COP_RAID_BP, COP_RAID_IMPACT,
-    BRIBE_COPS_BP, FIND_ITEM_BP, FIND_ITEM_IMPACT, LOCAL_SHIPMENT_BP,
-    LOCAL_SHIPMENT_IMPACT, WAREHOUSE_SEIZURE_BP,
-    WAREHOUSE_SEIZURE_IMPACT, MIN_EVENT_FRACTION, MIN_TURN_LOCKOUT, DRUG_LORD_PERCENTAGE, NUM_COMBAT_STATS,
-    LOCATIONS, DISTRICTS, STARTING_MONEY)
+from contracts.utils.game_constants import (
+    DEALER_DASH_BP,
+    WRANGLE_DASHED_DEALER_BP,
+    MUGGING_BP,
+    MUGGING_IMPACT,
+    RUN_FROM_MUGGING_BP,
+    GANG_WAR_BP,
+    GANG_WAR_IMPACT,
+    DEFEND_GANG_WAR_BP,
+    COP_RAID_BP,
+    COP_RAID_IMPACT,
+    BRIBE_COPS_BP,
+    FIND_ITEM_BP,
+    FIND_ITEM_IMPACT,
+    LOCAL_SHIPMENT_BP,
+    LOCAL_SHIPMENT_IMPACT,
+    WAREHOUSE_SEIZURE_BP,
+    WAREHOUSE_SEIZURE_IMPACT,
+    MIN_EVENT_FRACTION,
+    MIN_TURN_LOCKOUT,
+    DRUG_LORD_PERCENTAGE,
+    NUM_COMBAT_STATS,
+    LOCATIONS,
+    DISTRICTS,
+    STARTING_MONEY,
+)
 from contracts.utils.game_structs import UserData, TurnLog
 from contracts.utils.general import scale
 from contracts.utils.game_data_helpers import fetch_user_data
-from contracts.utils.interfaces import (IModuleController,
-    I02_LocationOwned, I03_UserOwned, I04_UserRegistry, I05_Combat,
-    I06_DrugLord, I07_PseudoRandom)
+from contracts.utils.interfaces import (
+    IModuleController,
+    I02_LocationOwned,
+    I03_UserOwned,
+    I04_UserRegistry,
+    I05_Combat,
+    I06_DrugLord,
+    I07_PseudoRandom,
+)
 
-##### Module XX #####
+# #### Module XX #####
 #
 # This module is the player entry point for the drug-wars style
 # calculator game of drug arbitrage. It accesses game states
@@ -34,8 +55,7 @@ from contracts.utils.interfaces import (IModuleController,
 #
 ####################
 
-
-############ Game key ############
+# ########### Game key ############
 # Location and market are equivalent terms (one market per location)
 # 76 location_ids [0, 75]. (19 cities, 4 districts each).
 # user_ids: e.g., [0, not capped]. These will likely be account addresses.
@@ -44,16 +64,15 @@ from contracts.utils.interfaces import (IModuleController,
 
 # E.g., first location (location_id=0), first item (item_id=1)
 
-############ Events ############
+# ########### Events ############
 
 # An event emitted whenever have_turn() is called.
 # current_balance is the balance before it was increased.
 @event
-func have_turn_called(
-        clock : felt):
+func have_turn_called(clock : felt):
 end
 
-############ Game state ############
+# ########### Game state ############
 # Records if a user has been initialized (flips to 1 on first turn).
 @storage_var
 func user_initialized(user_id : felt) -> (bool : felt):
@@ -84,36 +103,24 @@ end
 func controller_address() -> (address : felt):
 end
 
-############ Admin Functions for Testing ############
+# ########### Admin Functions for Testing ############
 # Called on deployment only.
 @constructor
-func constructor{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        address_of_controller : felt
-    ):
+func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    address_of_controller : felt
+):
     # Store the address of the only fixed contract in the system.
     controller_address.write(address_of_controller)
     game_clock.write(MIN_TURN_LOCKOUT)
     return ()
 end
 
-############ Game functions ############
+# ########### Game functions ############
 # Actions turn (move user, execute trade).
 @external
 func have_turn{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr,
-        bitwise_ptr: BitwiseBuiltin*
-    }(
-        location_id : felt,
-        buy_or_sell : felt,
-        item_id : felt,
-        amount_to_give : felt
-    ):
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
+}(location_id : felt, buy_or_sell : felt, item_id : felt, amount_to_give : felt):
     alloc_locals
     # Uncomment for pytest: Get address of UserRegistry.
     # let user_registry = USER_REGISTRY_ADDRESS
@@ -128,19 +135,19 @@ func have_turn{
     # Record initial state for UI and QA.
     let (local controller) = controller_address.read()
 
-    let (local location_owned_addr) = IModuleController.get_module_address(
-        controller, 2)
+    let (local location_owned_addr) = IModuleController.get_module_address(controller, 2)
     let (local market_pre_trade_item) = I02_LocationOwned.location_has_item_read(
-        location_owned_addr, location_id, item_id)
+        location_owned_addr, location_id, item_id
+    )
     let (local market_pre_trade_money) = I02_LocationOwned.location_has_money_read(
-        location_owned_addr, location_id, item_id)
+        location_owned_addr, location_id, item_id
+    )
 
-    let (local user_owned_addr) = IModuleController.get_module_address(
-        controller, 3)
+    let (local user_owned_addr) = IModuleController.get_module_address(controller, 3)
     let (local user_pre_trade_item) = I03_UserOwned.user_has_item_read(
-        user_owned_addr, user_id, item_id)
-    let (local user_pre_trade_money) = I03_UserOwned.user_has_item_read(
-        user_owned_addr, user_id, 0)
+        user_owned_addr, user_id, item_id
+    )
+    let (local user_pre_trade_money) = I03_UserOwned.user_has_item_read(user_owned_addr, user_id, 0)
 
     let (local user_data : UserData) = fetch_user_data(controller, user_id)
     # TODO - Use unique user data to modify events:
@@ -149,70 +156,70 @@ func have_turn{
     local syscall_ptr : felt* = syscall_ptr
     let a = 3
     # Drug lord takes a cut.
-    let (local amount_to_give_post_cut) = take_cut(user_id,
-        location_id, buy_or_sell, item_id,
-        amount_to_give)
+    let (local amount_to_give_post_cut) = take_cut(
+        user_id, location_id, buy_or_sell, item_id, amount_to_give
+    )
     let b = a
     # Affect pseudorandom seed at start of turn.
     # User can grind a favourable number by incrementing lots of 10.
     let (low_precision_quant, _) = unsigned_div_rem(amount_to_give_post_cut, 10)
-    let (pseudo_random_addr) = IModuleController.get_module_address(
-        controller, 7)
+    let (pseudo_random_addr) = IModuleController.get_module_address(controller, 7)
     let (pseudorandom) = I07_PseudoRandom.add_to_seed(
-        pseudo_random_addr, item_id, amount_to_give_post_cut)
+        pseudo_random_addr, item_id, amount_to_give_post_cut
+    )
     # Get all events for this turn.
     # For UI, pass through values temporarily (in lieu of 'events').
-    let (
-        local trade_occurs_bool : felt,
-        local money_reduction_factor : felt,
-        local item_reduction_factor : felt,
-        local regional_item_reduction_factor : felt,
-        local dealer_dash_bool : felt,
-        local wrangle_dashed_dealer_bool : felt,
-        local mugging_bool : felt,
-        local run_from_mugging_bool : felt,
-        local gang_war_bool : felt,
-        local defend_gang_war_bool : felt,
-        local cop_raid_bool : felt,
-        local bribe_cops_bool : felt,
-        local find_item_bool : felt,
-        local local_shipment_bool : felt,
-        local warehouse_seizure_bool : felt
-    ) = get_events(user_data)
+    let (local trade_occurs_bool : felt, local money_reduction_factor : felt,
+        local item_reduction_factor : felt, local regional_item_reduction_factor : felt,
+        local dealer_dash_bool : felt, local wrangle_dashed_dealer_bool : felt,
+        local mugging_bool : felt, local run_from_mugging_bool : felt, local gang_war_bool : felt,
+        local defend_gang_war_bool : felt, local cop_raid_bool : felt, local bribe_cops_bool : felt,
+        local find_item_bool : felt, local local_shipment_bool : felt,
+        local warehouse_seizure_bool : felt) = get_events(user_data)
 
     # Apply trade and save results for market QA checks.
     # TODO: QA checks need to account for cut taken by drug_lord.
-    execute_trade(user_id, location_id, buy_or_sell, item_id,
-            amount_to_give_post_cut, trade_occurs_bool)
+    execute_trade(
+        user_id, location_id, buy_or_sell, item_id, amount_to_give_post_cut, trade_occurs_bool
+    )
 
     # Save post-trade pre-event state.
     let (local market_post_trade_pre_event_item) = I02_LocationOwned.location_has_item_read(
-        location_owned_addr, location_id, item_id)
+        location_owned_addr, location_id, item_id
+    )
     let (local market_post_trade_pre_event_money) = I02_LocationOwned.location_has_money_read(
-        location_owned_addr, location_id, item_id)
+        location_owned_addr, location_id, item_id
+    )
 
     # Apply post-trade money using factors that arose from events.
-    let (local user_post_trade_pre_event_money) = I03_UserOwned.user_has_item_read(user_owned_addr,
-        user_id, 0)
+    let (local user_post_trade_pre_event_money) = I03_UserOwned.user_has_item_read(
+        user_owned_addr, user_id, 0
+    )
     let (local user_post_trade_post_event_money, _) = unsigned_div_rem(
-        user_post_trade_pre_event_money * money_reduction_factor, 100)
+        user_post_trade_pre_event_money * money_reduction_factor, 100
+    )
     I03_UserOwned.user_has_item_write(user_owned_addr, user_id, 0, user_post_trade_post_event_money)
     # Apply post-trade item using factors that arose from events.
-    let (local user_post_trade_pre_event_item) = I03_UserOwned.user_has_item_read(user_owned_addr,
-        user_id, item_id)
+    let (local user_post_trade_pre_event_item) = I03_UserOwned.user_has_item_read(
+        user_owned_addr, user_id, item_id
+    )
     let (local user_post_trade_post_event_item, _) = unsigned_div_rem(
-        user_post_trade_pre_event_item * item_reduction_factor, 100)
-    I03_UserOwned.user_has_item_write(user_owned_addr, user_id, item_id, user_post_trade_post_event_item)
+        user_post_trade_pre_event_item * item_reduction_factor, 100
+    )
+    I03_UserOwned.user_has_item_write(
+        user_owned_addr, user_id, item_id, user_post_trade_post_event_item
+    )
 
     # Change the supply in regional markets due to event occurences.
-    update_regional_items(location_id, item_id,
-        regional_item_reduction_factor)
+    update_regional_items(location_id, item_id, regional_item_reduction_factor)
 
     # Return the post-trade posmarket_post_trade_post_event_item-event values for UI and QA checks.
     let (local market_post_trade_post_event_item) = I02_LocationOwned.location_has_item_read(
-        location_owned_addr, location_id, item_id)
+        location_owned_addr, location_id, item_id
+    )
     let (local market_post_trade_post_event_money) = I02_LocationOwned.location_has_money_read(
-        location_owned_addr, location_id, item_id)
+        location_owned_addr, location_id, item_id
+    )
 
     # Check that turn for this player is sufficiently spaced.
     let (current_clock) = game_clock.read()
@@ -221,7 +228,6 @@ func have_turn{
     # The turn that is happening now is 'current_clock + 1'.
     game_clock.write(current_clock + 1)
     clock_at_previous_turn.write(user_id, current_clock + 1)
-
 
     local turn_log : TurnLog
     assert turn_log = TurnLog(user_id=user_id,
@@ -262,17 +268,12 @@ func have_turn{
     return ()
 end
 
-
-############ Read-Only Functions for Testing ############
+# ########### Read-Only Functions for Testing ############
 # Gets the current game clock. This represents a turn that has happened.
 @view
-func read_game_clock{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }() -> (
-        clock : felt
-    ):
+func read_game_clock{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}() -> (
+    clock : felt
+):
     # This turn is the most recent to have occurred.
     let (clock) = game_clock.read()
     return (clock)
@@ -280,35 +281,25 @@ end
 
 # Returns values used for testing and for indexing events/frontend.
 @view
-func view_given_turn{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        game_clock_at_turn : felt
-    ) -> (
-        turn_log : TurnLog
-    ):
+func view_given_turn{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    game_clock_at_turn : felt
+) -> (turn_log : TurnLog):
     let (turn_log : TurnLog) = logs_at_given_clock.read(game_clock_at_turn)
     return (turn_log)
 end
 
-
-############ Helper Functions ############
+# ########### Helper Functions ############
 # Execute trade
 func execute_trade{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        bitwise_ptr : BitwiseBuiltin*,
-        range_check_ptr
-    }(
-        user_id : felt,
-        location_id : felt,
-        buy_or_sell : felt,
-        item_id : felt,
-        amount_to_give : felt,
-        trade_occurs_bool : felt
-    ):
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, bitwise_ptr : BitwiseBuiltin*, range_check_ptr
+}(
+    user_id : felt,
+    location_id : felt,
+    buy_or_sell : felt,
+    item_id : felt,
+    amount_to_give : felt,
+    trade_occurs_bool : felt,
+):
     alloc_locals
 
     # This skips the trade and passes back the implicit arguments.
@@ -320,12 +311,9 @@ func execute_trade{
     assert_nn_le(buy_or_sell, 1)
     # Move user
     let (controller) = controller_address.read()
-    let (location_owned_addr) = IModuleController.get_module_address(
-        controller, 2)
-    let (user_owned_addr) = IModuleController.get_module_address(
-        controller, 3)
-    I03_UserOwned.user_in_location_write(user_owned_addr,
-        user_id, location_id)
+    let (location_owned_addr) = IModuleController.get_module_address(controller, 2)
+    let (user_owned_addr) = IModuleController.get_module_address(controller, 3)
+    I03_UserOwned.user_in_location_write(user_owned_addr, user_id, location_id)
 
     # giving_id = 0 if buying, giving_id = item_id if selling.
     local giving_id = item_id * buy_or_sell
@@ -342,9 +330,10 @@ func execute_trade{
     # Save reduced balance to state.
     I03_UserOwned.user_has_item_write(user_owned_addr, user_id, giving_id, user_a_post)
 
-
     # Pre-receiving balance.
-    let (local user_b_pre) = I03_UserOwned.user_has_item_read(user_owned_addr, user_id, receiving_id)
+    let (local user_b_pre) = I03_UserOwned.user_has_item_read(
+        user_owned_addr, user_id, receiving_id
+    )
     # Post-receiving balance depends on MarketMaker.
 
     # Record pre-trade market balances.
@@ -353,24 +342,29 @@ func execute_trade{
     if buy_or_sell == 0:
         # Buying. A money, B item.
         let (market_a_pre_temp) = I02_LocationOwned.location_has_money_read(
-            location_owned_addr, location_id, item_id)
+            location_owned_addr, location_id, item_id
+        )
         let (market_b_pre_temp) = I02_LocationOwned.location_has_item_read(
-            location_owned_addr, location_id, item_id)
+            location_owned_addr, location_id, item_id
+        )
         assert market_a_pre = market_a_pre_temp
         assert market_b_pre = market_b_pre_temp
     else:
         # Selling. A item, B money.
         let (market_a_pre_temp) = I02_LocationOwned.location_has_item_read(
-            location_owned_addr, location_id, item_id)
+            location_owned_addr, location_id, item_id
+        )
         let (market_b_pre_temp) = I02_LocationOwned.location_has_money_read(
-            location_owned_addr, location_id, item_id)
+            location_owned_addr, location_id, item_id
+        )
         assert market_a_pre = market_a_pre_temp
         assert market_b_pre = market_b_pre_temp
     end
 
     # Execute trade by calling the market maker contract.
     let (market_a_post, market_b_post, user_gets_b) = trade(
-        market_a_pre, market_b_pre, amount_to_give)
+        market_a_pre, market_b_pre, amount_to_give
+    )
 
     # Post-receiving balance depends on user_gets_b.
     let user_b_post = user_b_pre + user_gets_b
@@ -381,49 +375,45 @@ func execute_trade{
     if buy_or_sell == 0:
         # User bought item. A is money.
         I02_LocationOwned.location_has_money_write(
-            location_owned_addr, location_id, item_id, market_a_post)
+            location_owned_addr, location_id, item_id, market_a_post
+        )
         # B is item.
         I02_LocationOwned.location_has_item_write(
-            location_owned_addr, location_id, item_id, market_b_post)
+            location_owned_addr, location_id, item_id, market_b_post
+        )
     else:
         # User sold item. A is item.
         I02_LocationOwned.location_has_item_write(
-            location_owned_addr, location_id, item_id, market_a_post)
+            location_owned_addr, location_id, item_id, market_a_post
+        )
         # B is money.
         I02_LocationOwned.location_has_money_write(
-            location_owned_addr, location_id, item_id, market_b_post)
+            location_owned_addr, location_id, item_id, market_b_post
+        )
     end
     return ()
 end
 
-
-
-
 # Evaluates all major events.
 func get_events{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr,
-        bitwise_ptr: BitwiseBuiltin*
-    }(
-        user_data : UserData
-    ) -> (
-        trade_occurs_bool : felt,
-        money_reduction_factor : felt,
-        item_reduction_factor : felt,
-        regional_item_reduction_factor : felt,
-        dealer_dash_bool : felt,
-        wrangle_dashed_dealer_bool : felt,
-        mugging_bool : felt,
-        run_from_mugging_bool : felt,
-        gang_war_bool : felt,
-        defend_gang_war_bool : felt,
-        cop_raid_bool : felt,
-        bribe_cops_bool : felt,
-        find_item_bool : felt,
-        local_shipment_bool : felt,
-        warehouse_seizure_bool : felt
-    ):
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
+}(user_data : UserData) -> (
+    trade_occurs_bool : felt,
+    money_reduction_factor : felt,
+    item_reduction_factor : felt,
+    regional_item_reduction_factor : felt,
+    dealer_dash_bool : felt,
+    wrangle_dashed_dealer_bool : felt,
+    mugging_bool : felt,
+    run_from_mugging_bool : felt,
+    gang_war_bool : felt,
+    defend_gang_war_bool : felt,
+    cop_raid_bool : felt,
+    bribe_cops_bool : felt,
+    find_item_bool : felt,
+    local_shipment_bool : felt,
+    warehouse_seizure_bool : felt,
+):
     # Factors that apply post trade. Two scenarios can affect the
     # same variable, with both having a summation effect where two
     # 30% reduction effects (10 - 3 - 3) * 10)//10 = 60% reduction.
@@ -438,26 +428,20 @@ func get_events{
     let (local bribe_ability, _) = unsigned_div_rem(bribe_ability, 2)
 
     # Run ability increases WRANGLE_DASHED_DEALER_BP (increases=1).
-    let (local wrangle_bp) = scale_ability(run_ability,
-        WRANGLE_DASHED_DEALER_BP, 1)
+    let (local wrangle_bp) = scale_ability(run_ability, WRANGLE_DASHED_DEALER_BP, 1)
     # Power ability decreases MUGGING_BP (increases=0).
-    let (local mugging_bp) = scale_ability(power_ability,
-        MUGGING_BP, 0)
+    let (local mugging_bp) = scale_ability(power_ability, MUGGING_BP, 0)
     # Run ability increases RUN_FROM_MUGGING_BP (increases=1).
-    let (local run_bp) = scale_ability(run_ability,
-        RUN_FROM_MUGGING_BP, 1)
+    let (local run_bp) = scale_ability(run_ability, RUN_FROM_MUGGING_BP, 1)
     # Power ability decreases GANG_WAR_BP (increases=0).
     let (local war_bp) = scale_ability(power_ability, GANG_WAR_BP, 0)
     # Power ability increases DEFEND_GANG_WAR_BP (increases=1).
-    let (local defend_war_bp) = scale_ability(power_ability,
-        DEFEND_GANG_WAR_BP, 1)
+    let (local defend_war_bp) = scale_ability(power_ability, DEFEND_GANG_WAR_BP, 1)
     # Power ability increases COP_RAID_BP (increases=1).
     # That is, power increases chance of cop raids.
-    let (local cop_raid_bp) = scale_ability(power_ability,
-        COP_RAID_BP, 1)
+    let (local cop_raid_bp) = scale_ability(power_ability, COP_RAID_BP, 1)
     # Bribe ability decreases BRIBE_COPS_BP (increases=0).
-    let (local bribe_bp) = scale_ability(bribe_ability,
-        BRIBE_COPS_BP, 0)
+    let (local bribe_bp) = scale_ability(bribe_ability, BRIBE_COPS_BP, 0)
 
     # Retrieve events
     let (local dealer_dash_bool) = event_occured(DEALER_DASH_BP)
@@ -504,7 +488,7 @@ func get_events{
     # cop raid = F - x * (1 * (1 - 0)) = F - x.
     # not raid = F - x * (1 * (1 - 1)) = F.
     # not raid = F - x * (0 * (1 - NA)) = F.
-    let item_reduction_factor =  item_reduction_factor - COP_RAID_IMPACT * (
+    let item_reduction_factor = item_reduction_factor - COP_RAID_IMPACT * (
         cop_raid_bool * (1 - bribe_cops_bool))
     let money_reduction_factor = money_reduction_factor - COP_RAID_IMPACT * (
         cop_raid_bool * (1 - bribe_cops_bool))
@@ -543,32 +527,21 @@ func get_events{
         bribe_cops_bool,
         find_item_bool,
         local_shipment_bool,
-        warehouse_seizure_bool
+        warehouse_seizure_bool,
     )
 end
 
-
 # Returns an effective probability based on an ability.
 func scale_ability{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr,
-        bitwise_ptr: BitwiseBuiltin*
-    } (
-        ability : felt,
-        event_max_bp : felt,
-        increases : felt
-    ) -> (
-        effective_bp : felt
-    ):
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
+}(ability : felt, event_max_bp : felt, increases : felt) -> (effective_bp : felt):
     # Ability range (derived from item scores 1-10, then scaled).
     # Passing an ability less than 10 is not possible without
     # first changing the min_ab below
     let min_ab = 10
     let max_ab = 100
     # Determine the minimum possible BP: EVENT_BP * MEF/100
-    let (min_bp, _) = unsigned_div_rem(
-        event_max_bp * MIN_EVENT_FRACTION, 100)
+    let (min_bp, _) = unsigned_div_rem(event_max_bp * MIN_EVENT_FRACTION, 100)
 
     # Get effective probability, based on how the ability (increases=1)
     # changes the event. E.g., event has 50% chance, low ability=30.
@@ -577,31 +550,20 @@ func scale_ability{
         (max_ab + min_ab - ability)
 
     # Map the ability to BPs: [10, 100] -> [min_bp, EVENT_BP]
-    let (effective_bp) = scale(ability, min_ab, max_ab, min_bp,
-        event_max_bp)
+    let (effective_bp) = scale(ability, min_ab, max_ab, min_bp, event_max_bp)
     return (effective_bp)
 end
 
-
 # Determines if an event occurs, given a probabilitiy (basis points).
 func event_occured{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr,
-        bitwise_ptr: BitwiseBuiltin*
-    }(
-        probability_bp : felt
-    ) -> (
-        event_boolean : felt
-    ):
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
+}(probability_bp : felt) -> (event_boolean : felt):
     # Returns 1 if the event occured, 0 otherwise.
     # Event evaluation = num modulo max_basis_points
     alloc_locals
     let (controller) = controller_address.read()
-    let (pseudo_random_addr) = IModuleController.get_module_address(
-        controller, 7)
-    let (p_rand_num) = I07_PseudoRandom.get_pseudorandom(
-        pseudo_random_addr)
+    let (pseudo_random_addr) = IModuleController.get_module_address(controller, 7)
+    let (p_rand_num) = I07_PseudoRandom.get_pseudorandom(pseudo_random_addr)
     let (_, event) = unsigned_div_rem(p_rand_num, 10000)
 
     # Save pointers here (otherwise revoked by is_nn_le).
@@ -609,20 +571,13 @@ func event_occured{
     local pedersen_ptr : HashBuiltin* = pedersen_ptr
     # Event occurs if number is below specified basis points.
     let (result) = is_nn_le(event, probability_bp)
-    return (event_boolean = result)
+    return (event_boolean=result)
 end
 
 # Changes the supply of an item in the region around a location.
 func update_regional_items{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr,
-        bitwise_ptr: BitwiseBuiltin*
-    }(
-        location_id : felt,
-        item_id : felt,
-        factor : felt
-    ):
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
+}(location_id : felt, item_id : felt, factor : felt):
     # 76 Locations [0, 75] are divided into 19 cities with 4 suburbs.
     # location_ids are sequential.
     # [loc_0_dis_0, loc_0_dis_1, ..., loc_75_dis_3, loc_75_dis_3]
@@ -640,62 +595,46 @@ func update_regional_items{
 
     # new = old * factor.
     let (controller) = controller_address.read()
-    let (location_owned_addr) = IModuleController.get_module_address(
-        controller, 2)
+    let (location_owned_addr) = IModuleController.get_module_address(controller, 2)
 
     # Get current count, apply factor, save.
-    let (val_0) = I02_LocationOwned.location_has_item_read(
-        location_owned_addr, city, item_id)
+    let (val_0) = I02_LocationOwned.location_has_item_read(location_owned_addr, city, item_id)
     let (val_0_new, _) = unsigned_div_rem(val_0 * factor, 100)
-    I02_LocationOwned.location_has_item_write(
-        location_owned_addr, city, item_id, val_0_new)
+    I02_LocationOwned.location_has_item_write(location_owned_addr, city, item_id, val_0_new)
 
-    let (val_1) = I02_LocationOwned.location_has_item_read(
-        location_owned_addr, city + 1, item_id)
+    let (val_1) = I02_LocationOwned.location_has_item_read(location_owned_addr, city + 1, item_id)
     let (val_1_new, _) = unsigned_div_rem(val_1 * factor, 100)
-    I02_LocationOwned.location_has_item_write(
-        location_owned_addr, city + 1, item_id, val_1_new)
+    I02_LocationOwned.location_has_item_write(location_owned_addr, city + 1, item_id, val_1_new)
 
-    let (val_2) = I02_LocationOwned.location_has_item_read(
-        location_owned_addr, city + 2, item_id)
+    let (val_2) = I02_LocationOwned.location_has_item_read(location_owned_addr, city + 2, item_id)
     let (val_2_new, _) = unsigned_div_rem(val_2 * factor, 100)
-    I02_LocationOwned.location_has_item_write(
-        location_owned_addr, city + 2, item_id, val_2_new)
+    I02_LocationOwned.location_has_item_write(location_owned_addr, city + 2, item_id, val_2_new)
 
-    let (val_3) = I02_LocationOwned.location_has_item_read(
-        location_owned_addr, city + 3, item_id)
+    let (val_3) = I02_LocationOwned.location_has_item_read(location_owned_addr, city + 3, item_id)
     let (val_3_new, _) = unsigned_div_rem(val_3 * factor, 100)
-    I02_LocationOwned.location_has_item_write(
-        location_owned_addr, city + 3, item_id, val_3_new)
+    I02_LocationOwned.location_has_item_write(location_owned_addr, city + 3, item_id, val_3_new)
     return ()
 end
 
+# XXX - used to get item data, in exerciser_test, which is different from below comment
 # Checks the user has the correct credentials and returns game data.
+@view
 func check_user{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr,
-        bitwise_ptr: BitwiseBuiltin*
-    }(
-        user_id : felt
-    ) -> (
-        user_data : felt
-    ):
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr, bitwise_ptr : BitwiseBuiltin*
+}(user_id : felt) -> (user_data : felt):
     alloc_locals
     let (controller) = controller_address.read()
 
     # The user_id is the account contract address of the user.
     # Calls UserRegistry and retrieves information stored there.
-    let (user_registry_addr) = IModuleController.get_module_address(
-        controller, 4)
-    let(player_data) = I04_UserRegistry.get_user_info(user_registry_addr, user_id)
+    let (user_registry_addr) = IModuleController.get_module_address(controller, 4)
+    let (player_data) = I04_UserRegistry.get_user_info(user_registry_addr, user_id)
     # assert user is initialized
     assert_not_zero(player_data)
 
     # Check that the user is initialized. If not, give money.
     let (already_initialized) = user_initialized.read(user_id)
-    let (user_owned_addr) = IModuleController.get_module_address(
-        controller, 3)
+    let (user_owned_addr) = IModuleController.get_module_address(controller, 3)
     if already_initialized == 0:
         I03_UserOwned.user_has_item_write(user_owned_addr, user_id, 0, STARTING_MONEY)
         tempvar syscall_ptr : felt* = syscall_ptr
@@ -709,31 +648,21 @@ func check_user{
 
     # TODO: Return the registry-based characteristics of the player.
     let user_data = 0
+
+    #
     return (user_data)
 end
 
-
 # Gives the drug lord a cut of whatever the user is giving.
 func take_cut{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        bitwise_ptr: BitwiseBuiltin*,
-        range_check_ptr
-    }(
-        user_id : felt,
-        location_id : felt,
-        buy_or_sell : felt,
-        item_id : felt,
-        amount_to_give : felt
-    ) -> (
-        amount_to_give_post_cut : felt
-    ):
+    syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, bitwise_ptr : BitwiseBuiltin*, range_check_ptr
+}(
+    user_id : felt, location_id : felt, buy_or_sell : felt, item_id : felt, amount_to_give : felt
+) -> (amount_to_give_post_cut : felt):
     alloc_locals
     let (controller) = controller_address.read()
-    let (local drug_lord_addr) = IModuleController.get_module_address(
-        controller, 6)
-    let (lord_user_id) = I06_DrugLord.drug_lord_read(drug_lord_addr,
-        location_id)
+    let (local drug_lord_addr) = IModuleController.get_module_address(controller, 6)
+    let (lord_user_id) = I06_DrugLord.drug_lord_read(drug_lord_addr, location_id)
 
     if user_id == lord_user_id:
         # User is the current Drug Lord and does not pay.
@@ -748,8 +677,7 @@ func take_cut{
     # The drug lord is another user. Increase their money or drug.
     # id = 0 if buying.
     let giving_id = item_id * buy_or_sell
-    let (user_owned_addr) = IModuleController.get_module_address(
-        controller, 3)
+    let (user_owned_addr) = IModuleController.get_module_address(controller, 3)
     I03_UserOwned.user_has_item_write(user_owned_addr, lord_user_id, giving_id, lord_cut)
 
     return (amount_to_give - lord_cut)
