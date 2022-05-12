@@ -143,7 +143,7 @@ async def populated_game(game_factory):
 
 @pytest.mark.asyncio
 # @pytest.mark.parametrize('account_factory', [dict(num_signers=NUM_SIGNING_ACCOUNTS)], indirect=True)
-async def test_exerciser(populated_game, ):
+async def test_exerciser(ctx_factory):
     '''
     test_exerciser blasts random stimulus at turn-based PvE game,
     where player (P) only interacts with the game environment (E)
@@ -172,8 +172,26 @@ async def test_exerciser(populated_game, ):
 
     TODO: abstractify this function e.g. abstract TM, OM, BM out as classes
     '''
+    ctx = ctx_factory()
+    
+    accounts = [ctx.alice, ctx.hank, ctx.eric, ctx.bob, ctx.dave,ctx.frank, ctx.grace, ctx.carol, ctx.user1, ctx.user2, ctx.user3, ctx.user4, ctx.user5, ctx.user6, ctx.user7]
 
-    engine, user_owned, location_owned, accounts, _, _ = populated_game
+    
+   # Populate the item pair of interest across all locations.
+    total_locations = LOCATION_COUNT
+    sample_item_count_list = [total_locations] + [(i+1)*200 for i in range(40)]
+    sample_item_money_list = [total_locations] + [(i+1)*2000 for i in range(40)]
+
+    for item_id in range(1, 20):
+        # raw-interact with engine to initialize market; using admin
+        # TODO figure out how to pass list as argument to admin.tx_with_nonce()
+        await ctx.execute(
+            "admin", 
+            ctx.location_owned.contract_address,
+            'item_money_to_locations',
+            [item_id] + sample_item_money_list+ sample_item_count_list
+        )
+
  
     player_ids = [accounts[i].contract_address for i in range(NUM_SIGNING_ACCOUNTS)]
     loc_ids = [i for i in range(LOCATION_COUNT)]
@@ -186,11 +204,11 @@ async def test_exerciser(populated_game, ):
 
         # Step 1. Choose player P TODO: implement disabled-player-list
         player_id = player_ids [turn % NUM_SIGNING_ACCOUNTS]
-        await engine.check_user(player_id).invoke()
+        await ctx.engine.check_user(player_id).invoke()
         
         # Step 2. Player builds action space == [actions]
         #         where each action is {type: buy/sell, item_id: item_id, quantity: quantity}
-        p = await user_owned.check_user_state(player_id).invoke()
+        p = await ctx.user_owned.check_user_state(player_id).invoke()
 
         # print("money", p.result.money)
         # print("items_len", p.result)
@@ -198,16 +216,17 @@ async def test_exerciser(populated_game, ):
         # player_items = [ p.result.money,
         #     p.result.id1, p.result.id2, p.result.id3, p.result.id4, p.result.id5, p.result.id6, p.result.id7, p.result.id8, p.result.id9, p.result.id10,
         #     p.result.id11, p.result.id12, p.result.id13, p.result.id14, p.result.id15, p.result.id16, p.result.id17, p.result.id18, p.result.id19 ]
+        print(p.result.items)
         player_items = p.result.items
         random.shuffle(loc_ids) # explore locations in different order every time
         A = [] # start with empty action space
         for loc_id in loc_ids:
             random.shuffle(item_ids) # explore items in different order every time
             for item_id in item_ids:
-                curve = await location_owned.check_market_state(loc_id, item_id).invoke()
+                curve = await ctx.location_owned.check_market_state(loc_id, item_id).invoke()
                 curve_item = curve.result.item_quantity
                 curve_money = curve.result.money_quantity
-
+                print("curve_item", curve_item)
                 # Calculate price_for_one:
                 #   curve_item * curve_money = (curve_item-1) * (curve_money + X)
                 #   => X = curve_money / (curve_item-1)
@@ -245,7 +264,7 @@ async def test_exerciser(populated_game, ):
         try:
             turn_made = await Signer.send_transaction(
                 account=accounts[1],
-                to=engine.contract_address,
+                to=ctx.engine.contract_address,
                 selector_name='have_turn',
                 calldata=[player_id, loc_id,
                 buy_or_sell, a['item_id'], give_quantity]).invoke()

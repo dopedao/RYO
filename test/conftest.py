@@ -95,6 +95,14 @@ async def build_copyable_deployment():
         frank=Signer(23904852345),
         grace=Signer(215242342),
         hank=Signer(420),
+        
+        user1=Signer(1),
+        user2=Signer(2),
+        user3=Signer(3),
+        user4=Signer(4),
+        user5=Signer(5),
+        user6=Signer(6),
+        user7=Signer(7),
     )
 
     # Maps from name -> account contract
@@ -196,6 +204,16 @@ async def build_copyable_deployment():
     await register_user("grace")
     await register_user("hank")
 
+    await register_user("user1")
+    await register_user("user2")
+    await register_user("user3")
+    await register_user("user4")
+    await register_user("user5")
+    await register_user("user6")
+    await register_user("user7")
+
+
+
     return SimpleNamespace(
         starknet=starknet,
         consts=consts,
@@ -212,6 +230,16 @@ async def build_copyable_deployment():
             frank=serialize_contract(accounts.frank, defs.account.abi),
             grace=serialize_contract(accounts.grace, defs.account.abi),
             hank=serialize_contract(accounts.hank, defs.account.abi),
+            
+            user1=serialize_contract(accounts.user1, defs.account.abi),
+            user2=serialize_contract(accounts.user2, defs.account.abi),
+            user3=serialize_contract(accounts.user3, defs.account.abi),
+            user4=serialize_contract(accounts.user4, defs.account.abi),
+            user5=serialize_contract(accounts.user5, defs.account.abi),
+            user6=serialize_contract(accounts.user6, defs.account.abi),
+            user7=serialize_contract(accounts.user7, defs.account.abi),
+
+
             arbiter=serialize_contract(arbiter, defs.arbiter.abi),
             controller=serialize_contract(controller, defs.controller.abi),
             engine=serialize_contract(engine, defs.engine.abi),
