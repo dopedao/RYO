@@ -1,10 +1,12 @@
+from atexit import register
 import pytest
 import asyncio
 import random
 import math
 from starkware.starknet.testing.starknet import Starknet
 from utils.Signer import Signer
-from fixtures.account import account_factory
+from fixtures.account import *
+
 
 # Game parameters
 MIN_TURN_LOCKOUT = 3 # MUST be consistent with MIN_TURN_LOCKOUT in contract
@@ -22,49 +24,11 @@ COLOR_GREEN = '\33[32m'
 COLOR_RED = '\33[31m'
 ENDC = '\033[0m'
 
-@pytest.mark.asyncio
-async def populated_registry(ctx_factory):
-    ctx = ctx_factory()
 
-    # Populate the registry with some data.
-    sample_data = 84622096520155505419920978765481155
-
-    # Repeating sample data
-    # Indices from 0, 20, 40, 60, 80..., have values 3.
-    # Indices from 10, 30, 50, 70, 90..., have values 1.
-    # [00010000010011000011] * 6 == [1133] * 6
-    # Populate the registry with homogeneous users (same data each).
-    await Signer.send_transaction(
-        account=admin,
-        to=registry.contract_address,
-        selector_name='admin_fill_registry',
-        calldata=[len(signers), sample_data])
-    return registry
 
 @pytest.mark.asyncio
-async def populated_game(game_factory):
-    starknet, accounts, signers, arbiter, controller, engine, \
-        location_owned, user_owned, registry, combat = game_factory
-    admin = accounts[0]
-
-    # Populate the item pair of interest across all locations.
-    total_locations = LOCATION_COUNT
-    sample_item_count_list = [total_locations] + [(i+1)*200 for i in range(40)]
-    sample_item_money_list = [total_locations] + [(i+1)*2000 for i in range(40)]
-
-    for item_id in range(1, 20):
-        # raw-interact with engine to initialize market; using admin
-        # TODO figure out how to pass list as argument to admin.tx_with_nonce()
-        await Signer.send_transaction(account=admin,
-            to=location_owned.contract_address,
-            selector_name='admin_set_pairs',
-            calldata=[sample_item_count_list, sample_item_money_list])
-
-    return engine, accounts, sample_item_count_list, sample_item_money_list
-
-@pytest.mark.asyncio
-@pytest.mark.parametrize('account_factory', [dict(num_signers=NUM_SIGNING_ACCOUNTS)], indirect=True)
-async def test_exerciser(populated_game, populated_registry):
+# @pytest.mark.parametrize('account_factory', [dict(num_signers=NUM_SIGNING_ACCOUNTS)], indirect=True)
+async def test_exerciser(ctx_factory):
     '''
     test_exerciser blasts random stimulus at turn-based PvE game,
     where player (P) only interacts with the game environment (E)
@@ -93,10 +57,28 @@ async def test_exerciser(populated_game, populated_registry):
 
     TODO: abstractify this function e.g. abstract TM, OM, BM out as classes
     '''
+    ctx = ctx_factory()
+    
+    accounts = [ctx.alice, ctx.hank, ctx.eric, ctx.bob, ctx.dave,ctx.frank, ctx.grace, ctx.carol, ctx.user1, ctx.user2, ctx.user3, ctx.user4, ctx.user5, ctx.user6, ctx.user7]
 
-    engine, accounts, _, _ = populated_game
+    
+   # Populate the item pair of interest across all locations.
+    total_locations = LOCATION_COUNT
+    sample_item_count_list = [total_locations] + [(i+1)*200 for i in range(40)]
+    sample_item_money_list = [total_locations] + [(i+1)*2000 for i in range(40)]
 
-    player_ids = [i for i in range(NUM_SIGNING_ACCOUNTS)]
+    for item_id in range(1, 20):
+        # raw-interact with engine to initialize market; using admin
+        # TODO figure out how to pass list as argument to admin.tx_with_nonce()
+        await ctx.execute(
+            "admin", 
+            ctx.location_owned.contract_address,
+            'item_money_to_locations',
+            [item_id] + sample_item_money_list+ sample_item_count_list
+        )
+
+ 
+    player_ids = [accounts[i].contract_address for i in range(NUM_SIGNING_ACCOUNTS)]
     loc_ids = [i for i in range(LOCATION_COUNT)]
     item_ids = [i for i in range(1,ITEM_COUNT+1)] # item_id in range [1,ITEM_COUNT]
 
@@ -107,34 +89,43 @@ async def test_exerciser(populated_game, populated_registry):
 
         # Step 1. Choose player P TODO: implement disabled-player-list
         player_id = player_ids [turn % NUM_SIGNING_ACCOUNTS]
-
+        await ctx.engine.check_user(player_id).invoke()
+        
         # Step 2. Player builds action space == [actions]
         #         where each action is {type: buy/sell, item_id: item_id, quantity: quantity}
-        p = await engine.check_user_state(player_id).invoke()
-        player_items = [ p.result.money,
-            p.result.id1, p.result.id2, p.result.id3, p.result.id4, p.result.id5, p.result.id6, p.result.id7, p.result.id8, p.result.id9, p.result.id10,
-            p.result.id11, p.result.id12, p.result.id13, p.result.id14, p.result.id15, p.result.id16, p.result.id17, p.result.id18, p.result.id19 ]
+        p = await ctx.user_owned.check_user_state(player_id).invoke()
 
+        # print("money", p.result.money)
+        # print("items_len", p.result)
+        # return
+        # player_items = [ p.result.money,
+        #     p.result.id1, p.result.id2, p.result.id3, p.result.id4, p.result.id5, p.result.id6, p.result.id7, p.result.id8, p.result.id9, p.result.id10,
+        #     p.result.id11, p.result.id12, p.result.id13, p.result.id14, p.result.id15, p.result.id16, p.result.id17, p.result.id18, p.result.id19 ]
+        print(p.result.items)
+        player_items = p.result.items
         random.shuffle(loc_ids) # explore locations in different order every time
         A = [] # start with empty action space
         for loc_id in loc_ids:
             random.shuffle(item_ids) # explore items in different order every time
             for item_id in item_ids:
-                curve = await engine.check_market_state(loc_id, item_id).invoke()
+                curve = await ctx.location_owned.check_market_state(loc_id, item_id).invoke()
                 curve_item = curve.result.item_quantity
                 curve_money = curve.result.money_quantity
-
                 # Calculate price_for_one:
                 #   curve_item * curve_money = (curve_item-1) * (curve_money + X)
                 #   => X = curve_money / (curve_item-1)
+                
                 can_pay_max = int(player_items[0])
+                
                 if curve_item>1: # has more than one item in inventory so that price_for_one != inf:
                     price_for_one = math.ceil( curve_money/(curve_item-1) ) # if paying less than one item's price, transaction will revert
+                    
                     if can_pay_max >= price_for_one: # otherwise player can't afford even one item!
                         A.append({ 'type':'buy',  'item_id':item_id, 'max_give_quantity':can_pay_max, 'price_for_one':price_for_one})
 
                 # Calculate can_sell_max == "all my item"
                 can_sell_max = int(player_items[item_id])
+                
                 if can_sell_max > 0:
                     A.append({ 'type' : 'sell', 'item_id' : item_id, 'max_give_quantity' : can_sell_max})
 
@@ -157,7 +148,7 @@ async def test_exerciser(populated_game, populated_registry):
         try:
             turn_made = await Signer.send_transaction(
                 account=accounts[1],
-                to=engine.contract_address,
+                to=ctx.engine.contract_address,
                 selector_name='have_turn',
                 calldata=[player_id, loc_id,
                 buy_or_sell, a['item_id'], give_quantity]).invoke()

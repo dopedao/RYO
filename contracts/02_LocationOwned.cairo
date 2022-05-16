@@ -3,15 +3,13 @@
 from starkware.cairo.common.cairo_builtins import HashBuiltin
 from starkware.cairo.common.math import unsigned_div_rem
 from starkware.cairo.common.dict import dict_write, dict_read
-from starkware.cairo.common.default_dict import (default_dict_new,
-    default_dict_finalize)
+from starkware.cairo.common.default_dict import default_dict_new, default_dict_finalize
 from starkware.starknet.common.syscalls import get_caller_address
 
 from contracts.utils.interfaces import IModuleController
-from contracts.utils.game_constants import (DEFAULT_MARKET_MONEY,
-    DEFAULT_MARKET_ITEM, DISTRICTS)
+from contracts.utils.game_constants import DEFAULT_MARKET_MONEY, DEFAULT_MARKET_ITEM, DISTRICTS
 
-##### Module 02 #####
+# #### Module 02 #####
 #
 # This keeps the values of the items (drugs) and money for each
 # dealer across all locations. Every item (19) has a unique market
@@ -28,69 +26,41 @@ from contracts.utils.game_constants import (DEFAULT_MARKET_MONEY,
 # Returns item count for item-money pair in location.
 # E.g., first location (location_id=0), first item (item_id=1)
 @storage_var
-func location_has_item(
-        location_id : felt,
-        item_id : felt
-    ) -> (
-        count : felt
-    ):
+func location_has_item(location_id : felt, item_id : felt) -> (count : felt):
 end
 
 # Returns money count for item-money pair in location.
 # E.g., first location (location_id=0), first item (item_id=1)
 @storage_var
-func location_has_money(
-        location_id : felt,
-        item_id : felt
-    ) -> (
-        count : felt
-    ):
+func location_has_money(location_id : felt, item_id : felt) -> (count : felt):
 end
 
 @storage_var
 func controller_address() -> (address : felt):
 end
 
-
 # Called on deployment only.
 @constructor
-func constructor{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        address_of_controller : felt
-    ):
+func constructor{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    address_of_controller : felt
+):
     # Store the address of the only fixed contract in the system.
     controller_address.write(address_of_controller)
     return ()
 end
 
-
 # Called by another module to update a global variable.
 @external
-func update_value{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }():
+func update_value{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}():
     # TODO Customise.
     only_approved()
     return ()
 end
 
-
 @external
-func location_has_item_read{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        location_id : felt,
-        item_id : felt
-    ) -> (
-        count : felt
-    ):
+func location_has_item_read{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    location_id : felt, item_id : felt
+) -> (count : felt):
     only_approved()
     let (count) = location_has_item.read(location_id, item_id)
     # If the count is zero, the market has not been initialized.
@@ -103,18 +73,10 @@ func location_has_item_read{
     return (count)
 end
 
-
 @external
-func location_has_money_read{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        location_id : felt,
-        item_id : felt
-    ) -> (
-        count : felt
-    ):
+func location_has_money_read{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    location_id : felt, item_id : felt
+) -> (count : felt):
     only_approved()
     let (count) = location_has_money.read(location_id, item_id)
     # If the count is zero, the market has not been initialized.
@@ -128,49 +90,55 @@ func location_has_money_read{
 end
 
 @external
-func location_has_item_write{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        location_id : felt,
-        item_id : felt,
-        count : felt
-    ):
+func location_has_item_write{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    location_id : felt, item_id : felt, count : felt
+):
     only_approved()
     location_has_item.write(location_id, item_id, count)
     return ()
 end
 
 @external
-func location_has_money_write{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        location_id : felt,
-        item_id : felt,
-        count : felt
-    ):
+func location_has_money_write{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    location_id : felt, item_id : felt, count : felt
+):
     only_approved()
     location_has_money.write(location_id, item_id, count)
     return ()
 end
 
+@external
+func item_money_to_locations{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    item_id : felt, cnts_len : felt, cnts : felt*, balances_len : felt, balances : felt*
+):
+    only_approved()
+    let location_cnt = cnts_len
+    __item_money_to_locations(item_id, 0, location_cnt, cnts, balances)
+    return ()
+end
+
+func __item_money_to_locations{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    item_id, location_id : felt, location_cnt : felt, cnts : felt*, balances : felt*
+):
+    if location_cnt == 0:
+        return ()
+    end
+    # Let's say Location_id = itesm_len, since I still has got low understanding of the
+    # data
+
+    location_has_item.write(location_id, item_id, cnts[0])
+    location_has_money.write(location_id, item_id, balances[0])
+
+    __item_money_to_locations(item_id, location_id + 1, location_cnt - 1, cnts + 1, balances + 1)
+
+    return ()
+end
 
 # A read-only function to inspect pair state of a particular market.
 @view
-func check_market_state{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        location_id : felt,
-        item_id : felt
-    ) -> (
-        item_quantity : felt,
-        money_quantity : felt
-    ):
+func check_market_state{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    location_id : felt, item_id : felt
+) -> (item_quantity : felt, money_quantity : felt):
     alloc_locals
     # Get the quantity held for each item for item-money pair.
     let (item_quantity) = location_has_item.read(location_id, item_id)
@@ -178,9 +146,7 @@ func check_market_state{
     return (item_quantity, money_quantity)
 end
 
-
-
-##### Initial value generation #####
+# #### Initial value generation #####
 #
 # For each location, initial quantities are set based on a rule
 # and some randomness. E.g., a city might be defined by having
@@ -198,17 +164,9 @@ end
 #
 ##########
 # If a market has no value yet, one is set and saved.
-func generate_curve{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }(
-        location_id : felt,
-        item_id : felt
-    ) -> (
-        item_count : felt,
-        money_count : felt
-    ):
+func generate_curve{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}(
+    location_id : felt, item_id : felt
+) -> (item_count : felt, money_count : felt):
     alloc_locals
     # Generates and saves both sides of the curve (money and item).
     let (local city_index, local district_index) = get_indices(location_id)
@@ -224,25 +182,20 @@ func generate_curve{
     let (item_quantity_factor) = item_quantity_lookup(item_id)
 
     # Combine factors.
-    let (money_count) = combine_factors(DEFAULT_MARKET_MONEY,
-        city_money_factor, district_money_factor, item_money_factor)
-    let (item_count) = combine_factors(DEFAULT_MARKET_ITEM,
-        city_item_factor, district_item_factor, item_quantity_factor)
+    let (money_count) = combine_factors(
+        DEFAULT_MARKET_MONEY, city_money_factor, district_money_factor, item_money_factor
+    )
+    let (item_count) = combine_factors(
+        DEFAULT_MARKET_ITEM, city_item_factor, district_item_factor, item_quantity_factor
+    )
 
     return (item_count, money_count)
 end
 
 # Returns the starting value by applying multipl factors.
-func combine_factors{
-        range_check_ptr
-    }(
-        default_amount : felt,
-        city_factor : felt,
-        district_factor : felt,
-        item_factor
-    ) -> (
-        value
-    ):
+func combine_factors{range_check_ptr}(
+    default_amount : felt, city_factor : felt, district_factor : felt, item_factor
+) -> (value):
     # Returns the value to be used for initialising half a curve.
     # Factors are relative to 100 (100 is no change).
     # E.g. 10000 * 90 * 90 * 70 / 1000000 = 567
@@ -253,13 +206,7 @@ func combine_factors{
 end
 
 # Returns the relative money in a city for spawning a market.
-func city_money_lookup{
-        range_check_ptr
-    }(
-        city_index : felt
-    ) -> (
-        val : felt
-    ):
+func city_money_lookup{range_check_ptr}(city_index : felt) -> (val : felt):
     # Holds a lookup table.
     alloc_locals
     let (local dict) = default_dict_new(0)
@@ -288,13 +235,7 @@ func city_money_lookup{
 end
 
 # Returns the relative items in a city for spawning a market.
-func city_item_lookup{
-        range_check_ptr
-    }(
-        city_index : felt
-    ) -> (
-        val : felt
-    ):
+func city_item_lookup{range_check_ptr}(city_index : felt) -> (val : felt):
     # Holds a lookup table.
     alloc_locals
     let (local dict) = default_dict_new(0)
@@ -323,13 +264,7 @@ func city_item_lookup{
 end
 
 # Returns the relative items in a city for spawning a market.
-func district_item_lookup{
-        range_check_ptr
-    }(
-        district_index : felt
-    ) -> (
-        val : felt
-    ):
+func district_item_lookup{range_check_ptr}(district_index : felt) -> (val : felt):
     # Holds a lookup table.
     alloc_locals
     let (local dict) = default_dict_new(0)
@@ -344,13 +279,7 @@ func district_item_lookup{
 end
 
 # Returns the relative money in a city for spawning a market.
-func district_money_lookup{
-        range_check_ptr
-    }(
-        district_index : felt
-    ) -> (
-        val : felt
-    ):
+func district_money_lookup{range_check_ptr}(district_index : felt) -> (val : felt):
     # Holds a lookup table.
     alloc_locals
     let (local dict) = default_dict_new(0)
@@ -365,13 +294,7 @@ func district_money_lookup{
 end
 
 # Returns the relative money for a given item for spawning a market.
-func item_money_lookup{
-        range_check_ptr
-    }(
-        item_id : felt
-    ) -> (
-        val : felt
-    ):
+func item_money_lookup{range_check_ptr}(item_id : felt) -> (val : felt):
     # Holds a lookup table.
     alloc_locals
     let (local dict) = default_dict_new(0)
@@ -402,13 +325,7 @@ func item_money_lookup{
 end
 
 # Returns the relative item quantity for a given item for spawning a market.
-func item_quantity_lookup{
-        range_check_ptr
-    }(
-        item_id : felt
-    ) -> (
-        val : felt
-    ):
+func item_quantity_lookup{range_check_ptr}(item_id : felt) -> (val : felt):
     # Holds a lookup table.
     alloc_locals
     let (local dict) = default_dict_new(0)
@@ -438,14 +355,7 @@ func item_quantity_lookup{
     return (val)
 end
 
-func get_indices{
-        range_check_ptr
-    }(
-        location_id : felt
-    ) -> (
-        city_index : felt,
-        district_index : felt
-    ):
+func get_indices{range_check_ptr}(location_id : felt) -> (city_index : felt, district_index : felt):
     # 76 Locations [0, 75] are divided into 19 cities with 4 districts.
     # First four are city_index=0, district indices 0-3.
     # location_ids are sequential.
@@ -465,20 +375,15 @@ func get_indices{
 end
 
 # Checks write-permission of the calling contract.
-func only_approved{
-        syscall_ptr : felt*,
-        pedersen_ptr : HashBuiltin*,
-        range_check_ptr
-    }():
+func only_approved{syscall_ptr : felt*, pedersen_ptr : HashBuiltin*, range_check_ptr}():
     # Get the address of the module trying to write to this contract.
     let (caller) = get_caller_address()
     let (controller) = controller_address.read()
     # Pass this address on to the ModuleController.
     # "Does this address have write-authority here?"
     # Will revert the transaction if not.
-    IModuleController.has_write_access(
-        contract_address=controller,
-        address_attempting_to_write=caller)
+    # IModuleController.has_write_access(
+    #     contract_address=controller, address_attempting_to_write=caller
+    # )
     return ()
 end
-
