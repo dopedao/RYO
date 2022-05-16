@@ -111,7 +111,6 @@ async def test_exerciser(ctx_factory):
                 curve = await ctx.location_owned.check_market_state(loc_id, item_id).invoke()
                 curve_item = curve.result.item_quantity
                 curve_money = curve.result.money_quantity
-                print("curve_item", curve_item)
                 # Calculate price_for_one:
                 #   curve_item * curve_money = (curve_item-1) * (curve_money + X)
                 #   => X = curve_money / (curve_item-1)
